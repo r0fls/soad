@@ -18,8 +18,6 @@ class TradierBroker(BaseBroker):
         url = f'{self.BASE_URL}/user/profile'
         response = requests.get(url, headers=self.headers)
         account_info = response.json()
-
-        # Assuming the response contains account information with an account ID
         self.account_id = account_info['profile']['account']['account_number']
         return account_info
 
@@ -34,7 +32,10 @@ class TradierBroker(BaseBroker):
             'price': price
         }
         response = requests.post(url, headers=self.headers, data=order)
-        return response.json()
+        order_info = response.json()
+        executed_price = order_info.get('filled_price', price)  # Assume 'filled_price' is returned
+        order_info['executed_price'] = executed_price  # Add the executed price to the order info
+        return order_info
 
     def _get_order_status(self, order_id):
         url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/{order_id}'
@@ -54,3 +55,8 @@ class TradierBroker(BaseBroker):
         }
         response = requests.get(url, headers=self.headers, params=params)
         return response.json()
+
+    def get_current_price(self, symbol):
+        response = requests.get(f'{self.BASE_URL}/markets/quotes', headers=self.headers, params={'symbols': symbol})
+        quote = response.json()
+        return quote['quotes']['quote']['last']

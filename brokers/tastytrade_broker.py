@@ -15,14 +15,7 @@ class TastytradeBroker(BaseBroker):
             'password': self.secret_key
         }
         response = requests.post(login_url, json=login_payload)
-        if response.status_code != 200:
-            print(f"Failed to connect: {response.status_code}")
-            response.raise_for_status()
-        response_json = response.json()
-        if 'data' not in response_json or 'session-token' not in response_json['data']:
-            print("Invalid response format", response_json)
-            raise ValueError("Invalid response format")
-        self.session_token = response_json['data']['session-token']
+        self.session_token = response.json()['data']['session-token']
         self.headers = {
             'Authorization': f'Bearer {self.session_token}',
             'Accept': 'application/json'
@@ -45,7 +38,10 @@ class TastytradeBroker(BaseBroker):
             'action': order_type
         }
         response = requests.post(url, headers=self.headers, json=order)
-        return response.json()
+        order_info = response.json()
+        executed_price = order_info.get('filled_price', price)  # Assume 'filled_price' is returned
+        order_info['executed_price'] = executed_price  # Add the executed price to the order info
+        return order_info
 
     def _get_order_status(self, order_id):
         url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/{order_id}'
@@ -65,3 +61,8 @@ class TastytradeBroker(BaseBroker):
         }
         response = requests.get(url, headers=self.headers, params=params)
         return response.json()
+
+    def get_current_price(self, symbol):
+        response = requests.get(f'{self.BASE_URL}/markets/quotes', headers=self.headers, params={'symbols': symbol})
+        quote = response.json()
+        return quote['quotes']['quote']['last']

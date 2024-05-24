@@ -29,7 +29,10 @@ class EtradeBroker(BaseBroker):
             'action': order_type.upper()
         }
         response = requests.post(url, auth=self.auth, json=order)
-        return response.json()
+        order_info = response.json()
+        executed_price = order_info.get('filled_price', price)  # Assume 'filled_price' is returned
+        order_info['executed_price'] = executed_price  # Add the executed price to the order info
+        return order_info
 
     def _get_order_status(self, order_id):
         url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/{order_id}'
@@ -51,3 +54,8 @@ class EtradeBroker(BaseBroker):
         }
         response = requests.get(url, auth=self.auth, params=params)
         return response.json()
+
+    def get_current_price(self, symbol):
+        response = requests.get(f'{self.BASE_URL}/market/quote/{symbol}', auth=self.auth)
+        quote = response.json()
+        return quote['quoteResponse']['quoteData'][0]['lastTrade']
