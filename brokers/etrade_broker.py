@@ -7,6 +7,7 @@ class EtradeBroker(BaseBroker):
 
     def __init__(self, api_key, secret_key):
         super().__init__(api_key, secret_key, 'E*TRADE')
+        self.account_id = None
 
     def connect(self):
         self.auth = OAuth1(self.api_key, self.secret_key)
@@ -14,7 +15,9 @@ class EtradeBroker(BaseBroker):
     def _get_account_info(self):
         url = f'{self.BASE_URL}/accounts/list'
         response = requests.get(url, auth=self.auth)
-        return response.json()
+        account_info = response.json()
+        self.account_id = account_info['accountListResponse']['accounts'][0]['accountId']
+        return account_info
 
     def _place_order(self, symbol, quantity, order_type, price=None):
         url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/place'

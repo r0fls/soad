@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-import threading
-from queue import Queue
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo
 from datetime import datetime
@@ -11,10 +9,6 @@ class BaseBroker(ABC):
         self.secret_key = secret_key
         self.brokerage_name = brokerage_name
         self.db_manager = DBManager()
-        self.db_queue = Queue()
-        self.db_thread = threading.Thread(target=self._process_db_queue)
-        self.db_thread.daemon = True
-        self.db_thread.start()
 
     @abstractmethod
     def connect(self):
@@ -42,7 +36,7 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.track_account_info(account_info)
+        self.db_manager.add_account_info(AccountInfo(data=account_info))
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
@@ -57,7 +51,7 @@ class BaseBroker(ABC):
             brokerage=self.brokerage_name,
             strategy=strategy
         )
-        self.track_trade(trade)
+        self.db_manager.add_trade(trade)
         return order_info
 
     def get_order_status(self, order_id):
@@ -68,15 +62,3 @@ class BaseBroker(ABC):
 
     def get_options_chain(self, symbol, expiration_date):
         return self._get_options_chain(symbol, expiration_date)
-
-    def _process_db_queue(self):
-        while True:
-            func, args = self.db_queue.get()
-            func(*args)
-            self.db_queue.task_done()
-
-    def track_trade(self, trade):
-        self.db_queue.put((self.db_manager.add_trade, (trade,)))
-
-    def track_account_info(self, account_info):
-        self.db_queue.put((self.db_manager.add_account_info, (account_info,)))

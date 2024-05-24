@@ -9,22 +9,45 @@ Session = sessionmaker(bind=engine)
 
 class DBManager:
     def __init__(self):
-        self.session = Session()
+        self.engine = engine
+        self.Session = Session
 
     def add_trade(self, trade):
-        self.session.add(trade)
-        self.session.commit()
+        session = self.Session()
+        try:
+            session.add(trade)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
 
     def add_account_info(self, account_info):
-        existing_info = self.session.query(AccountInfo).first()
-        if existing_info:
-            self.session.delete(existing_info)
-            self.session.commit()
-        self.session.add(account_info)
-        self.session.commit()
+        session = self.Session()
+        try:
+            existing_info = session.query(AccountInfo).first()
+            if existing_info:
+                session.delete(existing_info)
+                session.commit()
+            session.add(account_info)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
 
     def get_trade(self, trade_id):
-        return self.session.query(Trade).filter_by(id=trade_id).first()
+        session = self.Session()
+        try:
+            return session.query(Trade).filter_by(id=trade_id).first()
+        finally:
+            session.close()
 
     def get_all_trades(self):
-        return self.session.query(Trade).all()
+        session = self.Session()
+        try:
+            return session.query(Trade).all()
+        finally:
+            session.close()
