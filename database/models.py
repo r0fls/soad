@@ -24,12 +24,16 @@ class Trade(Base):
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
-    
-    id = Column(Integer, primary_key=True)
-    data = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    broker = Column(String)
+    value = Column(Float)
 
 DATABASE_URL = "sqlite:///trades.db"
 
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
+
+def init_db(engine):
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
