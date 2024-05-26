@@ -1,9 +1,10 @@
 import argparse
 import time
 from datetime import datetime, timedelta
+from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 
-def main(config_path):
+def start_trading_system(config_path):
     # Parse the configuration file
     config = parse_config(config_path)
     
@@ -29,9 +30,22 @@ def main(config_path):
                 last_rebalances[i] = now
         time.sleep(60)  # Check every minute
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run trading strategies based on YAML configuration.")
-    parser.add_argument('--config', type=str, required=True, help='Path to the YAML configuration file.')
+def start_api_server():
+    app = create_app()
+    app.run(host="0.0.0.0", port=8000)
+
+def main():
+    parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
+    parser.add_argument('--mode', choices=['trade', 'api'], required=True, help='Mode to run the system in: "trade" or "api"')
+    parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     args = parser.parse_args()
-    
-    main(args.config)
+
+    if args.mode == 'trade':
+        if not args.config:
+            parser.error('--config is required when mode is "trade"')
+        start_trading_system(args.config)
+    elif args.mode == 'api':
+        start_api_server()
+
+if __name__ == "__main__":
+    main()

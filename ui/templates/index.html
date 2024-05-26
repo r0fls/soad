@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trading Dashboard</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Trading Dashboard</h1>
+    <div>
+        <h2>Number of Trades per Strategy</h2>
+        <div id="trades_per_strategy"></div>
+    </div>
+    <div>
+        <h2>Account Values</h2>
+        <div id="account_values"></div>
+    </div>
+    <div>
+        <h2>Trade Success Rate</h2>
+        <div id="trade_success_rate"></div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            $.getJSON("/trades_per_strategy", function(data) {
+                $("#trades_per_strategy").html(JSON.stringify(data));
+            });
+
+            $.getJSON("/account_values", function(data) {
+                $("#account_values").html(JSON.stringify(data));
+            });
+
+            $.getJSON("/trade_success_rate", function(data) {
+                $("#trade_success_rate").html(JSON.stringify(data));
+            });
+        });
+    </script>
+</body>
+</html>
