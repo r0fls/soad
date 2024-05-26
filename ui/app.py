@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo
 import os
 
-app = Flask("TradingAPI", template_folder='templates')
+app = Flask("TradingAPI", template_folder='ui/templates')
 
 DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)

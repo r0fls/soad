@@ -2,36 +2,268 @@
 <html>
 <head>
     <title>Trading Dashboard</title>
-    <!--<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1.0.0"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .filter-bar {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Trading Dashboard</h1>
-    <div>
-        <h2>Number of Trades per Strategy</h2>
-        <div id="trades_per_strategy"></div>
-    </div>
-    <div>
-        <h2>Account Values</h2>
-        <div id="account_values"></div>
-    </div>
-    <div>
-        <h2>Trade Success Rate</h2>
-        <div id="trade_success_rate"></div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">Trading Dashboard</a>
+    </nav>
+    <div class="container">
+        <div class="row filter-bar">
+            <div class="col-md-3">
+                <select id="strategyFilter" class="form-control">
+                    <option value="all">All Strategies</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="brokerFilter" class="form-control">
+                    <option value="all">All Brokers</option>
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        Number of Trades per Strategy
+                    </div>
+                    <div class="card-body">
+                        <canvas id="tradesPerStrategyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        Account Values
+                    </div>
+                    <div class="card-body">
+                        <canvas id="accountValuesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        Trade Success Rate
+                    </div>
+                    <div class="card-body">
+                        <canvas id="tradeSuccessRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        Historical Value per Strategy
+                    </div>
+                    <div class="card-body">
+                        <canvas id="historicalValueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         $(document).ready(function(){
-            $.getJSON("/trades_per_strategy", function(data) {
-                $("#trades_per_strategy").html(JSON.stringify(data));
-            });
+            let strategyFilter = $('#strategyFilter');
+            let brokerFilter = $('#brokerFilter');
 
-            $.getJSON("/account_values", function(data) {
-                $("#account_values").html(JSON.stringify(data));
-            });
+            function loadFilters() {
+                $.getJSON("/trades_per_strategy", function(data) {
+                    let strategies = new Set();
+                    let brokers = new Set();
+                    data.trades_per_strategy.forEach(function(item) {
+                        strategies.add(item.strategy);
+                        brokers.add(item.brokerage);
+                    });
+                    strategies.forEach(function(strategy) {
+                        strategyFilter.append('<option value="' + strategy + '">' + strategy + '</option>');
+                    });
+                    brokers.forEach(function(broker) {
+                        brokerFilter.append('<option value="' + broker + '">' + broker + '</option>');
+                    });
+                });
+            }
 
-            $.getJSON("/trade_success_rate", function(data) {
-                $("#trade_success_rate").html(JSON.stringify(data));
-            });
+            function updateCharts() {
+                let selectedStrategy = strategyFilter.val();
+                let selectedBroker = brokerFilter.val();
+
+                $.getJSON("/trades_per_strategy", function(data) {
+                    let strategies = [];
+                    let counts = [];
+                    data.trades_per_strategy.forEach(function(item) {
+                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                            strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                            counts.push(item.count);
+                        }
+                    });
+                    new Chart(document.getElementById('tradesPerStrategyChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: strategies,
+                            datasets: [{
+                                label: 'Number of Trades',
+                                data: counts,
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                });
+
+                $.getJSON("/account_values", function(data) {
+                    let brokers = [];
+                    let values = [];
+                    Object.keys(data.account_values).forEach(function(broker) {
+                        if (selectedBroker === 'all' || broker === selectedBroker) {
+                            brokers.push(broker);
+                            values.push(data.account_values[broker]);
+                        }
+                    });
+                    new Chart(document.getElementById('accountValuesChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: brokers,
+                            datasets: [{
+                                label: 'Account Value',
+                                data: values,
+                                backgroundColor: [
+                                    'rgba(255, 99, 132, 0.2)',
+                                    'rgba(54, 162, 235, 0.2)',
+                                    'rgba(255, 206, 86, 0.2)'
+                                ],
+                                borderColor: [
+                                    'rgba(255, 99, 132, 1)',
+                                    'rgba(54, 162, 235, 1)',
+                                    'rgba(255, 206, 86, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true
+                        }
+                    });
+                });
+
+                $.getJSON("/trade_success_rate", function(data) {
+                    let strategies = [];
+                    let successRates = [];
+                    data.trade_success_rate.forEach(function(item) {
+                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                            strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                            let successRate = (item.successful_trades / item.total_trades) * 100;
+                            successRates.push(successRate);
+                        }
+                    });
+                    new Chart(document.getElementById('tradeSuccessRateChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: strategies,
+                            datasets: [{
+                                label: 'Success Rate (%)',
+                                data: successRates,
+                                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                                borderColor: 'rgba(153, 102, 255, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                });
+
+                $.getJSON("/historic_value_per_strategy", function(data) {
+                    let strategies = [];
+                    let historicalData = {};
+                    data.historic_value_per_strategy.forEach(function(item) {
+                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                            let key = item.strategy + ' (' + item.brokerage + ')';
+                            if (!historicalData[key]) {
+                                historicalData[key] = [];
+                            }
+                            historicalData[key].push({
+                                x: item.hour,
+                                y: item.total_profit_loss
+                            });
+                        }
+                    });
+
+                    let datasets = [];
+                    Object.keys(historicalData).forEach(function(key) {
+                        datasets.push({
+                            label: key,
+                            data: historicalData[key],
+                            fill: false,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        });
+                    });
+
+                    new Chart(document.getElementById('historicalValueChart'), {
+                        type: 'line',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'hour'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+
+            loadFilters();
+            strategyFilter.change(updateCharts);
+            brokerFilter.change(updateCharts);
+            updateCharts();
         });
     </script>
 </body>
