@@ -2,67 +2,47 @@ import requests
 from brokers.base_broker import BaseBroker
 
 class TastytradeBroker(BaseBroker):
-    BASE_URL = 'https://api.tastyworks.com'
-
-    def __init__(self, api_key, secret_key):
-        super().__init__(api_key, secret_key, 'Tastytrade')
-        self.account_id = None
+    def __init__(self, api_key, secret_key, engine):
+        super().__init__(api_key, secret_key, 'Tastytrade', engine)
 
     def connect(self):
-        login_url = f'{self.BASE_URL}/sessions'
-        login_payload = {
-            'login': self.api_key,
-            'password': self.secret_key
-        }
-        response = requests.post(login_url, json=login_payload)
-        self.session_token = response.json()['data']['session-token']
-        self.headers = {
-            'Authorization': f'Bearer {self.session_token}',
-            'Accept': 'application/json'
-        }
+        # Implement the connection logic
+        response = requests.post("https://api.tastytrade.com/oauth/token", data={"key": self.api_key, "secret": self.secret_key})
+        self.auth = response.json().get('access_token')
 
     def _get_account_info(self):
-        url = f'{self.BASE_URL}/accounts'
-        response = requests.get(url, headers=self.headers)
-        account_info = response.json()
-        self.account_id = account_info['data']['items'][0]['account']['account_number']
-        return account_info
+        # Implement account information retrieval
+        response = requests.get("https://api.tastytrade.com/accounts", headers={"Authorization": f"Bearer {self.auth}"})
+        account_data = response.json().get('accounts')[0]
+        return {'value': account_data.get('value')}
 
     def _place_order(self, symbol, quantity, order_type, price=None):
-        url = f'{self.BASE_URL}/accounts/{self.account_id}/orders'
-        order = {
-            'symbol': symbol,
-            'quantity': quantity,
-            'price': price,
-            'type': 'market' if price is None else 'limit',
-            'action': order_type
+        # Implement order placement
+        order_data = {
+            "symbol": symbol,
+            "quantity": quantity,
+            "order_type": order_type,
+            "price": price
         }
-        response = requests.post(url, headers=self.headers, json=order)
-        order_info = response.json()
-        executed_price = order_info.get('filled_price', price)  # Assume 'filled_price' is returned
-        order_info['executed_price'] = executed_price  # Add the executed price to the order info
-        return order_info
+        response = requests.post("https://api.tastytrade.com/orders", json=order_data, headers={"Authorization": f"Bearer {self.auth}"})
+        return response.json()
 
     def _get_order_status(self, order_id):
-        url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/{order_id}'
-        response = requests.get(url, headers=self.headers)
+        # Implement order status retrieval
+        response = requests.get(f"https://api.tastytrade.com/orders/{order_id}", headers={"Authorization": f"Bearer {self.auth}"})
         return response.json()
 
     def _cancel_order(self, order_id):
-        url = f'{self.BASE_URL}/accounts/{self.account_id}/orders/{order_id}'
-        response = requests.delete(url, headers=self.headers)
+        # Implement order cancellation
+        response = requests.put(f"https://api.tastytrade.com/orders/{order_id}/cancel", headers={"Authorization": f"Bearer {self.auth}"})
         return response.json()
 
     def _get_options_chain(self, symbol, expiration_date):
-        url = f'{self.BASE_URL}/markets/option-chains'
-        params = {
-            'symbol': symbol,
-            'expiration': expiration_date
-        }
-        response = requests.get(url, headers=self.headers, params=params)
+        # Implement options chain retrieval
+        response = requests.get(f"https://api.tastytrade.com/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers={"Authorization": f"Bearer {self.auth}"})
         return response.json()
 
     def get_current_price(self, symbol):
-        response = requests.get(f'{self.BASE_URL}/markets/quotes', headers=self.headers, params={'symbols': symbol})
-        quote = response.json()
-        return quote['quotes']['quote']['last']
+        # Implement current price retrieval
+        response = requests.get(f"https://api.tastytrade.com/markets/quotes/{symbol}", headers={"Authorization": f"Bearer {self.auth}"})
+        return response.json().get('lastPrice')

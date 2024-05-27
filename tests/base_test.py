@@ -4,14 +4,14 @@ from sqlalchemy.orm import sessionmaker
 from database.models import Base, Trade, AccountInfo, Balance
 from datetime import datetime
 
-DATABASE_URL = "sqlite:///test_trading.db"
 
 class BaseTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.engine = create_engine(DATABASE_URL)
+        cls.engine = create_engine('sqlite:///:memory:')
+        Base.metadata.create_all(cls.engine)
         cls.Session = sessionmaker(bind=cls.engine)
-    
+
     def setUp(self):
         # Initialize the database
         Base.metadata.drop_all(self.engine)
@@ -31,8 +31,14 @@ class BaseTest(unittest.TestCase):
             Balance(brokerage='Tradier', strategy='EMA', initial_balance=-4975.0, total_balance=-4975.0)
         ]
 
+        fake_account_info = [
+            AccountInfo(broker='E*TRADE', value=10000.0),
+            AccountInfo(broker='Tradier', value=5000.0)
+        ]
+
         self.session.add_all(fake_trades)
         self.session.add_all(fake_balances)
+        self.session.add_all(fake_account_info)
         self.session.commit()
 
     def tearDown(self):

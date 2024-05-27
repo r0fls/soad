@@ -1,23 +1,25 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from datetime import datetime
+from sqlalchemy import create_engine
 from brokers.tradier_broker import TradierBroker
-from database.models import Trade, Balance, AccountInfo
 from base_test import BaseTest
 
 class TestTradierBroker(BaseTest):
+
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-        self.broker = TradierBroker('api_key', 'secret_key')
+        self.engine = create_engine('sqlite:///:memory:')
+        self.broker = TradierBroker('api_key', 'secret_key', engine=self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'data': {'session-token': 'token'}}
+        mock_response.json.return_value = {'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}}
         mock_post.return_value = mock_response
 
+    @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def test_connect(self, mock_post):
+    def test_connect(self, mock_post, mock_get):
         self.mock_connect(mock_post)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'headers'))
@@ -27,12 +29,12 @@ class TestTradierBroker(BaseTest):
     def test_get_account_info(self, mock_post, mock_get):
         self.mock_connect(mock_post)
         mock_response = MagicMock()
-        mock_response.json.return_value = {'profile': {'account': {'account_number': '12345'}}}
+        mock_response.json.return_value = {'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}}
         mock_get.return_value = mock_response
 
         self.broker.connect()
         account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345'}}})
+        self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}})
         self.assertEqual(self.broker.account_id, '12345')
 
     @patch('brokers.tradier_broker.requests.post')
@@ -41,7 +43,7 @@ class TestTradierBroker(BaseTest):
     def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
-            'profile': {'account': {'account_number': '12345'}}
+            'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}

@@ -1,8 +1,33 @@
-import unittes
+import unittest
 from datetime import datetime
 from database.models import Trade, Balance
-from base_test import BaseTes
-from your_broker_module import BaseBroker  # Replace with the actual impor
+from base_test import BaseTest
+from brokers.base_broker import BaseBroker
+
+class MockBroker(BaseBroker):
+    def connect(self):
+        pass
+
+    def _get_account_info(self):
+        return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
+
+    def _place_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
+
+    def _get_order_status(self, order_id):
+        return {'status': 'completed'}
+
+    def _cancel_order(self, order_id):
+        return {'status': 'cancelled'}
+
+    def _get_options_chain(self, symbol, expiration_date):
+        return {'options': 'chain'}
+
+    def get_current_price(self, symbol):
+        return 150.0
+
+    def execute_trade(self, *args):
+        pass
 
 class TestTrading(BaseTest):
     def setUp(self):
@@ -32,7 +57,7 @@ class TestTrading(BaseTest):
         }
 
         # Execute the trade
-        broker = BaseBroker('api_key', 'secret_key', 'E*TRADE')
+        broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
         broker.execute_trade(self.session, trade_data)
 
         # Verify the trade was inserted
