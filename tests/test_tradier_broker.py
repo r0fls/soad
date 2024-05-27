@@ -1,10 +1,13 @@
 import unittest
 from unittest.mock import patch, MagicMock
+from datetime import datetime
 from brokers.tradier_broker import TradierBroker
+from database.models import Trade, Balance, AccountInfo
+from base_test import BaseTest
 
-class TestTradierBroker(unittest.TestCase):
-
+class TestTradierBroker(BaseTest):
     def setUp(self):
+        super().setUp()  # Call the setup from BaseTest
         self.broker = TradierBroker('api_key', 'secret_key')
 
     def mock_connect(self, mock_post):
@@ -35,19 +38,29 @@ class TestTradierBroker(unittest.TestCase):
     @patch('brokers.tradier_broker.requests.post')
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
+    def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
             'profile': {'account': {'account_number': '12345'}}
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_response.return_value]
+        mock_post_place_order.side_effect = [mock_response]
 
         self.broker.connect()
         self.broker.get_account_info()
         order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
+
         self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
+
+        # Verify the trade was inserted
+        trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
+        self.assertIsNotNone(trade)
+
+        # Verify the balance was updated
+        balance = self.session.query(Balance).filter_by(brokerage='Tradier', strategy='example_strategy').first()
+        self.assertIsNotNone(balance)
+        self.assertEqual(balance.total_balance, 1550.0)
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')

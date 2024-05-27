@@ -1,10 +1,13 @@
 import unittest
 from unittest.mock import patch, MagicMock
+from datetime import datetime
 from brokers.tastytrade_broker import TastytradeBroker
+from database.models import Trade, Balance
+from base_test import BaseTest
 
-class TestTastytradeBroker(unittest.TestCase):
-
+class TestTastytradeBroker(BaseTest):
     def setUp(self):
+        super().setUp()  # Call the setup from BaseTest
         self.broker = TastytradeBroker('api_key', 'secret_key')
 
     def mock_connect(self, mock_post):

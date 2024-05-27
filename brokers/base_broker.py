@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from database.db_manager import DBManager
-from database.models import Trade, AccountInfo
+from database.models import Trade, AccountInfo, Balance
 from datetime import datetime
 
 class BaseBroker(ABC):
@@ -36,7 +36,7 @@ class BaseBroker(ABC):
 
     def get_account_info(self):
         account_info = self._get_account_info()
-        self.db_manager.add_account_info(AccountInfo(data=account_info))
+        self.db_manager.add_account_info(AccountInfo(broker=self.brokerage_name, value=account_info['value']))
         return account_info
 
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
@@ -58,6 +58,7 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
             self.update_trade(session, trade.id, order_info)
+            self.update_balance(session, trade)
         return order_info
 
     def get_order_status(self, order_id):
@@ -95,6 +96,26 @@ class BaseBroker(ABC):
         trade.executed_price = executed_price
         trade.success = success
         trade.profit_loss = profit_loss
+        session.commit()
+
+        self.update_balance(session, trade)
+
+    def update_balance(self, session, trade):
+        balance = session.query(Balance).filter_by(brokerage=trade.brokerage, strategy=trade.strategy).first()
+        trade_value = trade.executed_price * trade.quantity
+        if not balance:
+            balance = Balance(
+                brokerage=trade.brokerage,
+                strategy=trade.strategy,
+                initial_balance=trade_value,
+                total_balance=trade_value
+            )
+            session.add(balance)
+        else:
+            if trade.order_type == 'buy':
+                balance.total_balance += trade_value
+            elif trade.order_type == 'sell':
+                balance.total_balance -= trade_value
         session.commit()
 
     @abstractmethod
