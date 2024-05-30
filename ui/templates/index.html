@@ -92,42 +92,46 @@
             let strategyFilter = $('#strategyFilter');
             let brokerFilter = $('#brokerFilter');
             let tradesPerStrategyChart, accountValuesChart, tradeSuccessRateChart, historicalValueChart;
-
+        
             function loadFilters() {
                 $.getJSON("/trades_per_strategy", function(data) {
                     let strategies = new Set();
                     let brokers = new Set();
-                    data.trades_per_strategy.forEach(function(item) {
-                        strategies.add(item.strategy);
-                        brokers.add(item.brokerage);
-                    });
-                    strategies.forEach(function(strategy) {
-                        strategyFilter.append('<option value="' + strategy + '">' + strategy + '</option>');
-                    });
-                    brokers.forEach(function(broker) {
-                        brokerFilter.append('<option value="' + broker + '">' + broker + '</option>');
-                    });
+                    if (data.trades_per_strategy) {
+                        data.trades_per_strategy.forEach(function(item) {
+                            strategies.add(item.strategy);
+                            brokers.add(item.brokerage);
+                        });
+                        strategies.forEach(function(strategy) {
+                            strategyFilter.append('<option value="' + strategy + '">' + strategy + '</option>');
+                        });
+                        brokers.forEach(function(broker) {
+                            brokerFilter.append('<option value="' + broker + '">' + broker + '</option>');
+                        });
+                    }
                 });
             }
-
+        
             function updateCharts() {
                 let selectedStrategy = strategyFilter.val();
                 let selectedBroker = brokerFilter.val();
-
+        
                 if (tradesPerStrategyChart) tradesPerStrategyChart.destroy();
                 if (accountValuesChart) accountValuesChart.destroy();
                 if (tradeSuccessRateChart) tradeSuccessRateChart.destroy();
                 if (historicalValueChart) historicalValueChart.destroy();
-
+        
                 $.getJSON("/trades_per_strategy", function(data) {
                     let strategies = [];
                     let counts = [];
-                    data.trades_per_strategy.forEach(function(item) {
-                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                            strategies.push(item.strategy + ' (' + item.brokerage + ')');
-                            counts.push(item.count);
-                        }
-                    });
+                    if (data.trades_per_strategy) {
+                        data.trades_per_strategy.forEach(function(item) {
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                                strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                                counts.push(item.count);
+                            }
+                        });
+                    }
                     tradesPerStrategyChart = new Chart(document.getElementById('tradesPerStrategyChart'), {
                         type: 'bar',
                         data: {
@@ -150,16 +154,18 @@
                         }
                     });
                 });
-
+        
                 $.getJSON("/account_values", function(data) {
                     let brokers = [];
                     let values = [];
-                    Object.keys(data.account_values).forEach(function(broker) {
-                        if (selectedBroker === 'all' || broker === selectedBroker) {
-                            brokers.push(broker);
-                            values.push(data.account_values[broker]);
-                        }
-                    });
+                    if (data.account_values) {
+                        Object.keys(data.account_values).forEach(function(broker) {
+                            if (selectedBroker === 'all' || broker === selectedBroker) {
+                                brokers.push(broker);
+                                values.push(data.account_values[broker]);
+                            }
+                        });
+                    }
                     accountValuesChart = new Chart(document.getElementById('accountValuesChart'), {
                         type: 'doughnut',
                         data: {
@@ -185,17 +191,19 @@
                         }
                     });
                 });
-
+        
                 $.getJSON("/trade_success_rate", function(data) {
                     let strategies = [];
                     let successRates = [];
-                    data.trade_success_rate.forEach(function(item) {
-                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                            strategies.push(item.strategy + ' (' + item.brokerage + ')');
-                            let successRate = (item.successful_trades / item.total_trades) * 100;
-                            successRates.push(successRate);
-                        }
-                    });
+                    if (data.trade_success_rate) {
+                        data.trade_success_rate.forEach(function(item) {
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                                strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                                let successRate = (item.successful_trades / item.total_trades) * 100;
+                                successRates.push(successRate);
+                            }
+                        });
+                    }
                     tradeSuccessRateChart = new Chart(document.getElementById('tradeSuccessRateChart'), {
                         type: 'bar',
                         data: {
@@ -218,23 +226,25 @@
                         }
                     });
                 });
-
-                $.getJSON("/historic_value_per_strategy", function(data) {
+        
+                $.getJSON("/historic_balance_per_strategy", function(data) {
                     let strategies = [];
                     let historicalData = {};
-                    data.historic_value_per_strategy.forEach(function(item) {
-                        if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                            let key = item.strategy + ' (' + item.brokerage + ')';
-                            if (!historicalData[key]) {
-                                historicalData[key] = [];
+                    if (data.historic_balance_per_strategy) {
+                        data.historic_balance_per_strategy.forEach(function(item) {
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
+                                let key = item.strategy + ' (' + item.brokerage + ')';
+                                if (!historicalData[key]) {
+                                    historicalData[key] = [];
+                                }
+                                historicalData[key].push({
+                                    x: item.hour,
+                                    y: item.total_balance
+                                });
                             }
-                            historicalData[key].push({
-                                x: item.hour,
-                                y: item.total_profit_loss
-                            });
-                        }
-                    });
-
+                        });
+                    }
+        
                     let datasets = [];
                     Object.keys(historicalData).forEach(function(key) {
                         datasets.push({
@@ -245,7 +255,7 @@
                             backgroundColor: 'rgba(75, 192, 192, 0.2)',
                         });
                     });
-
+        
                     historicalValueChart = new Chart(document.getElementById('historicalValueChart'), {
                         type: 'line',
                         data: {
@@ -265,7 +275,7 @@
                     });
                 });
             }
-
+        
             loadFilters();
             strategyFilter.change(updateCharts);
             brokerFilter.change(updateCharts);

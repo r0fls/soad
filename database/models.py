@@ -35,6 +35,7 @@ class Balance(Base):
     strategy = Column(String)
     initial_balance = Column(Float, default=0.0)
     total_balance = Column(Float, default=0.0)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     trades = relationship('Trade', backref='balance')
 

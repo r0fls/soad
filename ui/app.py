@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, render_template
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
-from database.models import Trade, AccountInfo
+from database.models import Trade, AccountInfo, Balance
 import os
 
 app = Flask("TradingAPI", template_folder='ui/templates')
@@ -20,27 +20,26 @@ def index():
         return "Internal Server Error", 500
 
 # Static files are served automatically from the 'static' folder
-
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
     trades_count = session.query(Trade.strategy, Trade.brokerage, func.count(Trade.id)).group_by(Trade.strategy, Trade.brokerage).all()
     trades_count_serializable = [{"strategy": strategy, "brokerage": brokerage, "count": count} for strategy, brokerage, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
-@app.route('/historic_value_per_strategy')
-def historic_value_per_strategy():
-    historical_values = session.query(
-        Trade.strategy,
-        Trade.brokerage,
+@app.route('/historic_balance_per_strategy')
+def historic_balance_per_strategy():
+    historical_balances = session.query(
+        Balance.strategy,
+        Balance.brokerage,
         func.strftime('%Y-%m-%d %H', Trade.timestamp).label('hour'),
-        func.sum(Trade.profit_loss).label('total_profit_loss')
-    ).group_by(Trade.strategy, Trade.brokerage, 'hour').all()
+        func.sum(Balance.total_balance).label('total_balance')
+    ).join(Trade, (Trade.strategy == Balance.strategy) & (Trade.brokerage == Balance.brokerage)).group_by(Balance.strategy, Balance.brokerage, 'hour').all()
     
-    historical_values_serializable = [
-        {"strategy": strategy, "brokerage": brokerage, "hour": hour, "total_profit_loss": total_profit_loss}
-        for strategy, brokerage, hour, total_profit_loss in historical_values
+    historical_balances_serializable = [
+        {"strategy": strategy, "brokerage": brokerage, "hour": hour, "total_balance": total_balance}
+        for strategy, brokerage, hour, total_balance in historical_balances
     ]
-    return jsonify({"historic_value_per_strategy": historical_values_serializable})
+    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
 
 @app.route('/account_values')
 def account_values():
