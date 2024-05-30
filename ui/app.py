@@ -26,20 +26,31 @@ def trades_per_strategy():
     trades_count_serializable = [{"strategy": strategy, "brokerage": brokerage, "count": count} for strategy, brokerage, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
-@app.route('/historic_balance_per_strategy')
+@app.route('/historic_balance_per_strategy', methods=['GET'])
 def historic_balance_per_strategy():
-    historical_balances = session.query(
-        Balance.strategy,
-        Balance.brokerage,
-        func.strftime('%Y-%m-%d %H', Trade.timestamp).label('hour'),
-        func.sum(Balance.total_balance).label('total_balance')
-    ).join(Trade, (Trade.strategy == Balance.strategy) & (Trade.brokerage == Balance.brokerage)).group_by(Balance.strategy, Balance.brokerage, 'hour').all()
-    
-    historical_balances_serializable = [
-        {"strategy": strategy, "brokerage": brokerage, "hour": hour, "total_balance": total_balance}
-        for strategy, brokerage, hour, total_balance in historical_balances
-    ]
-    return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    session = Session()
+    try:
+        historical_balances = session.query(
+            Balance.strategy,
+            Balance.brokerage,
+            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            Balance.total_balance,
+        ).group_by(
+            Balance.strategy, Balance.brokerage, 'hour'
+        ).order_by(
+            Balance.strategy, Balance.brokerage, 'hour'
+        ).all()
+        historical_balances_serializable = []
+        for strategy, brokerage, hour, total_balance in historical_balances:
+            historical_balances_serializable.append({
+                "strategy": strategy,
+                "brokerage": brokerage,
+                "hour": hour,
+                "total_balance": total_balance
+            })
+        return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
+    finally:
+        session.close()
 
 @app.route('/account_values')
 def account_values():
