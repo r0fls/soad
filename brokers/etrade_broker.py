@@ -11,9 +11,11 @@ class EtradeBroker(BaseBroker):
         self.auth = response.json().get('access_token')
 
     def _get_account_info(self):
-        # Implement account information retrieval
         response = requests.get("https://api.etrade.com/v1/accounts/list", headers={"Authorization": f"Bearer {self.auth}"})
-        account_data = response.json().get('accountListResponse').get('accounts')[0]
+        account_info = response.json()
+        account_id = account_info['accountListResponse']['accounts'][0]['accountId']
+        self.account_id = account_id
+        account_data = account_info.get('accountListResponse').get('accounts')[0]
         return {'value': account_data.get('value')}
 
     def _place_order(self, symbol, quantity, order_type, price=None):

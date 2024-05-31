@@ -12,7 +12,10 @@ class TradierBroker(BaseBroker):
     def _get_account_info(self):
         # Implement account information retrieval
         response = requests.get("https://api.tradier.com/v1/user/profile", headers=self.headers)
-        account_data = response.json().get('profile').get('account')
+        account_info = response.json()
+        account_id = account_info['profile']['account']['account_number']
+        self.account_id = account_id
+        account_data = account_info.get('profile').get('account')
         return {'value': account_data.get('balance')}
 
     def _place_order(self, symbol, quantity, order_type, price=None):

@@ -57,7 +57,7 @@ class TestTrading(BaseTest):
         }
 
         # Execute the trade
-        broker = MockBroker('api_key', 'secret_key', 'E*TRADE')
+        broker = MockBroker('api_key', 'secret_key', 'E*TRADE', engine=self.engine)
         broker.execute_trade(self.session, trade_data)
 
         # Verify the trade was inserted

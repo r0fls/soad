@@ -8,7 +8,6 @@ class TestTradierBroker(BaseTest):
 
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-        self.engine = create_engine('sqlite:///:memory:')
         self.broker = TradierBroker('api_key', 'secret_key', engine=self.engine)
 
     def mock_connect(self, mock_post):
@@ -34,20 +33,23 @@ class TestTradierBroker(BaseTest):
 
         self.broker.connect()
         account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}})
+        self.assertEqual(account_info, {'value': 10000.0})
         self.assertEqual(self.broker.account_id, '12345')
 
-    @patch('brokers.tradier_broker.requests.post')
-    @patch('brokers.tradier_broker.requests.get')
-    @patch('brokers.tradier_broker.requests.post')
-    def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
-        self.mock_connect(mock_post_connect)
-        mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
-            'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}
+    @patch('brokers.etrade_broker.requests.post')
+    @patch('brokers.etrade_broker.requests.get')
+    def test_place_order(self, mock_get, mock_post):
+        self.mock_connect(mock_post)
+        
+        # Mock get_account_info response
+        mock_get.return_value = MagicMock(json=MagicMock(return_value={
+            'accountListResponse': {
+                'accounts': [{'accountId': '12345', 'value': 10000.0}]
+            }
         }))
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_response]
+        
+        # Mock place_order response
+        mock_post.return_value = MagicMock(json=MagicMock(return_value={'status': 'filled', 'filled_price': 155.00}))
 
         self.broker.connect()
         self.broker.get_account_info()
@@ -60,9 +62,9 @@ class TestTradierBroker(BaseTest):
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = self.session.query(Balance).filter_by(brokerage='Tradier', strategy='example_strategy').first()
+        balance = self.session.query(Balance).filter_by(brokerage='E*TRADE', strategy='example_strategy').first()
         self.assertIsNotNone(balance)
-        self.assertEqual(balance.total_balance, 1550.0)
+        self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')

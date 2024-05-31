@@ -28,7 +28,6 @@ class DBManager:
             if existing_info:
                 session.delete(existing_info)
                 session.commit()
-            account_info.data = json.dumps(account_info.data)  # Serialize data to JSON
             session.add(account_info)
             session.commit()
         except Exception as e:

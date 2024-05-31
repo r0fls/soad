@@ -11,6 +11,7 @@ class BaseBroker(ABC):
         self.brokerage_name = brokerage_name
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
+        self.account_id = None
 
     @abstractmethod
     def connect(self):

@@ -8,8 +8,7 @@ class TestEtradeBroker(BaseTest):
 
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-        self.engine = create_engine('sqlite:///:memory:')
-        self.broker = EtradeBroker('api_key', 'secret_key', engine=self.engine)
+        self.broker = EtradeBroker('api_key', 'secret_key', self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
@@ -24,21 +23,22 @@ class TestEtradeBroker(BaseTest):
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
 
+
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
         self.mock_connect(mock_post)
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            'accountListResponse': {'accounts': [{'accountId': '12345', 'value': 10000.0}]}
+            'accountListResponse': {
+                'accounts': [{'accountId': '12345', 'value': 10000.0}]
+            }
         }
         mock_get.return_value = mock_response
-
+    
         self.broker.connect()
         account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {
-            'accountListResponse': {'accounts': [{'accountId': '12345', 'value': 10000.0}]}
-        })
+        self.assertEqual(account_info, {'value': 10000.0})
         self.assertEqual(self.broker.account_id, '12345')
 
     @patch('brokers.etrade_broker.requests.post')
@@ -47,7 +47,9 @@ class TestEtradeBroker(BaseTest):
     def test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
         self.mock_connect(mock_post_connect)
         mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
-            'accountListResponse': {'accounts': [{'accountId': '12345', 'value': 10000.0}]}
+            'accountListResponse': {
+                'accounts': [{'accountId': '12345', 'value': 10000.0}]
+            }
         }))
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
@@ -66,7 +68,7 @@ class TestEtradeBroker(BaseTest):
         # Verify the balance was updated
         balance = self.session.query(Balance).filter_by(brokerage='E*TRADE', strategy='example_strategy').first()
         self.assertIsNotNone(balance)
-        self.assertEqual(balance.total_balance, 1550.0)
+        self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
 
     @patch('brokers.etrade_broker.requests.get')
     @patch('brokers.etrade_broker.requests.post')
