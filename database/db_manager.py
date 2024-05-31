@@ -9,20 +9,17 @@ engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 class DBManager:
-    def __init__(self):
-        self.engine = engine
-        self.Session = Session
+    def __init__(self, engine):
+        self.Session = sessionmaker(bind=engine)
 
-    def add_trade(self, trade):
-        session = self.Session()
-        try:
-            session.add(trade)
+    def add_account_info(self, account_info):
+        with self.Session() as session:
+            existing_info = session.query(AccountInfo).filter_by(broker=account_info.broker).first()
+            if existing_info:
+                existing_info.value = account_info.value
+            else:
+                session.add(account_info)
             session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
 
     def add_account_info(self, account_info):
         session = self.Session()
@@ -31,7 +28,6 @@ class DBManager:
             if existing_info:
                 session.delete(existing_info)
                 session.commit()
-            account_info.data = json.dumps(account_info.data)  # Serialize data to JSON
             session.add(account_info)
             session.commit()
         except Exception as e:

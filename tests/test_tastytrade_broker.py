@@ -1,24 +1,28 @@
 import unittest
 from unittest.mock import patch, MagicMock
+from sqlalchemy import create_engine
 from brokers.tastytrade_broker import TastytradeBroker
+from database.models import Trade, Balance
+from .base_test import BaseTest
 
-class TestTastytradeBroker(unittest.TestCase):
+class TestTastytradeBroker(BaseTest):
 
     def setUp(self):
-        self.broker = TastytradeBroker('api_key', 'secret_key')
+        super().setUp()  # Call the setup from BaseTest
+        self.broker = TastytradeBroker('api_key', 'secret_key', engine=self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'data': {'session-token': 'token'}}
+        mock_response.json.return_value = {'access_token': 'token'}
         mock_post.return_value = mock_response
 
+    @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
-    def test_connect(self, mock_post):
+    def test_connect(self, mock_post, mock_get):
         self.mock_connect(mock_post)
         self.broker.connect()
-        self.assertTrue(hasattr(self.broker, 'session_token'))
-        self.assertTrue(hasattr(self.broker, 'headers'))
+        self.assertTrue(hasattr(self.broker, 'auth'))
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
@@ -26,33 +30,42 @@ class TestTastytradeBroker(unittest.TestCase):
         self.mock_connect(mock_post)
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            'data': {'items': [{'account': {'account_number': '12345'}}]}
+            'accounts': [{'accountId': '12345', 'value': 10000.0}]
         }
         mock_get.return_value = mock_response
 
         self.broker.connect()
         account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {
-            'data': {'items': [{'account': {'account_number': '12345'}}]}
-        })
+        self.assertEqual(account_info, {'value': 10000.0})
         self.assertEqual(self.broker.account_id, '12345')
 
     @patch('brokers.tastytrade_broker.requests.post')
     @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def skip_test_place_order(self, mock_post_place_order, mock_get_account_info, mock_post_connect):
-        self.mock_connect(mock_post_connect)
-        mock_get_account_info.return_value = MagicMock(json=MagicMock(return_value={
-            'data': {'items': [{'account': {'account_number': '12345'}}]}
+    def skip_test_place_order(self, mock_get, mock_post):
+        self.mock_connect(mock_post)
+        
+        # Mock get_account_info response
+        mock_get.return_value = MagicMock(json=MagicMock(return_value={
+            'accounts': [{'accountId': '12345', 'value': 10000.0}]
         }))
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'status': 'filled', 'filled_price': 155.00}
-        mock_post_place_order.side_effect = [mock_post_connect.return_value, mock_response]
+        
+        # Mock place_order response
+        mock_post.return_value = MagicMock(json=MagicMock(return_value={'status': 'filled', 'filled_price': 155.00}))
 
         self.broker.connect()
         self.broker.get_account_info()
         order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
+
         self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
+
+        # Verify the trade was inserted
+        trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
+        self.assertIsNotNone(trade)
+
+        # Verify the balance was updated
+        balance = self.session.query(Balance).filter_by(brokerage='Tastytrade', strategy='example_strategy').first()
+        self.assertIsNotNone(balance)
+        self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
@@ -66,13 +79,13 @@ class TestTastytradeBroker(unittest.TestCase):
         order_status = self.broker.get_order_status('order_id')
         self.assertEqual(order_status, {'status': 'completed'})
 
-    @patch('brokers.tastytrade_broker.requests.delete')
+    @patch('brokers.tastytrade_broker.requests.put')
     @patch('brokers.tastytrade_broker.requests.post')
-    def test_cancel_order(self, mock_post_connect, mock_delete):
+    def test_cancel_order(self, mock_post_connect, mock_put):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'cancelled'}
-        mock_delete.return_value = mock_response
+        mock_put.return_value = mock_response
 
         self.broker.connect()
         cancel_status = self.broker.cancel_order('order_id')
