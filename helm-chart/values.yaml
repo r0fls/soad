@@ -1,0 +1,39 @@
+replicaCount: 1
+
+image:
+  repository: soad-trading-system
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  apiPort: 80
+  tradingPort: 81
+
+database:
+  enabled: true
+  host: postgres
+  port: 5432
+  name: tradingdb
+  user: tradinguser
+  password: tradingpass
+
+postgresql:
+  enabled: true
+  auth:
+    database: tradingdb
+    username: tradinguser
+    password: tradingpass
+
+brokers:
+  tradier:
+    apiKey: "your-tradier-api-key"
+  etrade:
+    apiKey: "your-etrade-api-key"
+  tastytrade:
+    apiKey: "your-tastytrade-api-key"
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: []

@@ -1,0 +1,20 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "trading-app.name" . }}
+  labels:
+    {{- include "trading-app.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.apiPort }}
+      targetPort: {{ .Values.service.apiPort }}
+      protocol: TCP
+      name: api
+    - port: {{ .Values.service.tradingPort }}
+      targetPort: {{ .Values.service.tradingPort }}
+      protocol: TCP
+      name: trading
+  selector:
+    {{- include "trading-app.selectorLabels" . | nindent 4 }}
