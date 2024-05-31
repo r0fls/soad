@@ -46,26 +46,46 @@ class BaseBroker(ABC):
         self.db_manager.add_account_info(AccountInfo(broker=self.brokerage_name, value=account_info['value']))
         return account_info
 
-    def place_order(self, symbol, quantity, order_type, strategy, price=None):
-        order_info = self._place_order(symbol, quantity, order_type, price)
+    def place_order(self, symbol, quantity, order_type, strategy, price):
+        # Simulate placing an order and getting a response from the broker
+        response = self._place_order(symbol, quantity, order_type, price)
+        
+        # Create a new Trade object
+        trade = Trade(
+            symbol=symbol,
+            quantity=quantity,
+            price=price,
+            executed_price=response['filled_price'],
+            order_type=order_type,
+            status='filled',
+            timestamp=datetime.now(),
+            brokerage=self.brokerage_name,
+            strategy=strategy,
+            profit_loss=0,  # Calculate profit/loss if applicable
+            success='yes'
+        )
+        
+        # Insert the trade into the database
         with self.Session() as session:
-            trade = Trade(
-                symbol=symbol,
-                quantity=quantity,
-                price=price,
-                order_type=order_type,
-                status=order_info.get('status', 'unknown'),
-                timestamp=datetime.now(),
-                brokerage=self.brokerage_name,
-                strategy=strategy,
-                success=None,
-                profit_loss=None,
-                executed_price=None  # Set initially to None
-            )
-            session.add(trade)
-            session.commit()
-            self.update_trade(session, trade.id, order_info)
-        return order_info
+          session.add(trade)
+          session.commit()
+
+          # Update the balance
+          balance = session.query(Balance).filter_by(brokerage=self.brokerage_name, strategy=strategy).first()
+          if not balance:
+              balance = Balance(
+                  brokerage=self.brokerage_name,
+                  strategy=strategy,
+                  initial_balance=0,
+                  total_balance=0,
+                  timestamp=datetime.now()
+              )
+              session.add(balance)
+          
+          balance.total_balance += trade.executed_price * trade.quantity
+          session.commit()
+
+        return response
 
     def get_order_status(self, order_id):
         order_status = self._get_order_status(order_id)
