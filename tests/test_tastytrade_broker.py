@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
 from brokers.tastytrade_broker import TastytradeBroker
 from database.models import Trade, Balance
-from base_test import BaseTest
+from .base_test import BaseTest
 
 class TestTastytradeBroker(BaseTest):
 

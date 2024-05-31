@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
 from brokers.tradier_broker import TradierBroker
-from base_test import BaseTest
+from .base_test import BaseTest
 from database.models import Balance, Trade
 
 class TestTradierBroker(BaseTest):

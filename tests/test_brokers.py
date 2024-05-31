@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from database.models import Trade, Balance
-from base_test import BaseTest
+from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
 
 class MockBroker(BaseBroker):
