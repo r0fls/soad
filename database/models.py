@@ -40,5 +40,4 @@ class Balance(Base):
     trades = relationship('Trade', backref='balance')
 
 def init_db(engine):
-    Base.metadata.drop_all(engine)  # Drop existing tables
     Base.metadata.create_all(engine)  # Create new tables

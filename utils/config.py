@@ -4,12 +4,13 @@ from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
+from sqlalchemy import create_engine
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
-    'tradier': lambda config: TradierBroker(api_key=config['api_key'], secret_key=None),
-    'tastytrade': lambda config: TastytradeBroker(api_key=config['api_key'], secret_key=None),
-    'etrade': lambda config: EtradeBroker(api_key=config['api_key'], secret_key=config['secret_key']),
+    'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine),
+    'etrade': lambda config, engine: ETradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine),
+    'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine)
 }
 
 # Mapping of strategy types to their constructors
@@ -47,14 +48,18 @@ def parse_config(config_path):
     return config
 
 def initialize_brokers(config):
-    brokers_config = config['brokers']
+    # Create a single database engine for all brokers
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+    
     brokers = {}
-    for broker_name, broker_config in brokers_config.items():
-        broker_type = broker_config['type']
-        if broker_type in BROKER_MAP:
-            brokers[broker_name] = BROKER_MAP[broker_type](broker_config)
-        else:
-            raise ValueError(f"Unsupported broker type: {broker_type}")
+    for broker_name, broker_config in config['brokers'].items():
+        
+        # Initialize the broker with the shared engine
+        brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
+    
     return brokers
 
 def initialize_strategies(brokers, config):

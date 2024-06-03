@@ -1,8 +1,10 @@
 import argparse
 import time
 from datetime import datetime, timedelta
+from database.models import init_db
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
+from sqlalchemy import create_engine
 
 def start_trading_system(config_path):
     # Parse the configuration file
@@ -10,6 +12,14 @@ def start_trading_system(config_path):
     
     # Initialize the brokers
     brokers = initialize_brokers(config)
+
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+    
+    # Initialize the database
+    init_db(engine)
     
     # Connect to each broker
     for broker in brokers.values():

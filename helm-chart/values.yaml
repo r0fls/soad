@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: soad-trading-system
+  repository: local/soad-trading-system
   tag: latest
   pullPolicy: Always
 
