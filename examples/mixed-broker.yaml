@@ -1,9 +1,7 @@
 brokers:
   tradier:
-    type: "tradier"
     api_key: "your_tradier_api_key"
   tastytrade:
-    type: "tastytrade"
     api_key: "your_tastytrade_api_key"
 
 strategies:

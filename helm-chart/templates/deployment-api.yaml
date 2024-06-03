@@ -1,0 +1,36 @@
+# api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "trading-app.name" . }}-api
+  labels:
+    {{- include "trading-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "trading-app.selectorLabels" . | nindent 6 }}
+      component: api
+  template:
+    metadata:
+      labels:
+        {{- include "trading-app.selectorLabels" . | nindent 8 }}
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
+            - name: TRADIER_API_KEY
+              value: "{{ .Values.brokers.tradier.apiKey }}"
+            - name: ETGTRADE_API_KEY
+              value: "{{ .Values.brokers.etrade.apiKey }}"
+            - name: TASTYTRADE_API_KEY
+              value: "{{ .Values.brokers.tastytrade.apiKey }}"
+          ports:
+            - containerPort: {{ .Values.service.apiPort }}
+          command: ["python"]
+          args: ["main.py", "--mode", "api"]

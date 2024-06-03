@@ -3,3 +3,6 @@ __pycache__/
 **/__pycache__/
 tests/__pycache__
 my_example.py
+Chart.lock
+charts/
+test-config.yaml

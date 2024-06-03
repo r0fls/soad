@@ -1,0 +1,14 @@
+brokers:
+  tradier:
+    api_key: "your_tradier_api_key"
+
+strategies:
+  - type: "constant_percentage"
+    broker: "tradier"  # Name of the broker
+    starting_capital: 10000  # Capital allocated to this strategy
+    stock_allocations:
+      AAPL: 0.3
+      GOOGL: 0.4
+      MSFT: 0.3
+    cash_percentage: 0.2
+    rebalance_interval_minutes: 60

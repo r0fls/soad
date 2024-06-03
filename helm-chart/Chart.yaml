@@ -1,0 +1,11 @@
+# Chart.yaml
+apiVersion: v2
+name: system-of-a-dow
+description: A Helm chart for System Of A Dow
+type: application
+version: 0.1.0
+appVersion: "1.0"
+dependencies:
+  - name: postgresql
+    version: 15.5.1
+    repository: https://charts.bitnami.com/bitnami

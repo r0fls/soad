@@ -5,6 +5,7 @@ class ConstantPercentageStrategy(BaseStrategy):
     def __init__(self, broker, stock_allocations, cash_percentage, rebalance_interval_minutes, starting_capital):
         super().__init__(broker)
         self.stock_allocations = stock_allocations
+        self.rebalance_interval_minutes = rebalance_interval_minutes
         self.cash_percentage = cash_percentage
         self.rebalance_interval = timedelta(minutes=rebalance_interval_minutes)
         self.starting_capital = starting_capital
@@ -31,4 +32,4 @@ class ConstantPercentageStrategy(BaseStrategy):
 
     def get_current_positions(self):
         positions = self.broker.get_positions()
-        return {position['symbol']: position['quantity'] for position in positions}
+        return {position: positions[position]['quantity'] for position in positions}

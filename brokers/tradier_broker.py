@@ -4,19 +4,40 @@ from brokers.base_broker import BaseBroker
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine):
         super().__init__(api_key, secret_key, 'Tradier', engine)
+        self.base_url = 'https://api.tradier.com/v1'
 
     def connect(self):
         # Implement the connection logic
-        self.headers = {"Authorization": f"Bearer {self.api_key}"}
+        self.headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Accept": "application/json"
+        }
+
 
     def _get_account_info(self):
         # Implement account information retrieval
         response = requests.get("https://api.tradier.com/v1/user/profile", headers=self.headers)
+        if response.status_code == 401:
+            raise ValueError("It seems we are having trouble authenticating to Tradier")
         account_info = response.json()
         account_id = account_info['profile']['account']['account_number']
         self.account_id = account_id
         account_data = account_info.get('profile').get('account')
         return {'value': account_data.get('balance')}
+
+    def get_positions(self):
+        url = f"{self.base_url}/accounts/{self.account_id}/positions"
+        response = requests.get(url, headers=self.headers)
+
+        if response.status_code == 200:
+            positions_data = response.json()['positions']['position']
+            # Singular dict response
+            if type(positions_data) != list:
+                positions_data = [positions_data]
+            positions = {p['symbol']: p for p in positions_data}
+            return positions
+        else:
+            response.raise_for_status()
 
     def _place_order(self, symbol, quantity, order_type, price=None):
         # Implement order placement
@@ -49,4 +70,5 @@ class TradierBroker(BaseBroker):
     def get_current_price(self, symbol):
         # Implement current price retrieval
         response = requests.get(f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}", headers=self.headers)
-        return response.json().get('last')
+        last_price = response.json().get('quotes').get('quote').get('last')
+        return last_price
