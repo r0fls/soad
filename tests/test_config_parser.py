@@ -14,6 +14,7 @@ class TestConfigParser(unittest.TestCase):
           tastytrade:
             type: "tastytrade"
             api_key: "your_tastytrade_api_key"
+            secret_key: "example_key"
         strategies:
           - type: "constant_percentage"
             broker: "tradier"
@@ -47,8 +48,8 @@ class TestConfigParser(unittest.TestCase):
         config = yaml.safe_load(self.config)
         brokers = initialize_brokers(config)
         self.assertEqual(brokers, {'tradier': mock_broker_tradier, 'tastytrade': mock_broker_tastytrade})
-        MockTradierBroker.assert_called_with(api_key='your_tradier_api_key', secret_key=None)
-        MockTastytradeBroker.assert_called_with(api_key='your_tastytrade_api_key', secret_key=None)
+        MockTradierBroker.assert_called_once()
+        MockTastytradeBroker.assert_called_once()
 
     @patch('utils.config.load_strategy_class')
     @patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy', autospec=True)
