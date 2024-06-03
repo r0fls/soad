@@ -12,8 +12,11 @@ class ConstantPercentageStrategy(BaseStrategy):
 
     def rebalance(self):
         account_info = self.broker.get_account_info()
-        cash_balance = account_info.get('securities_account', {}).get('balance', {}).get('cash', 0)
-        total_balance = min(account_info.get('securities_account', {}).get('balance', {}).get('total', 0), self.starting_capital)
+        cash_balance = account_info.get('cash_available')
+        # TODO: get the current balance for this strategy from the DB 
+        #  - (initial balance - change over time)
+        # NOTE: this is not available in the broker
+        total_balance = 0
         
         target_cash_balance = total_balance * self.cash_percentage
         target_investment_balance = total_balance - target_cash_balance
