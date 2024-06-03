@@ -70,4 +70,5 @@ class TradierBroker(BaseBroker):
     def get_current_price(self, symbol):
         # Implement current price retrieval
         response = requests.get(f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}", headers=self.headers)
-        return response.json().get('last')
+        last_price = response.json().get('quotes').get('quote').get('last')
+        return last_price
