@@ -2,9 +2,8 @@ import requests
 from brokers.base_broker import BaseBroker
 
 class TradierBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, engine, account_type='cash'):
+    def __init__(self, api_key, secret_key, engine):
         super().__init__(api_key, secret_key, 'Tradier', engine)
-        self.account_type = account_type
         self.base_url = 'https://api.tradier.com/v1'
         self.headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -34,18 +33,21 @@ class TradierBroker(BaseBroker):
         if not account_info:
             raise Exception("Invalid account info response")
 
-        if self.account_type == 'cash':
+        if account_info.get('cash'):
+            self.account_type = 'cash'
             buying_power = account_info['cash']['cash_available']
             account_value = account_info['total_equity']
-        elif self.account_type == 'margin':
+        if account_info.get('margin'):
+            self.account_type = 'margin'
             buying_power = account_info['margin']['stock_buying_power']
             account_value = account_info['total_equity']
-        else:
-            account_value = account_info['pdt']['stock_buying_power']
+        if account_info.get('pdt'):
+            self.account_type = 'pdt'
+            buying_power = account_info['pdt']['stock_buying_power']
 
         return {
             'account_number': account_info['account_number'],
-            'account_type': account_info['account_type'],
+            'account_type': self.account_type,
             'buying_power': buying_power,
             'value': account_value
         }
