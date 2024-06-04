@@ -1,7 +1,7 @@
 # This is a script to make fake data for testing the UI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from database.models import Trade, AccountInfo, Balance, init_db
+from database.models import Trade, AccountInfo, Balance, drop_then_init_db
 from datetime import datetime, timedelta
 import random
 
@@ -11,7 +11,7 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 # Initialize the database
-init_db(engine)
+drop_then_init_db(engine)
 
 # Define brokers and strategies
 brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
@@ -37,7 +37,7 @@ for timestamp in timestamps:
             order_type=random.choice(['buy', 'sell']),
             status='executed',
             timestamp=timestamp,
-            brokerage=random.choice(brokers),
+            broker=random.choice(brokers),
             strategy=random.choice(strategies),
             profit_loss=random.uniform(-100, 100),
             success=random.choice(['yes', 'no'])
@@ -58,7 +58,7 @@ for broker in brokers:
         for timestamp in timestamps:
             total_balance = initial_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss
             balance_record = Balance(
-                brokerage=broker,
+                broker=broker,
                 strategy=strategy,
                 initial_balance=initial_balance,
                 total_balance=total_balance,

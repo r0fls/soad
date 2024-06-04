@@ -16,7 +16,7 @@ class Trade(Base):
     order_type = Column(String, nullable=False)
     status = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-    brokerage = Column(String, nullable=False)
+    broker = Column(String, nullable=False)
     strategy = Column(String, nullable=False)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
@@ -31,13 +31,18 @@ class AccountInfo(Base):
 class Balance(Base):
     __tablename__ = 'balances'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    brokerage = Column(String)
+    broker = Column(String)
     strategy = Column(String)
     initial_balance = Column(Float, default=0.0)
     total_balance = Column(Float, default=0.0)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     trades = relationship('Trade', backref='balance')
+
+
+def drop_then_init_db(engine):
+    Base.metadata.drop_all(engine)  # Create new tables
+    Base.metadata.create_all(engine)  # Create new tables
 
 def init_db(engine):
     Base.metadata.create_all(engine)  # Create new tables

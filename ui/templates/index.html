@@ -100,7 +100,7 @@
                     if (data.trades_per_strategy) {
                         data.trades_per_strategy.forEach(function(item) {
                             strategies.add(item.strategy);
-                            brokers.add(item.brokerage);
+                            brokers.add(item.broker);
                         });
                         strategies.forEach(function(strategy) {
                             strategyFilter.append('<option value="' + strategy + '">' + strategy + '</option>');
@@ -126,8 +126,8 @@
                     let counts = [];
                     if (data.trades_per_strategy) {
                         data.trades_per_strategy.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                                strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                                strategies.push(item.strategy + ' (' + item.broker + ')');
                                 counts.push(item.count);
                             }
                         });
@@ -197,8 +197,8 @@
                     let successRates = [];
                     if (data.trade_success_rate) {
                         data.trade_success_rate.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                                strategies.push(item.strategy + ' (' + item.brokerage + ')');
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                                strategies.push(item.strategy + ' (' + item.broker + ')');
                                 let successRate = (item.successful_trades / item.total_trades) * 100;
                                 successRates.push(successRate);
                             }
@@ -232,8 +232,8 @@
                     let historicalData = {};
                     if (data.historic_balance_per_strategy) {
                         data.historic_balance_per_strategy.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.brokerage === selectedBroker)) {
-                                let key = item.strategy + ' (' + item.brokerage + ')';
+                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                                let key = item.strategy + ' (' + item.broker + ')';
                                 if (!historicalData[key]) {
                                     historicalData[key] = [];
                                 }

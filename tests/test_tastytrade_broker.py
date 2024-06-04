@@ -63,7 +63,7 @@ class TestTastytradeBroker(BaseTest):
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = self.session.query(Balance).filter_by(brokerage='Tastytrade', strategy='example_strategy').first()
+        balance = self.session.query(Balance).filter_by(broker='Tastytrade', strategy='example_strategy').first()
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
 

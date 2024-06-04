@@ -35,7 +35,7 @@ class TestTrading(BaseTest):
 
         # Additional setup
         additional_fake_trades = [
-            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), brokerage='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
+            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
         ]
         self.session.add_all(additional_fake_trades)
         self.session.commit()
@@ -50,7 +50,7 @@ class TestTrading(BaseTest):
             'order_type': 'buy',
             'status': 'executed',
             'timestamp': datetime.utcnow(),
-            'brokerage': 'E*TRADE',
+            'broker': 'E*TRADE',
             'strategy': 'SMA',
             'profit_loss': 10.0,
             'success': 'yes'
@@ -65,7 +65,7 @@ class TestTrading(BaseTest):
         self.assertIsNotNone(trade)
 
         # Verify the balance was updated
-        balance = self.session.query(Balance).filter_by(brokerage='E*TRADE', strategy='SMA').first()
+        balance = self.session.query(Balance).filter_by(broker='E*TRADE', strategy='SMA').first()
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 1510.0)
 
