@@ -5,19 +5,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
         body {
             background-color: #f8f9fa;
         }
-        .container {
+        .container-fluid {
             margin-top: 20px;
         }
         .card {
             margin-bottom: 20px;
+        }
+       .sidebar {
+            height: 100%;
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #111;
+            padding-top: 20px;
+        }
+        .sidebar a {
+            padding: 10px 15px;
+            text-decoration: none;
+            font-size: 18px;
+            color: #818181;
+            display: block;
+        }
+        .sidebar a:hover {
+            color: #f1f1f1;
+        }
+        .content {
+            margin-left: 260px;
+            padding: 20px;
         }
         .filter-bar {
             margin-bottom: 20px;
@@ -25,62 +50,77 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand" href="#">Trading Dashboard</a>
-    </nav>
-    <div class="container">
-        <div class="row filter-bar">
-            <div class="col-md-3">
-                <select id="strategyFilter" class="form-control">
-                    <option value="all">All Strategies</option>
-                </select>
+    <div class="sidebar">
+        <a href="#dashboard">Dashboard</a>
+        <a href="/position_page">Positions</a>
+    </div>
+    <div class="content">
+        <div class="container-fluid">
+            <div class="row filter-bar">
+                <div class="col-md-6">
+                    <select id="strategyFilter" class="form-control select2" multiple="multiple" style="width: 100%;">
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <select id="brokerFilter" class="form-control select2" multiple="multiple" style="width: 100%;">
+                    </select>
+                </div>
             </div>
-            <div class="col-md-3">
-                <select id="brokerFilter" class="form-control">
-                    <option value="all">All Brokers</option>
-                </select>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        Number of Trades per Strategy
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            Account Values
+                        </div>
+                        <div class="card-body">
+                            <canvas id="accountValuesChart"></canvas>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Broker</th>
+                                        <th>Account Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="accountValuesTable">
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Total</th>
+                                        <th id="totalAccountValue"></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <canvas id="tradesPerStrategyChart"></canvas>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            Number of Trades per Strategy
+                        </div>
+                        <div class="card-body">
+                            <canvas id="tradesPerStrategyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            Trade Success Rate
+                        </div>
+                        <div class="card-body">
+                            <canvas id="tradeSuccessRateChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        Account Values
-                    </div>
-                    <div class="card-body">
-                        <canvas id="accountValuesChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        Trade Success Rate
-                    </div>
-                    <div class="card-body">
-                        <canvas id="tradeSuccessRateChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        Historical Value per Strategy
-                    </div>
-                    <div class="card-body">
-                        <canvas id="historicalValueChart"></canvas>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            Historical Value per Strategy
+                        </div>
+                        <div class="card-body">
+                            <canvas id="historicalValueChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -108,13 +148,15 @@
                         brokers.forEach(function(broker) {
                             brokerFilter.append('<option value="' + broker + '">' + broker + '</option>');
                         });
+                        strategyFilter.select2();
+                        brokerFilter.select2();
                     }
                 });
             }
         
             function updateCharts() {
-                let selectedStrategy = strategyFilter.val();
-                let selectedBroker = brokerFilter.val();
+                let selectedStrategies = strategyFilter.val();
+                let selectedBrokers = brokerFilter.val();
         
                 if (tradesPerStrategyChart) tradesPerStrategyChart.destroy();
                 if (accountValuesChart) accountValuesChart.destroy();
@@ -126,7 +168,8 @@
                     let counts = [];
                     if (data.trades_per_strategy) {
                         data.trades_per_strategy.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                            if ((!selectedStrategies.length || selectedStrategies.includes(item.strategy)) &&
+                                (!selectedBrokers.length || selectedBrokers.includes(item.broker))) {
                                 strategies.push(item.strategy + ' (' + item.broker + ')');
                                 counts.push(item.count);
                             }
@@ -158,11 +201,14 @@
                 $.getJSON("/account_values", function(data) {
                     let brokers = [];
                     let values = [];
+                    let totalValue = 0;
                     if (data.account_values) {
                         Object.keys(data.account_values).forEach(function(broker) {
-                            if (selectedBroker === 'all' || broker === selectedBroker) {
+                            if (!selectedBrokers.length || selectedBrokers.includes(broker)) {
                                 brokers.push(broker);
-                                values.push(data.account_values[broker]);
+                                let value = data.account_values[broker];
+                                values.push(value);
+                                totalValue += value;
                             }
                         });
                     }
@@ -190,6 +236,13 @@
                             responsive: true
                         }
                     });
+
+                    let accountValuesTable = $('#accountValuesTable');
+                    accountValuesTable.empty();
+                    brokers.forEach((broker, index) => {
+                        accountValuesTable.append('<tr><td>' + broker + '</td><td>' + values[index].toFixed(2) + '</td></tr>');
+                    });
+                    $('#totalAccountValue').text(totalValue.toFixed(2));
                 });
         
                 $.getJSON("/trade_success_rate", function(data) {
@@ -197,7 +250,8 @@
                     let successRates = [];
                     if (data.trade_success_rate) {
                         data.trade_success_rate.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                            if ((!selectedStrategies.length || selectedStrategies.includes(item.strategy)) &&
+                                (!selectedBrokers.length || selectedBrokers.includes(item.broker))) {
                                 strategies.push(item.strategy + ' (' + item.broker + ')');
                                 let successRate = (item.successful_trades / item.total_trades) * 100;
                                 successRates.push(successRate);
@@ -232,7 +286,8 @@
                     let historicalData = {};
                     if (data.historic_balance_per_strategy) {
                         data.historic_balance_per_strategy.forEach(function(item) {
-                            if ((selectedStrategy === 'all' || item.strategy === selectedStrategy) && (selectedBroker === 'all' || item.broker === selectedBroker)) {
+                            if ((!selectedStrategies.length || selectedStrategies.includes(item.strategy)) &&
+                                (!selectedBrokers.length || selectedBrokers.includes(item.broker))) {
                                 let key = item.strategy + ' (' + item.broker + ')';
                                 if (!historicalData[key]) {
                                     historicalData[key] = [];

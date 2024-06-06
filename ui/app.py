@@ -86,18 +86,17 @@ def trade_success_rate():
 
     return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
 
-
 @app.route('/positions', methods=['GET'])
 def get_positions():
-    broker = request.args.get('broker')
-    strategy = request.args.get('strategy')
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
 
     query = session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
 
-    if broker:
-        query = query.filter(Balance.broker == broker)
-    if strategy:
-        query = query.filter(Balance.strategy == strategy)
+    if brokers:
+        query = query.filter(Balance.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Balance.strategy.in_(strategies))
 
     positions = query.all()
     positions_data = []
