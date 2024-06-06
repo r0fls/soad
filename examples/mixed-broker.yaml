@@ -1,6 +1,7 @@
 brokers:
   tradier:
     api_key: "your_tradier_api_key"
+    prevent_day_trading: True
   tastytrade:
     api_key: "your_tastytrade_api_key"
 
