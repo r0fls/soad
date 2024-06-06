@@ -1,17 +1,19 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import and_
 from database.db_manager import DBManager
-from database.models import Trade, AccountInfo, Balance
+from database.models import Trade, AccountInfo, Balance, Position
 from datetime import datetime
 
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine):
+    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
+        self.prevent_day_trading = False
 
     @abstractmethod
     def connect(self):
@@ -46,7 +48,51 @@ class BaseBroker(ABC):
         self.db_manager.add_account_info(AccountInfo(broker=self.broker_name, value=account_info['value']))
         return account_info
 
+    def has_bought_today(self, symbol):
+        today = datetime.now().date()
+        with self.Session() as session:
+            trades = session.query(Trade).filter(
+                and_(
+                    Trade.symbol == symbol,
+                    Trade.broker == self.broker_name,
+                    Trade.order_type == 'buy',
+                    Trade.timestamp >= today
+                )
+            ).all()
+            return len(trades) > 0
+
+    def update_positions(self, session, trade):
+        position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
+
+        if trade.order_type == 'buy':
+            if position:
+                position.quantity += trade.quantity
+                position.latest_price = trade.executed_price
+                position.timestamp = datetime.now()
+            else:
+                position = Position(
+                    broker=self.broker_name,
+                    strategy=trade.strategy,
+                    symbol=trade.symbol,
+                    quantity=trade.quantity,
+                    latest_price=trade.executed_price,
+                )
+                session.add(position)
+        elif trade.order_type == 'sell':
+            if position:
+                position.quantity -= trade.quantity
+                position.latest_price = trade.executed_price
+                if position.quantity < 0:
+                    raise ValueError("Sell quantity exceeds current position quantity.")
+
+        session.commit()
+
     def place_order(self, symbol, quantity, order_type, strategy, price=None):
+        # Check for day trading
+        if self.prevent_day_trading and order_type == 'sell':
+            if self.has_bought_today(symbol):
+                raise ValueError("Day trading is not allowed. Cannot sell positions opened today.")
+
         response = self._place_order(symbol, quantity, order_type, price)
         
         trade = Trade(
@@ -82,23 +128,7 @@ class BaseBroker(ABC):
             session.commit()
 
             # Update positions
-            position = session.query(Position).filter_by(balance_id=balance.id, symbol=symbol).first()
-            if not position:
-                position = Position(
-                    balance_id=balance.id,
-                    symbol=symbol,
-                    quantity=quantity,
-                    latest_price=response['filled_price']
-                )
-                session.add(position)
-            else:
-                if order_type == 'buy':
-                    position.quantity += quantity
-                elif order_type == 'sell':
-                    position.quantity -= quantity
-                position.latest_price = response['filled_price']
-
-            session.commit()
+            self.update_positions(session, trade, order_type)
 
         return response
 
