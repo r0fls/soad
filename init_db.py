@@ -1,7 +1,7 @@
 # This is a script to make fake data for testing the UI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from database.models import Trade, AccountInfo, Balance, drop_then_init_db
+from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
 from datetime import datetime, timedelta
 import random
 
@@ -18,7 +18,7 @@ brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
 # Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=1)
+start_date = datetime.utcnow() - timedelta(days=2)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -50,8 +50,8 @@ session.add_all(fake_trades)
 session.commit()
 print("Fake trades inserted into the database.")
 
-# Generate and insert fake balance data one by one
-print("Generating and inserting fake balance data...")
+# Generate and insert fake balance data and positions
+print("Generating and inserting fake balance data and positions...")
 for broker in brokers:
     for strategy in strategies:
         initial_balance = random.uniform(5000, 20000)
@@ -69,7 +69,21 @@ for broker in brokers:
             initial_balance = total_balance  # Update the initial balance for the next timestamp
             print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
 
-print("Fake balance data generation and insertion completed.")
+            # Generate and insert fake positions for each balance record
+            for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+                quantity = random.randint(1, 100)
+                latest_price = random.uniform(100, 3000)
+                position_record = Position(
+                    balance_id=balance_record.id,
+                    symbol=symbol,
+                    quantity=quantity,
+                    latest_price=latest_price
+                )
+                session.add(position_record)
+                session.commit()
+                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+
+print("Fake balance data and positions generation and insertion completed.")
 
 # Generate fake account data
 fake_accounts = [

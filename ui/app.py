@@ -1,7 +1,7 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
-from database.models import Trade, AccountInfo, Balance
+from database.models import Trade, AccountInfo, Balance, Position
 import os
 
 app = Flask("TradingAPI", template_folder='ui/templates')
@@ -10,6 +10,14 @@ DATABASE_URL = "sqlite:///trading.db"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()
+
+@app.route('/position_page')
+def positions():
+    try:
+        return render_template('positions.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering index.html: {e}")
+        return "Internal Server Error", 500
 
 @app.route('/')
 def index():
@@ -77,6 +85,33 @@ def trade_success_rate():
         })
 
     return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+
+
+@app.route('/positions', methods=['GET'])
+def get_positions():
+    broker = request.args.get('broker')
+    strategy = request.args.get('strategy')
+
+    query = session.query(Position, Balance).join(Balance, Position.balance_id == Balance.id)
+
+    if broker:
+        query = query.filter(Balance.broker == broker)
+    if strategy:
+        query = query.filter(Balance.strategy == strategy)
+
+    positions = query.all()
+    positions_data = []
+    for position, balance in positions:
+        positions_data.append({
+            'broker': balance.broker,
+            'strategy': balance.strategy,
+            'symbol': position.symbol,
+            'quantity': position.quantity,
+            'latest_price': position.latest_price,
+            'timestamp': balance.timestamp
+        })
+
+    return jsonify({'positions': positions_data})
 
 def create_app():
     return app
