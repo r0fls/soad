@@ -45,7 +45,7 @@ def start_api_server(config_path=None):
         config = {}
     else:
         config = parse_config(config_path)
-        
+
         # Initialize the brokers
         brokers = initialize_brokers(config)
 
@@ -53,10 +53,10 @@ def start_api_server(config_path=None):
         engine = create_engine(config['database']['url'])
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
-    
+
     # Initialize the database
     init_db(engine)
- 
+
     app = create_app()
     app.run(host="0.0.0.0", port=8000, debug=True)
 
