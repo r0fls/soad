@@ -1,14 +1,17 @@
 import requests
+import time
 from brokers.base_broker import BaseBroker
 
 class TradierBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, engine):
-        super().__init__(api_key, secret_key, 'Tradier', engine)
+    def __init__(self, api_key, secret_key, engine, **kwargs):
+        super().__init__(api_key, secret_key, 'Tradier', engine, **kwargs)
         self.base_url = 'https://api.tradier.com/v1'
         self.headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json"
         }
+        self.order_timeout = 1
+        self.auto_cancel_orders = True
 
     # TODO: remove
     def connect(self):
@@ -67,16 +70,60 @@ class TradierBroker(BaseBroker):
             response.raise_for_status()
 
     def _place_order(self, symbol, quantity, order_type, price=None):
-        # Implement order placement
+        # Retrieve the current quote to get the bid/ask prices
+        quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+        quote_response = requests.get(quote_url, headers=self.headers)
+        if quote_response.status_code != 200:
+            raise Exception(f"Failed to get quote: {quote_response.text}")
+
+        quote = quote_response.json()['quotes']['quote']
+        bid = quote['bid']
+        ask = quote['ask']
+
+        # Use the median of the bid/ask spread as the limit price if none is provided
+        if price is None:
+            price = round((bid + ask) / 2, 2)
+
+        # Prepare order data
         order_data = {
             "class": "equity",
             "symbol": symbol,
             "quantity": quantity,
-            "side": order_type,
-            "type": "market" if price is None else "limit",
+            "side": order_type,  # 'buy' or 'sell'
+            "type": "limit",  # Using limit order type
+            "duration": "day",  # Immediate or Cancel
             "price": price
         }
-        response = requests.post("https://api.tradier.com/v1/accounts/orders", json=order_data, headers=self.headers)
+
+        # Make the API call to place the order
+        response = requests.post(f"https://api.tradier.com/v1/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+
+        # Check for success or raise an exception
+        if response.status_code > 400:
+            print(f"Failed to place order: {response.text}")
+            return {}
+
+        order_id = response.json()['order']['id']
+        if self.auto_cancel_orders:
+            # Wait for a short period to check if the order gets filled
+            time.sleep(self.order_timeout)
+
+            # Check the order status
+            order_status_url = f"https://api.tradier.com/v1/accounts/{self.account_id}/orders/{order_id}"
+            status_response = requests.get(order_status_url, headers=self.headers)
+            if status_response.status_code != 200:
+                raise Exception(f"Failed to get order status: {status_response.text}")
+
+            order_status = status_response.json()['order']['status']
+
+            # Cancel the order if it's not filled
+            if order_status != 'filled':
+                cancel_url = f"https://api.tradier.com/v1/accounts/{self.account_id}/orders/{order_id}/cancel"
+                cancel_response = requests.put(cancel_url, headers=self.headers)
+                if cancel_response.status_code != 200:
+                    raise Exception(f"Failed to cancel order: {cancel_response.text}")
+
+        # Return the response in JSON format
         return response.json()
 
     def _get_order_status(self, order_id):

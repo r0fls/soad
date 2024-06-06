@@ -40,7 +40,23 @@ def start_trading_system(config_path):
                 last_rebalances[i] = now
         time.sleep(60)  # Check every minute
 
-def start_api_server():
+def start_api_server(config_path=None):
+    if config_path is None:
+        config = {}
+    else:
+        config = parse_config(config_path)
+
+        # Initialize the brokers
+        brokers = initialize_brokers(config)
+
+    if 'database' in config and 'url' in config['database']:
+        engine = create_engine(config['database']['url'])
+    else:
+        engine = create_engine('sqlite:///default_trading_system.db')
+
+    # Initialize the database
+    init_db(engine)
+
     app = create_app()
     app.run(host="0.0.0.0", port=8000, debug=True)
 
