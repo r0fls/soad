@@ -5,14 +5,14 @@ class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine):
         super().__init__(api_key, secret_key, 'Tradier', engine)
         self.base_url = 'https://api.tradier.com/v1'
-
-    def connect(self):
-        # Implement the connection logic
         self.headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json"
         }
 
+    # TODO: remove
+    def connect(self):
+        pass
 
     def _get_account_info(self):
         # Implement account information retrieval
@@ -22,8 +22,35 @@ class TradierBroker(BaseBroker):
         account_info = response.json()
         account_id = account_info['profile']['account']['account_number']
         self.account_id = account_id
-        account_data = account_info.get('profile').get('account')
-        return {'value': account_data.get('balance')}
+
+        # Get the balance info for the account
+        url = f'{self.base_url}/accounts/{self.account_id}/balances'
+        response = requests.get(url, headers=self.headers)
+        if response.status_code != 200:
+            raise Exception(f"Failed to get account info: {response.text}")
+
+        account_info = response.json().get('balances')
+        if not account_info:
+            raise Exception("Invalid account info response")
+
+        if account_info.get('cash'):
+            self.account_type = 'cash'
+            buying_power = account_info['cash']['cash_available']
+            account_value = account_info['total_equity']
+        if account_info.get('margin'):
+            self.account_type = 'margin'
+            buying_power = account_info['margin']['stock_buying_power']
+            account_value = account_info['total_equity']
+        if account_info.get('pdt'):
+            self.account_type = 'pdt'
+            buying_power = account_info['pdt']['stock_buying_power']
+
+        return {
+            'account_number': account_info['account_number'],
+            'account_type': self.account_type,
+            'buying_power': buying_power,
+            'value': account_value
+        }
 
     def get_positions(self):
         url = f"{self.base_url}/accounts/{self.account_id}/positions"

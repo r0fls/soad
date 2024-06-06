@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Positions</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <style>
+        .sidebar {
+            height: 100%;
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #111;
+            padding-top: 20px;
+        }
+        .sidebar a {
+            padding: 10px 15px;
+            text-decoration: none;
+            font-size: 18px;
+            color: #818181;
+            display: block;
+        }
+        .sidebar a:hover {
+            color: #f1f1f1;
+        }
+        .content {
+            margin-left: 260px;
+            padding: 20px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="/">Dashboard</a>
+        <a href="/positions.html">Positions</a>
+    </div>
+    <div class="content">
+        <div class="container">
+            <h1 class="mt-5">Open Positions</h1>
+            <div class="row mb-3">
+                <div class="col">
+                    <select id="brokerFilter" class="form-control select2" multiple="multiple" style="width: 100%;">
+                        <!-- Options will be added dynamically -->
+                    </select>
+                </div>
+                <div class="col">
+                    <select id="strategyFilter" class="form-control select2" multiple="multiple" style="width: 100%;">
+                        <!-- Options will be added dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div id="loadingSpinner" class="text-center my-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Broker</th>
+                        <th>Strategy</th>
+                        <th>Symbol</th>
+                        <th>Quantity</th>
+                        <th>Latest Price</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="positionsTableBody">
+                    <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script>
+        function fetchPositions() {
+            const brokers = $('#brokerFilter').val();
+            const strategies = $('#strategyFilter').val();
+            $('#loadingSpinner').show();
+
+            $.get('/positions', { brokers, strategies }, function(data) {
+                const positions = data.positions;
+                const tableBody = $('#positionsTableBody');
+                tableBody.empty();
+
+                positions.forEach(position => {
+                    const row = `<tr>
+                        <td>${position.broker}</td>
+                        <td>${position.strategy}</td>
+                        <td>${position.symbol}</td>
+                        <td>${position.quantity}</td>
+                        <td>${position.latest_price}</td>
+                        <td>${position.timestamp}</td>
+                    </tr>`;
+                    tableBody.append(row);
+                });
+
+                $('#loadingSpinner').hide();
+            });
+        }
+
+        function populateFilters() {
+            $.get('/positions', function(data) {
+                const brokers = new Set(data.positions.map(position => position.broker));
+                const strategies = new Set(data.positions.map(position => position.strategy));
+
+                const brokerFilter = $('#brokerFilter');
+                const strategyFilter = $('#strategyFilter');
+
+                brokers.forEach(broker => {
+                    brokerFilter.append(new Option(broker, broker));
+                });
+
+                strategies.forEach(strategy => {
+                    strategyFilter.append(new Option(strategy, strategy));
+                });
+
+                brokerFilter.select2({
+                    placeholder: 'Select Brokers',
+                    allowClear: true
+                });
+
+                strategyFilter.select2({
+                    placeholder: 'Select Strategies',
+                    allowClear: true
+                });
+
+                brokerFilter.on('change', fetchPositions);
+                strategyFilter.on('change', fetchPositions);
+            });
+        }
+
+        $(document).ready(function() {
+            populateFilters();
+            fetchPositions();
+        });
+    </script>
+</body>
+</html>
