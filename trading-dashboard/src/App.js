@@ -6,6 +6,7 @@ import Dashboard from './Dashboard';
 import AccountView from './AccountView';
 import Positions from './Positions';
 import Trades from './Trades';
+import Insights from './Insights';
 import Sidebar from './Sidebar';
 
 const App = () => {
@@ -18,6 +19,7 @@ const App = () => {
           <Route path="/accounts" element={<AccountView />} />
           <Route path="/positions" element={<Positions />} />
           <Route path="/trades" element={<Trades />} />
+          <Route path="/insights" element={<Insights />} />
         </Routes>
       </div>
     </Router>

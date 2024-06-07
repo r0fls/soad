@@ -3,6 +3,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
+import numpy as np
+from scipy.stats import norm
 import os
 
 app = Flask("TradingAPI")
@@ -161,6 +163,79 @@ def get_trade_stats():
         'number_of_trades': number_of_trades,
         'trades_per_day': trades_per_day
     })
+
+@app.route('/var', methods=['GET'])
+def get_var():
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
+
+    query = app.session.query(Trade)
+
+    if brokers:
+        query = query.filter(Trade.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Trade.strategy.in_(strategies))
+
+    trades = query.all()
+
+    if not trades:
+        return jsonify({'var': 0})
+
+    returns = [trade.profit_loss for trade in trades]
+    mean_return = np.mean(returns)
+    std_dev_return = np.std(returns)
+    var_95 = norm.ppf(0.05, mean_return, std_dev_return)
+
+    return jsonify({'var': var_95})
+
+@app.route('/max_drawdown', methods=['GET'])
+def get_max_drawdown():
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
+
+    query = app.session.query(Trade)
+
+    if brokers:
+        query = query.filter(Trade.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Trade.strategy.in_(strategies))
+
+    trades = query.all()
+
+    if not trades:
+        return jsonify({'max_drawdown': 0})
+
+    cum_returns = np.cumsum([trade.profit_loss for trade in trades])
+    running_max = np.maximum.accumulate(cum_returns)
+    drawdowns = (running_max - cum_returns) / running_max
+    max_drawdown = np.max(drawdowns)
+
+    return jsonify({'max_drawdown': max_drawdown})
+
+@app.route('/sharpe_ratio', methods=['GET'])
+def get_sharpe_ratio():
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
+
+    query = app.session.query(Trade)
+
+    if brokers:
+        query = query.filter(Trade.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Trade.strategy.in_(strategies))
+
+    trades = query.all()
+
+    if not trades:
+        return jsonify({'sharpe_ratio': 0})
+
+    returns = [trade.profit_loss for trade in trades]
+    mean_return = np.mean(returns)
+    std_dev_return = np.std(returns)
+    sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
+
+    return jsonify({'sharpe_ratio': sharpe_ratio})
+
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)

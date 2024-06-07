@@ -43,6 +43,11 @@ const Sidebar = () => {
               <span>Trades</span>
             </Link>
           </li>
+          <li className="nav-text">
+            <Link to="/insights">
+              <span>Insights</span>
+            </Link>
+          </li>
         </ul>
       </nav>
     </>
