@@ -98,7 +98,8 @@ class BaseBroker(ABC):
         trade = Trade(
             symbol=symbol,
             quantity=quantity,
-            price=price,
+            # TODO: remove redundant price
+            price=response['filled_price'],
             executed_price=response['filled_price'],
             order_type=order_type,
             status='filled',
@@ -113,8 +114,8 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
 
-        # Update positions
-        self.update_positions(session, trade, order_type)
+            # Update positions
+            self.update_positions(session, trade)
 
         return response
 
