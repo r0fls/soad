@@ -49,6 +49,7 @@ class Position(Base):
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
+    cost = Column(Float, nullable=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     balance = relationship("Balance", back_populates="positions")

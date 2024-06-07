@@ -49,7 +49,7 @@ class TradierBroker(BaseBroker):
             buying_power = account_info['pdt']['stock_buying_power']
 
         return {
-            'account_number': account_info['account_number'],
+            'account_id': account_info['account_number'],
             'account_type': self.account_type,
             'buying_power': buying_power,
             'value': account_value
