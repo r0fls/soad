@@ -18,7 +18,7 @@ brokers = ['E*TRADE', 'Tradier', 'Tastytrade']
 strategies = ['SMA', 'EMA', 'RSI', 'Bollinger Bands', 'MACD', 'VWAP', 'Ichimoku']
 
 # Generate unique hourly timestamps for the past 30 days
-start_date = datetime.utcnow() - timedelta(days=2)
+start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
@@ -70,18 +70,19 @@ for broker in brokers:
             print(f"Inserted balance record for {broker}, {strategy} at {timestamp}. Total balance: {total_balance}")
 
             # Generate and insert fake positions for each balance record
-            for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
-                quantity = random.randint(1, 100)
-                latest_price = random.uniform(100, 3000)
-                position_record = Position(
-                    balance_id=balance_record.id,
-                    symbol=symbol,
-                    quantity=quantity,
-                    latest_price=latest_price
-                )
-                session.add(position_record)
-                session.commit()
-                print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+        for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+            quantity = random.randint(1, 100)
+            latest_price = random.uniform(100, 3000)
+            position_record = Position(
+                broker=broker,
+                strategy=strategy,
+                symbol=symbol,
+                quantity=quantity,
+                latest_price=latest_price
+            )
+            session.add(position_record)
+            session.commit()
+            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
 
 print("Fake balance data and positions generation and insertion completed.")
 

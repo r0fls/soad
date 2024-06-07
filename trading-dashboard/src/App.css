@@ -1,0 +1,43 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.container-fluid {
+  margin-top: 20px;
+ /* padding-left: 250px; /* Adjust based on sidebar width */
+}
+
+.card {
+  margin-bottom: 20px;
+}
+
+.sidebar {
+  height: 100%;
+  width: 250px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: #111;
+  padding-top: 20px;
+}
+
+.sidebar a {
+  padding: 10px 15px;
+  text-decoration: none;
+  font-size: 18px;
+  color: #818181;
+  display: block;
+}
+
+.sidebar a:hover {
+  color: #f1f1f1;
+}
+
+.content {
+  margin-left: 260px;
+  padding: 20px;
+}
+
+.filter-bar {
+  margin-bottom: 20px;
+}

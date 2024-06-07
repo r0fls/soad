@@ -43,7 +43,7 @@ class Position(Base):
     __tablename__ = 'positions'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    balance_id = Column(Integer, ForeignKey('balances.id'), nullable=False)
+    balance_id = Column(Integer, ForeignKey('balances.id'), nullable=True)
     strategy = Column(String)
     broker = Column(String, nullable=False)
     symbol = Column(String, nullable=False)
