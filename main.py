@@ -57,7 +57,7 @@ def start_api_server(config_path=None):
     # Initialize the database
     init_db(engine)
 
-    app = create_app()
+    app = create_app(engine)
     app.run(host="0.0.0.0", port=8000, debug=True)
 
 def main():
