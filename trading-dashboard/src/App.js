@@ -5,6 +5,7 @@ import './App.css';
 import Dashboard from './Dashboard';
 import AccountView from './AccountView';
 import Positions from './Positions';
+import Trades from './Trades';
 import Sidebar from './Sidebar';
 
 const App = () => {
@@ -16,6 +17,7 @@ const App = () => {
           <Route exact path="/" element={<Dashboard />} />
           <Route path="/accounts" element={<AccountView />} />
           <Route path="/positions" element={<Positions />} />
+          <Route path="/trades" element={<Trades />} />
         </Routes>
       </div>
     </Router>

@@ -91,6 +91,77 @@ def get_positions():
 
     return jsonify({'positions': positions_data})
 
+@app.route('/trades', methods=['GET'])
+def get_trades():
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
+
+    query = app.session.query(Trade)
+
+    if brokers:
+        query = query.filter(Trade.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Trade.strategy.in_(strategies))
+
+    trades = query.all()
+    trades_data = [{
+        'id': trade.id,
+        'broker': trade.broker,
+        'strategy': trade.strategy,
+        'symbol': trade.symbol,
+        'quantity': trade.quantity,
+        'price': trade.price,
+        'profit_loss': trade.profit_loss,
+        'timestamp': trade.timestamp
+    } for trade in trades]
+
+    return jsonify({'trades': trades_data})
+
+
+@app.route('/trade_stats', methods=['GET'])
+def get_trade_stats():
+    brokers = request.args.getlist('brokers[]')
+    strategies = request.args.getlist('strategies[]')
+
+    query = app.session.query(Trade)
+
+    if brokers:
+        query = query.filter(Trade.broker.in_(brokers))
+    if strategies:
+        query = query.filter(Trade.strategy.in_(strategies))
+
+    trades = query.all()
+
+    if not trades:
+        return jsonify({
+            'average_profit_loss': 0,
+            'win_loss_rate': 0,
+            'number_of_trades': 0,
+            'trades_per_day': {}
+        })
+
+    total_profit_loss = sum(trade.profit_loss for trade in trades)
+    number_of_trades = len(trades)
+    wins = sum(1 for trade in trades if trade.profit_loss > 0)
+    losses = sum(1 for trade in trades if trade.profit_loss <= 0)
+    win_loss_rate = wins / number_of_trades if number_of_trades > 0 else 0
+
+    trades_per_day = {}
+    for trade in trades:
+        day = trade.timestamp.date().isoformat()  # Convert date to string
+        if day not in trades_per_day:
+            trades_per_day[day] = 0
+        trades_per_day[day] += 1
+
+    average_profit_loss = total_profit_loss / number_of_trades
+
+    return jsonify({
+        'average_profit_loss': average_profit_loss,
+        'win_loss_rate': win_loss_rate,
+        'number_of_trades': number_of_trades,
+        'trades_per_day': trades_per_day
+    })
+
 def create_app(engine):
     Session = sessionmaker(bind=engine)
     app.session = Session()
