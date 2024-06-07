@@ -113,22 +113,8 @@ class BaseBroker(ABC):
             session.add(trade)
             session.commit()
 
-            balance = session.query(Balance).filter_by(broker=self.broker_name, strategy=strategy).first()
-            if not balance:
-                balance = Balance(
-                    broker=self.broker_name,
-                    strategy=strategy,
-                    initial_balance=0,
-                    total_balance=0,
-                    timestamp=datetime.now()
-                )
-                session.add(balance)
-
-            balance.total_balance += trade.executed_price * trade.quantity
-            session.commit()
-
-            # Update positions
-            self.update_positions(session, trade, order_type)
+        # Update positions
+        self.update_positions(session, trade, order_type)
 
         return response
 
