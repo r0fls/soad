@@ -9,12 +9,10 @@
 - Options are a first class citizen
 
 ## UI Screenshots
-
-*Main view*
-![Screen Shot 2024-05-30 at 5 37 42 PM](https://github.com/r0fls/soad/assets/1858004/1ecb2766-2030-4323-94c5-9e46f08118da)
-
-*Positions Screen*
-![Screen Shot 2024-06-06 at 9 59 17 AM](https://github.com/r0fls/soad/assets/1858004/610a5f28-63f4-48e3-a8ba-2ced263eea39)
+![Screen Shot 2024-06-06 at 7 57 03 PM](https://github.com/r0fls/soad/assets/1858004/a4216d9f-e808-4055-9c99-e4e720557b23)
+![Screen Shot 2024-06-06 at 7 56 38 PM](https://github.com/r0fls/soad/assets/1858004/0e214dd5-c157-47cc-a48f-2ec0f37a7b33)
+![Screen Shot 2024-06-06 at 7 55 54 PM](https://github.com/r0fls/soad/assets/1858004/65c4774d-fb49-4452-936c-f5148f958d26)
+![Screen Shot 2024-06-06 at 7 56 07 PM](https://github.com/r0fls/soad/assets/1858004/24401792-b0b0-4d2e-b2db-15827cb71b0a)
 
 
 ## TODO
