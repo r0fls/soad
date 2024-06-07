@@ -116,15 +116,16 @@ class TradierBroker(BaseBroker):
 
             order_status = status_response.json()['order']['status']
 
-            # Cancel the order if it's not filled
+            # try to Cancel the order if it's not filled (might have gotten filled by now)
             if order_status != 'filled':
                 cancel_url = f"https://api.tradier.com/v1/accounts/{self.account_id}/orders/{order_id}/cancel"
                 cancel_response = requests.put(cancel_url, headers=self.headers)
-                if cancel_response.status_code != 200:
-                    raise Exception(f"Failed to cancel order: {cancel_response.text}")
 
         # Return the response in JSON format
-        return response.json()
+        data = response.json()
+        if data.get('filled_price') is None:
+            data['filled_price'] = price
+        return data
 
     def _get_order_status(self, order_id):
         # Implement order status retrieval
