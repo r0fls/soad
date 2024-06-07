@@ -40,16 +40,15 @@ def start_trading_system(config_path):
                 last_rebalances[i] = now
         time.sleep(60)  # Check every minute
 
-def start_api_server(config_path=None):
+def start_api_server(config_path=None, local_testing=False):
     if config_path is None:
         config = {}
     else:
         config = parse_config(config_path)
 
-        # Initialize the brokers
-        brokers = initialize_brokers(config)
-
-    if 'database' in config and 'url' in config['database']:
+    if local_testing:
+        engine = create_engine('sqlite:///trading.db')
+    elif 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
@@ -64,6 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
     parser.add_argument('--mode', choices=['trade', 'api'], required=True, help='Mode to run the system in: "trade" or "api"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
+    parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
     args = parser.parse_args()
 
     if args.mode == 'trade':
@@ -71,7 +71,7 @@ def main():
             parser.error('--config is required when mode is "trade"')
         start_trading_system(args.config)
     elif args.mode == 'api':
-        start_api_server()
+        start_api_server(config_path=args.config, local_testing=args.local_testing)
 
 if __name__ == "__main__":
     main()
