@@ -20,17 +20,18 @@
 ## TODO
 
 
-** Code Quality **
+**Code Quality**
 - Remove magic strings and numbers
 - Add more unit tests
 - Review failing unit tests
 
 
-** Features **
+**Features**
 - Add more brokers
 - Add more strategies
+- Add position/balance sync worker
 
-** Misc **
+**Misc**
 - Documentation
 - Postgres helm deploy
 - RDS/Cloud Postgres deploy
