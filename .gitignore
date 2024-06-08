@@ -6,3 +6,4 @@ my_example.py
 Chart.lock
 charts/
 test-config.yaml
+app.log

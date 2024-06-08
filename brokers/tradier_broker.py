@@ -1,6 +1,7 @@
 import requests
 import time
 from brokers.base_broker import BaseBroker
+from utils.logger import logger  # Import the logger
 
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, **kwargs):
@@ -12,138 +13,159 @@ class TradierBroker(BaseBroker):
         }
         self.order_timeout = 1
         self.auto_cancel_orders = True
+        logger.info('Initialized TradierBroker', extra={'api_key': api_key, 'base_url': self.base_url})
 
-    # TODO: remove
     def connect(self):
+        logger.info('Connecting to Tradier API')
+        # Placeholder for actual connection logic
         pass
 
     def _get_account_info(self):
-        # Implement account information retrieval
-        response = requests.get("https://api.tradier.com/v1/user/profile", headers=self.headers)
-        if response.status_code == 401:
-            raise ValueError("It seems we are having trouble authenticating to Tradier")
-        account_info = response.json()
-        account_id = account_info['profile']['account']['account_number']
-        self.account_id = account_id
+        logger.info('Retrieving account information')
+        try:
+            response = requests.get("https://api.tradier.com/v1/user/profile", headers=self.headers)
+            response.raise_for_status()
+            account_info = response.json()
+            account_id = account_info['profile']['account']['account_number']
+            self.account_id = account_id
+            logger.info('Account info retrieved', extra={'account_id': self.account_id})
 
-        # Get the balance info for the account
-        url = f'{self.base_url}/accounts/{self.account_id}/balances'
-        response = requests.get(url, headers=self.headers)
-        if response.status_code != 200:
-            raise Exception(f"Failed to get account info: {response.text}")
+            url = f'{self.base_url}/accounts/{self.account_id}/balances'
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            account_info = response.json().get('balances')
 
-        account_info = response.json().get('balances')
-        if not account_info:
-            raise Exception("Invalid account info response")
+            if not account_info:
+                logger.error("Invalid account info response")
 
-        if account_info.get('cash'):
-            self.account_type = 'cash'
-            buying_power = account_info['cash']['cash_available']
-            account_value = account_info['total_equity']
-        if account_info.get('margin'):
-            self.account_type = 'margin'
-            buying_power = account_info['margin']['stock_buying_power']
-            account_value = account_info['total_equity']
-        if account_info.get('pdt'):
-            self.account_type = 'pdt'
-            buying_power = account_info['pdt']['stock_buying_power']
+            if account_info.get('cash'):
+                self.account_type = 'cash'
+                buying_power = account_info['cash']['cash_available']
+                account_value = account_info['total_equity']
+            if account_info.get('margin'):
+                self.account_type = 'margin'
+                buying_power = account_info['margin']['stock_buying_power']
+                account_value = account_info['total_equity']
+            if account_info.get('pdt'):
+                self.account_type = 'pdt'
+                buying_power = account_info['pdt']['stock_buying_power']
 
-        return {
-            'account_number': account_info['account_number'],
-            'account_type': self.account_type,
-            'buying_power': buying_power,
-            'value': account_value
-        }
+            logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
+            return {
+                'account_number': account_info['account_number'],
+                'account_type': self.account_type,
+                'buying_power': buying_power,
+                'value': account_value
+            }
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve account information', extra={'error': str(e)})
 
     def get_positions(self):
+        logger.info('Retrieving positions')
         url = f"{self.base_url}/accounts/{self.account_id}/positions"
-        response = requests.get(url, headers=self.headers)
-
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
             positions_data = response.json()['positions']['position']
-            # Singular dict response
+
             if type(positions_data) != list:
                 positions_data = [positions_data]
             positions = {p['symbol']: p for p in positions_data}
+            logger.info('Positions retrieved', extra={'positions': positions})
             return positions
-        else:
-            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve positions', extra={'error': str(e)})
 
     def _place_order(self, symbol, quantity, order_type, price=None):
-        # Retrieve the current quote to get the bid/ask prices
-        quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
-        quote_response = requests.get(quote_url, headers=self.headers)
-        if quote_response.status_code != 200:
-            raise Exception(f"Failed to get quote: {quote_response.text}")
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        try:
+            quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+            quote_response = requests.get(quote_url, headers=self.headers)
+            quote_response.raise_for_status()
+            quote = quote_response.json()['quotes']['quote']
+            bid = quote['bid']
+            ask = quote['ask']
 
-        quote = quote_response.json()['quotes']['quote']
-        bid = quote['bid']
-        ask = quote['ask']
+            if price is None:
+                price = round((bid + ask) / 2, 2)
 
-        # Use the median of the bid/ask spread as the limit price if none is provided
-        if price is None:
-            price = round((bid + ask) / 2, 2)
+            order_data = {
+                "class": "equity",
+                "symbol": symbol,
+                "quantity": quantity,
+                "side": order_type,
+                "type": "limit",
+                "duration": "day",
+                "price": price
+            }
 
-        # Prepare order data
-        order_data = {
-            "class": "equity",
-            "symbol": symbol,
-            "quantity": quantity,
-            "side": order_type,  # 'buy' or 'sell'
-            "type": "limit",  # Using limit order type
-            "duration": "day",  # Immediate or Cancel
-            "price": price
-        }
+            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response.raise_for_status()
 
-        # Make the API call to place the order
-        response = requests.post(f"https://api.tradier.com/v1/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            order_id = response.json()['order']['id']
+            logger.info('Order placed', extra={'order_id': order_id})
 
-        # Check for success or raise an exception
-        if response.status_code > 400:
-            print(f"Failed to place order: {response.text}")
-            return {}
+            if self.auto_cancel_orders:
+                time.sleep(self.order_timeout)
+                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                status_response = requests.get(order_status_url, headers=self.headers)
+                status_response.raise_for_status()
+                order_status = status_response.json()['order']['status']
 
-        order_id = response.json()['order']['id']
-        if self.auto_cancel_orders:
-            # Wait for a short period to check if the order gets filled
-            time.sleep(self.order_timeout)
+                if order_status != 'filled':
+                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                    cancel_response = requests.put(cancel_url, headers=self.headers)
+                    cancel_response.raise_for_status()
+                    logger.info('Order cancelled', extra={'order_id': order_id})
 
-            # Check the order status
-            order_status_url = f"https://api.tradier.com/v1/accounts/{self.account_id}/orders/{order_id}"
-            status_response = requests.get(order_status_url, headers=self.headers)
-            if status_response.status_code != 200:
-                raise Exception(f"Failed to get order status: {status_response.text}")
-
-            order_status = status_response.json()['order']['status']
-
-            # try to Cancel the order if it's not filled (might have gotten filled by now)
-            if order_status != 'filled':
-                cancel_url = f"https://api.tradier.com/v1/accounts/{self.account_id}/orders/{order_id}/cancel"
-                cancel_response = requests.put(cancel_url, headers=self.headers)
-
-        # Return the response in JSON format
-        data = response.json()
-        if data.get('filled_price') is None:
-            data['filled_price'] = price
-        return data
+            data = response.json()
+            if data.get('filled_price') is None:
+                data['filled_price'] = price
+            logger.info('Order execution complete', extra={'order_data': data})
+            return data
+        except requests.RequestException as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
 
     def _get_order_status(self, order_id):
-        # Implement order status retrieval
-        response = requests.get(f"https://api.tradier.com/v1/accounts/orders/{order_id}", headers=self.headers)
-        return response.json()
+        logger.info('Retrieving order status', extra={'order_id': order_id})
+        try:
+            response = requests.get(f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+            response.raise_for_status()
+            order_status = response.json()
+            logger.info('Order status retrieved', extra={'order_status': order_status})
+            return order_status
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve order status', extra={'error': str(e)})
 
     def _cancel_order(self, order_id):
-        # Implement order cancellation
-        response = requests.delete(f"https://api.tradier.com/v1/accounts/orders/{order_id}", headers=self.headers)
-        return response.json()
+        logger.info('Cancelling order', extra={'order_id': order_id})
+        try:
+            response = requests.delete(f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+            response.raise_for_status()
+            cancellation_response = response.json()
+            logger.info('Order cancelled successfully', extra={'cancellation_response': cancellation_response})
+            return cancellation_response
+        except requests.RequestException as e:
+            logger.error('Failed to cancel order', extra={'error': str(e)})
 
     def _get_options_chain(self, symbol, expiration_date):
-        # Implement options chain retrieval
-        response = requests.get(f"https://api.tradier.com/v1/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers=self.headers)
-        return response.json()
+        logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
+        try:
+            response = requests.get(f"{self.base_url}/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers=self.headers)
+            response.raise_for_status()
+            options_chain = response.json()
+            logger.info('Options chain retrieved', extra={'options_chain': options_chain})
+            return options_chain
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     def get_current_price(self, symbol):
-        # Implement current price retrieval
-        response = requests.get(f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}", headers=self.headers)
-        last_price = response.json().get('quotes').get('quote').get('last')
-        return last_price
+        logger.info('Retrieving current price', extra={'symbol': symbol})
+        try:
+            response = requests.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers)
+            response.raise_for_status()
+            last_price = response.json().get('quotes').get('quote').get('last')
+            logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
+            return last_price
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve current price', extra={'error': str(e)})

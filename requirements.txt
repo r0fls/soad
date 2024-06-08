@@ -3,3 +3,4 @@ pytest
 sqlalchemy
 pyyaml
 flask
+python-json-logger

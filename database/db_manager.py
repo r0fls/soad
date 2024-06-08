@@ -1,75 +1,88 @@
 import json
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Trade, AccountInfo
-
-DATABASE_URL = "sqlite:///trades.db"
-
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
+from utils.logger import logger
 
 class DBManager:
     def __init__(self, engine):
         self.Session = sessionmaker(bind=engine)
-
-    def add_account_info(self, account_info):
-        with self.Session() as session:
-            existing_info = session.query(AccountInfo).filter_by(broker=account_info.broker).first()
-            if existing_info:
-                existing_info.value = account_info.value
-            else:
-                session.add(account_info)
-            session.commit()
+        logger.info('DBManager initialized', extra={'database_url': engine.url})
 
     def add_account_info(self, account_info):
         session = self.Session()
         try:
-            existing_info = session.query(AccountInfo).first()
+            logger.info('Adding account info', extra={'account_info': account_info})
+            existing_info = session.query(AccountInfo).filter_by(broker=account_info.broker).first()
             if existing_info:
-                session.delete(existing_info)
-                session.commit()
-            session.add(account_info)
+                existing_info.value = account_info.value
+                logger.info('Updated existing account info', extra={'account_info': account_info})
+            else:
+                session.add(account_info)
+                logger.info('Added new account info', extra={'account_info': account_info})
             session.commit()
         except Exception as e:
             session.rollback()
-            raise e
+            logger.error('Failed to add account info', extra={'error': str(e)})
         finally:
             session.close()
 
     def get_trade(self, trade_id):
         session = self.Session()
         try:
-            return session.query(Trade).filter_by(id=trade_id).first()
+            logger.info('Retrieving trade', extra={'trade_id': trade_id})
+            trade = session.query(Trade).filter_by(id=trade_id).first()
+            logger.info('Trade retrieved', extra={'trade': trade})
+            return trade
+        except Exception as e:
+            logger.error('Failed to retrieve trade', extra={'error': str(e)})
+            return None
         finally:
             session.close()
 
     def get_all_trades(self):
         session = self.Session()
         try:
-            return session.query(Trade).all()
+            logger.info('Retrieving all trades')
+            trades = session.query(Trade).all()
+            logger.info('All trades retrieved', extra={'trade_count': len(trades)})
+            return trades
+        except Exception as e:
+            logger.error('Failed to retrieve all trades', extra={'error': str(e)})
+            return []
         finally:
             session.close()
 
     def calculate_profit_loss(self, trade):
-        current_price = trade.executed_price
-        if current_price is None:
-            raise ValueError("Executed price is None, cannot calculate profit/loss")
-        if trade.order_type.lower() == 'buy':
-            return (current_price - trade.price) * trade.quantity
-        elif trade.order_type.lower() == 'sell':
-            return (trade.price - current_price) * trade.quantity
+        try:
+            logger.info('Calculating profit/loss', extra={'trade': trade})
+            current_price = trade.executed_price
+            if current_price is None:
+                logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
+                return None
+
+            if trade.order_type.lower() == 'buy':
+                profit_loss = (current_price - trade.price) * trade.quantity
+            elif trade.order_type.lower() == 'sell':
+                profit_loss = (trade.price - current_price) * trade.quantity
+            logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
+            return profit_loss
+        except Exception as e:
+            logger.error('Failed to calculate profit/loss', extra={'error': str(e)})
+            return None
 
     def update_trade_status(self, trade_id, executed_price, success, profit_loss):
         session = self.Session()
         try:
+            logger.info('Updating trade status', extra={'trade_id': trade_id, 'executed_price': executed_price, 'success': success, 'profit_loss': profit_loss})
             trade = session.query(Trade).filter_by(id=trade_id).first()
             if trade:
                 trade.executed_price = executed_price
                 trade.success = success
                 trade.profit_loss = profit_loss
                 session.commit()
+                logger.info('Trade status updated', extra={'trade': trade})
         except Exception as e:
             session.rollback()
-            raise e
+            logger.error('Failed to update trade status', extra={'error': str(e)})
         finally:
             session.close()
