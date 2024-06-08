@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import and_
 from database.db_manager import DBManager
-from database.models import Trade, AccountInfo, Balance, Position
+from database.models import Trade, AccountInfo, Balance, Position, Strategy
 from datetime import datetime
 
 class BaseBroker(ABC):
@@ -13,7 +13,7 @@ class BaseBroker(ABC):
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
-        self.prevent_day_trading = False
+        self.prevent_day_trading = prevent_day_trading
 
     @abstractmethod
     def connect(self):
@@ -62,20 +62,22 @@ class BaseBroker(ABC):
             return len(trades) > 0
 
     def update_positions(self, session, trade):
-        position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
+        position = session.query(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy_id=trade.strategy_id).first()
 
         if trade.order_type == 'buy':
             if position:
                 position.quantity += trade.quantity
                 position.latest_price = trade.executed_price
-                position.timestamp = datetime.now()
+                position.last_updated = datetime.now()
             else:
                 position = Position(
                     broker=self.broker_name,
-                    strategy=trade.strategy,
+                    strategy_id=trade.strategy_id,
                     symbol=trade.symbol,
                     quantity=trade.quantity,
                     latest_price=trade.executed_price,
+                    cost=trade.price,
+                    last_updated=datetime.now()
                 )
                 session.add(position)
         elif trade.order_type == 'sell':
@@ -84,28 +86,34 @@ class BaseBroker(ABC):
                 position.latest_price = trade.executed_price
                 if position.quantity < 0:
                     raise ValueError("Sell quantity exceeds current position quantity.")
+                position.last_updated = datetime.now()
 
         session.commit()
 
-    def place_order(self, symbol, quantity, order_type, strategy, price=None):
+    def place_order(self, symbol, quantity, order_type, strategy_name, price=None):
         # Check for day trading
         if self.prevent_day_trading and order_type == 'sell':
             if self.has_bought_today(symbol):
                 raise ValueError("Day trading is not allowed. Cannot sell positions opened today.")
+
+        # Find strategy ID by name
+        session = self.Session()
+        strategy = session.query(Strategy).filter_by(name=strategy_name).first()
+        strategy_id = strategy.id if strategy else None
+        session.close()
 
         response = self._place_order(symbol, quantity, order_type, price)
         
         trade = Trade(
             symbol=symbol,
             quantity=quantity,
-            # TODO: remove redundant price
             price=response['filled_price'],
             executed_price=response['filled_price'],
             order_type=order_type,
             status='filled',
             timestamp=datetime.now(),
             broker=self.broker_name,
-            strategy=strategy,
+            strategy_id=strategy_id,
             profit_loss=0,
             success='yes'
         )
@@ -143,9 +151,9 @@ class BaseBroker(ABC):
         if not trade:
             return
 
-        executed_price = order_info.get('filled_price', trade.price)  # Match the correct key
+        executed_price = order_info.get('filled_price', trade.price)
         if executed_price is None:
-            executed_price = trade.price  # Ensure we have a valid executed price
+            executed_price = trade.price
 
         trade.executed_price = executed_price
         profit_loss = self.db_manager.calculate_profit_loss(trade)
@@ -155,3 +163,11 @@ class BaseBroker(ABC):
         trade.success = success
         trade.profit_loss = profit_loss
         session.commit()
+
+    def get_positions(self):
+        # Abstract method to be implemented by subclasses
+        raise NotImplementedError("Subclasses must implement get_positions method")
+
+    def get_trades(self):
+        # Abstract method to be implemented by subclasses
+        raise NotImplementedError("Subclasses must implement get_trades method")

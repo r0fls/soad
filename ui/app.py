@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, render_template, request
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
-from database.models import Trade, AccountInfo, Balance, Position
+from database.models import Trade, AccountInfo, Balance, Position, Strategy
 from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
@@ -12,7 +12,7 @@ CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 @app.route('/trades_per_strategy')
 def trades_per_strategy():
-    trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+    trades_count = app.session.query(Strategy.name, Trade.broker, func.count(Trade.id)).join(Strategy, Trade.strategy_id == Strategy.id).group_by(Strategy.name, Trade.broker).all()
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
@@ -20,14 +20,14 @@ def trades_per_strategy():
 def historic_balance_per_strategy():
     try:
         historical_balances = app.session.query(
-            Balance.strategy,
+            Strategy.name,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
             Balance.total_balance,
-        ).group_by(
-            Balance.strategy, Balance.broker, 'hour'
+        ).join(Strategy, Balance.strategy_id == Strategy.id).group_by(
+            Strategy.name, Balance.broker, 'hour'
         ).order_by(
-            Balance.strategy, Balance.broker, 'hour'
+            Strategy.name, Balance.broker, 'hour'
         ).all()
         historical_balances_serializable = []
         for strategy, broker, hour, total_balance in historical_balances:
@@ -49,12 +49,12 @@ def account_values():
 
 @app.route('/trade_success_rate')
 def trade_success_rate():
-    strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
+    strategies_and_brokers = app.session.query(Strategy.name, Trade.broker).distinct().join(Strategy, Trade.strategy_id == Strategy.id).all()
     success_rate_by_strategy_and_broker = []
 
     for strategy, broker in strategies_and_brokers:
-        total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-        successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+        total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy_id == Strategy.id, Trade.broker == broker).scalar()
+        successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy_id == Strategy.id, Trade.broker == broker, Trade.profit_loss > 0).scalar()
         failed_trades = total_trades - successful_trades
 
         success_rate_by_strategy_and_broker.append({
@@ -72,19 +72,19 @@ def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position)
+    query = app.session.query(Position).join(Strategy, Position.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Position.broker.in_(brokers))
     if strategies:
-        query = query.filter(Position.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     positions = query.all()
     positions_data = []
     for position in positions:
         positions_data.append({
             'broker': position.broker,
-            'strategy': position.strategy,
+            'strategy': position.strategy.name,
             'symbol': position.symbol,
             'quantity': position.quantity,
             'latest_price': position.latest_price,
@@ -98,18 +98,18 @@ def get_trades():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+    query = app.session.query(Trade).join(Strategy, Trade.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Trade.broker.in_(brokers))
     if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     trades = query.all()
     trades_data = [{
         'id': trade.id,
         'broker': trade.broker,
-        'strategy': trade.strategy,
+        'strategy': trade.strategy.name,
         'symbol': trade.symbol,
         'quantity': trade.quantity,
         'price': trade.price,
@@ -125,12 +125,12 @@ def get_trade_stats():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+    query = app.session.query(Trade).join(Strategy, Trade.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Trade.broker.in_(brokers))
     if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     trades = query.all()
 
@@ -150,7 +150,7 @@ def get_trade_stats():
 
     trades_per_day = {}
     for trade in trades:
-        day = trade.timestamp.date().isoformat()  # Convert date to string
+        day = trade.timestamp.date().isoformat()
         if day not in trades_per_day:
             trades_per_day[day] = 0
         trades_per_day[day] += 1
@@ -169,12 +169,12 @@ def get_var():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+    query = app.session.query(Trade).join(Strategy, Trade.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Trade.broker.in_(brokers))
     if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     trades = query.all()
 
@@ -193,12 +193,12 @@ def get_max_drawdown():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+    query = app.session.query(Trade).join(Strategy, Trade.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Trade.broker.in_(brokers))
     if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     trades = query.all()
 
@@ -217,12 +217,12 @@ def get_sharpe_ratio():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+    query = app.session.query(Trade).join(Strategy, Trade.strategy_id == Strategy.id)
 
     if brokers:
         query = query.filter(Trade.broker.in_(brokers))
     if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        query = query.filter(Strategy.name.in_(strategies))
 
     trades = query.all()
 
@@ -235,7 +235,6 @@ def get_sharpe_ratio():
     sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
 
     return jsonify({'sharpe_ratio': sharpe_ratio})
-
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)

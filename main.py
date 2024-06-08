@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta
 from database.models import init_db
 from ui.app import create_app
-from utils.config import parse_config, initialize_brokers, initialize_strategies
+from utils.config import parse_config, initialize
 from sqlalchemy import create_engine
 from data.sync_service import run_sync_service
 
@@ -12,7 +12,7 @@ def start_trading_system(config_path):
     config = parse_config(config_path)
     
     # Initialize the brokers
-    brokers = initialize_brokers(config)
+    brokers = initialize(config)
 
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
@@ -21,13 +21,8 @@ def start_trading_system(config_path):
     
     # Initialize the database
     init_db(engine)
-    
-    # Connect to each broker
-    for broker in brokers.values():
-        broker.connect()
-    
-    # Initialize the strategies
-    strategies = initialize_strategies(brokers, config)
+
+    initialize(config)
     
     # Execute the strategies loop
     rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
@@ -48,13 +43,19 @@ def start_sync_service(config_path=None, local_testing=False):
     else:
         config = parse_config(config_path)
 
+
     if local_testing:
         engine = create_engine('sqlite:///trading.db')
     elif 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
-    run_sync_service(config, engine)
+
+    init_db(engine)
+
+    brokers = initialize(config)
+
+    run_sync_service(brokers, engine)
 
 
 def start_api_server(config_path=None, local_testing=False):

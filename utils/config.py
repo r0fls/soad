@@ -5,6 +5,8 @@ from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from database.models import Strategy
 
 # Mapping of broker types to their constructors
 BROKER_MAP = {
@@ -47,7 +49,7 @@ def parse_config(config_path):
         config = yaml.safe_load(file)
     return config
 
-def initialize_brokers(config):
+def initialize(config):
     # Create a single database engine for all brokers
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
@@ -56,21 +58,31 @@ def initialize_brokers(config):
     
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-        
         # Initialize the broker with the shared engine
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
-    
-    return brokers
-
-def initialize_strategies(brokers, config):
     strategies_config = config['strategies']
     strategies = []
-    for strategy_config in strategies_config:
-        strategy_type = strategy_config['type']
-        broker_name = strategy_config['broker']
-        broker = brokers[broker_name]
-        if strategy_type in STRATEGY_MAP:
-            strategies.append(STRATEGY_MAP[strategy_type](broker, strategy_config))
-        else:
-            raise ValueError(f"Unsupported strategy type: {strategy_type}")
-    return strategies
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    try:
+        for strategy_name in strategies_config:
+            strategy_type = strategies_config[strategy_name]['type']
+            broker_name = strategies_config[strategy_name]['broker']
+            broker = brokers[broker_name]
+            
+            # Ensure the strategy is in the database
+            strategy = session.query(Strategy).filter_by(name=strategy_name).first()
+            if not strategy:
+                strategy = Strategy(name=strategy_name)
+                session.add(strategy)
+                session.commit()
+            
+            if strategy_type in STRATEGY_MAP:
+                strategy_instance = STRATEGY_MAP[strategy_type](broker, strategies_config[strategy_name])
+                strategy_instance.strategy_id = strategy.id
+                strategies.append(strategy_instance)
+            else:
+                raise ValueError(f"Unsupported strategy type: {strategy_type}")
+    finally:
+        session.close()
+    return brokers, strategies
