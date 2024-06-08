@@ -5,59 +5,112 @@ from database.models import init_db
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine
+from utils.logger import logger  # Import the logger
 
 def start_trading_system(config_path):
-    # Parse the configuration file
-    config = parse_config(config_path)
-    
-    # Initialize the brokers
-    brokers = initialize_brokers(config)
+    logger.info('Starting the trading system', extra={'config_path': config_path})
 
+    # Parse the configuration file
+    try:
+        config = parse_config(config_path)
+        logger.info('Configuration parsed successfully')
+    except Exception as e:
+        logger.error('Failed to parse configuration', extra={'error': str(e)})
+        return
+
+    # Initialize the brokers
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        return
+
+    # Setup the database engine
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
-    
+    logger.info('Database engine created', extra={'db_url': engine.url})
+
     # Initialize the database
-    init_db(engine)
-    
+    try:
+        init_db(engine)
+        logger.info('Database initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize database', extra={'error': str(e)})
+        return
+
     # Connect to each broker
-    for broker in brokers.values():
-        broker.connect()
-    
+    for broker_name, broker in brokers.items():
+        try:
+            broker.connect()
+            logger.info(f'Connected to broker {broker_name}')
+        except Exception as e:
+            logger.error(f'Failed to connect to broker {broker_name}', extra={'error': str(e)})
+
     # Initialize the strategies
-    strategies = initialize_strategies(brokers, config)
-    
+    try:
+        strategies = initialize_strategies(brokers, config)
+        logger.info('Strategies initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize strategies', extra={'error': str(e)})
+        return
+
     # Execute the strategies loop
     rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
     last_rebalances = [datetime.min for _ in strategies]
-    
+    logger.info('Entering the strategies execution loop')
+
     while True:
         now = datetime.now()
         for i, strategy in enumerate(strategies):
             if now - last_rebalances[i] >= rebalance_intervals[i]:
-                strategy.rebalance()
-                last_rebalances[i] = now
+                try:
+                    strategy.rebalance()
+                    last_rebalances[i] = now
+                    logger.info(f'Strategy {i} rebalanced successfully', extra={'time': now})
+                except Exception as e:
+                    logger.error(f'Error during rebalancing strategy {i}', extra={'error': str(e)})
         time.sleep(60)  # Check every minute
 
 def start_api_server(config_path=None, local_testing=False):
+    logger.info('Starting API server', extra={'config_path': config_path, 'local_testing': local_testing})
+
     if config_path is None:
         config = {}
     else:
-        config = parse_config(config_path)
+        try:
+            config = parse_config(config_path)
+            logger.info('Configuration parsed successfully for API server')
+        except Exception as e:
+            logger.error('Failed to parse configuration for API server', extra={'error': str(e)})
+            return
 
+    # Setup the database engine
     if local_testing:
         engine = create_engine('sqlite:///trading.db')
     elif 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
+    logger.info('Database engine created for API server', extra={'db_url': engine.url})
 
     # Initialize the database
-    init_db(engine)
+    try:
+        init_db(engine)
+        logger.info('Database initialized successfully for API server')
+    except Exception as e:
+        logger.error('Failed to initialize database for API server', extra={'error': str(e)})
+        return
 
-    app = create_app(engine)
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Create and run the app
+    try:
+        app = create_app(engine)
+        logger.info('API server created successfully')
+        app.run(host="0.0.0.0", port=8000, debug=True)
+    except Exception as e:
+        logger.error('Failed to start API server', extra={'error': str(e)})
 
 def main():
     parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
