@@ -23,19 +23,19 @@ def historic_balance_per_strategy():
             Balance.strategy,
             Balance.broker,
             func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
-            Balance.total_balance,
+            Balance.balance,
         ).group_by(
             Balance.strategy, Balance.broker, 'hour'
         ).order_by(
             Balance.strategy, Balance.broker, 'hour'
         ).all()
         historical_balances_serializable = []
-        for strategy, broker, hour, total_balance in historical_balances:
+        for strategy, broker, hour, balance in historical_balances:
             historical_balances_serializable.append({
                 "strategy": strategy,
                 "broker": broker,
                 "hour": hour,
-                "total_balance": total_balance
+                "balance": balance
             })
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
     finally:
