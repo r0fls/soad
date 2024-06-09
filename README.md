@@ -27,6 +27,7 @@
 - Add more brokers
 - Add more strategies
 - Add position/balance sync worker
+- test/develop tastytrade broker
 
 **Misc**
 - Documentation
@@ -34,3 +35,5 @@
 - RDS/Cloud Postgres deploy
 - Research a TSDB replacement
 - Implement async task methodology (use native python?)
+- go live on k8s or a VM
+- remove ETrade broker
