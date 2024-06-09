@@ -1,7 +1,7 @@
 import argparse
 import time
 from datetime import datetime, timedelta
-from database.models import init_db
+from database.models import init_db, drop_then_init_db
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine

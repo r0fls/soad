@@ -109,4 +109,3 @@ print("Inserting fake account data into the database...")
 session.add_all(fake_accounts)
 session.commit()
 print("Fake account data inserted into the database.")
-
