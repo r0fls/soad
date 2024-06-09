@@ -63,7 +63,7 @@ const Dashboard = () => {
         }
         historicalData[key].push({
           x: item.hour,
-          y: item.total_balance
+          y: item.balance
         });
       }
     });

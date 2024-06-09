@@ -20,14 +20,16 @@ class BaseStrategy(ABC):
         with self.broker.Session() as session:
             strategy_balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
-                broker=self.broker.broker_name
+                broker=self.broker.broker_name,
+                type='cash'
             ).first()
 
             if strategy_balance is None:
                 strategy_balance = Balance(
                     strategy=self.strategy_name,
                     broker=self.broker.broker_name,
-                    total_balance=self.starting_capital
+                    type='cash',
+                    balance=self.starting_capital
                 )
                 session.add(strategy_balance)
                 session.commit()
