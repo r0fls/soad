@@ -65,7 +65,8 @@ def initialize_brokers(config):
 def initialize_strategies(brokers, config):
     strategies_config = config['strategies']
     strategies = []
-    for strategy_config in strategies_config:
+    for strategy_name in strategies_config:
+        strategy_config = strategies_config[strategy_name]
         strategy_type = strategy_config['type']
         broker_name = strategy_config['broker']
         broker = brokers[broker_name]
