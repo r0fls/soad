@@ -26,7 +26,7 @@ RUN npm install -g serve
 COPY --from=build /app/build /app/build
 
 # Copy serve.json
-COPY serve.json /app/serve.json
+COPY trading-dashboard/serve.json /app/serve.json
 
 # Expose port 3000
 EXPOSE 3000
