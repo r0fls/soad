@@ -37,7 +37,6 @@ spec:
           volumeMounts:
             - name: trading-config-volume
               mountPath: /etc/config
-              subPath: trading-config.yaml
       volumes:
         - name: trading-config-volume
           configMap:

@@ -5,5 +5,5 @@ metadata:
   labels:
     {{- include "trading-app.labels" . | nindent 4 }}
 data:
-  trading-config.yaml: |-
-    {{ .Values.tradingConfig | indent 4 }}
+  trading-config.yaml: |
+    {{ .Values.tradingConfig | nindent 4 }}
