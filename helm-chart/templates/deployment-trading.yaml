@@ -20,7 +20,7 @@ spec:
       containers:
         - name: trading
           image: "{{ .Values.trading.image.repository }}:{{ .Values.trading.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.trading.image.pullPolicy }}
           env:
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
