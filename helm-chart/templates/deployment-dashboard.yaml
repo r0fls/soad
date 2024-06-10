@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: trading-dashboard
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
           ports:
             - containerPort: 80
           env:
