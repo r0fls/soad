@@ -5,7 +5,7 @@ from utils.logger import logger  # Import the logger
 
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, **kwargs):
-        super().__init__(api_key, secret_key, 'Tradier', engine, **kwargs)
+        super().__init__(api_key, secret_key, 'Tradier', engine=engine, **kwargs)
         self.base_url = 'https://api.tradier.com/v1'
         self.headers = {
                 "Authorization": f"Bearer {self.api_key}",
