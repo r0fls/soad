@@ -32,8 +32,6 @@ spec:
               value: "{{ .Values.brokers.tastytrade.apiKey }}"
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trading-config.yaml"
-          ports:
-            - containerPort: {{ .Values.service.tradingPort }}
           command: ["python3"]
           args: ["main.py", "--mode", "trade", "--config", "/etc/config/trading-config.yaml"]
           volumeMounts:
