@@ -84,31 +84,25 @@ class ConstantPercentageStrategy(BaseStrategy):
             for symbol, data in broker_positions.items():
                 current_price = self.broker.get_current_price(symbol)
                 target_quantity = self.should_own(symbol, current_price)
-                position = session.query(Position).filter_by(
-                    broker=self.broker.broker_name,
-                    strategy=None,
-                    symbol=symbol
-                ).first()
-                if position:
-                    if target_quantity > 0:
-                        position.strategy = self.strategy_name
-                        position.quantity = data['quantity']
-                        position.latest_price = current_price
-                        position.last_updated = datetime.utcnow()
-                        logger.info(f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}")
-                else:
+                if target_quantity > 0:
+                    # We should own this, let's see if we know about it
                     position = session.query(Position).filter_by(
                         broker=self.broker.broker_name,
-                        strategy=self.strategy_name,
+                        strategy=None,
                         symbol=symbol
                     ).first()
-                    # There is already an existing position as part of this strategy
+                    if not position:
+                        position = session.query(Position).filter_by(
+                            broker=self.broker.broker_name,
+                            strategy=self.strategy_name,
+                            symbol=symbol
+                        ).first()
                     if position:
                         position.strategy = self.strategy_name
                         position.quantity = data['quantity']
                         position.latest_price = current_price
                         position.last_updated = datetime.utcnow()
-                        logger.info(f"Updated position for {symbol} with strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}")
+                        logger.info(f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}")
                     else:
                         # Create a new position
                         position = Position(
@@ -121,7 +115,6 @@ class ConstantPercentageStrategy(BaseStrategy):
                         )
                         session.add(position)
                         logger.info(f"Created new position for {symbol} with quantity {data['quantity']} and price {current_price}")
-
             session.commit()
             logger.debug("Positions synced with broker")
 
