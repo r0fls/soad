@@ -21,7 +21,7 @@
 - Remove magic strings and numbers
 - Add more unit tests
 - Review failing unit tests
-
+- Add linting/pysort GHA
 
 **Features**
 - Add more brokers
