@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-dashboard
+  labels:
+    app: trading-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trading-dashboard
+  template:
+    metadata:
+      labels:
+        app: trading-dashboard
+    spec:
+      containers:
+        - name: trading-dashboard
+          image: your-docker-repo/trading-dashboard:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: API_URL
+              value: "http://trading-api-service:8080"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20

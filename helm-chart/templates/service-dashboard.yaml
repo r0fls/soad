@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-dashboard-service
+  labels:
+    app: trading-dashboard
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: trading-dashboard
