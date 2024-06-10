@@ -1,35 +1,32 @@
-# Stage 1: Build the react application
+# Step 1: Build the React application
 FROM node:16 as build
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and yarn.lock to leverage Docker cache
+# Copy the package.json and yarn.lock files
 COPY package.json yarn.lock ./
 
-# Install dependencies
+# Install the dependencies
 RUN yarn install
 
-# Copy the rest of the source code
+# Copy the rest of the application code
 COPY . ./
 
 # Build the application
 RUN yarn build
 
-# Stage 2: Serve the react application
-FROM node:16
+# Step 2: Serve the built application with Nginx
+FROM nginx:alpine
 
-# Install serve globally
-RUN npm install -g serve
+# Copy the built files from the previous stage
+COPY --from=build /app/build /usr/share/nginx/html
 
-# Copy built files from the previous stage
-COPY --from=build /app/build /app/build
+# Copy the custom Nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copy serve.json
-COPY serve.json /app/serve.json
+# Expose port 80
+EXPOSE 80
 
-# Expose port 3000
-EXPOSE 3000
-
-# Serve the app
-CMD ["serve", "-s", "build", "-c", "serve.json", "-l", "3000"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]

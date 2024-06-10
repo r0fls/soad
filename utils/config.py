@@ -1,4 +1,5 @@
 import yaml
+import os
 import importlib.util
 from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
@@ -51,6 +52,8 @@ def initialize_brokers(config):
     # Create a single database engine for all brokers
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
+    elif os.environ.get("DATABASE_URL", None):
+        engine = create_engine(os.environ.get("DATABASE_URL"))
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
     

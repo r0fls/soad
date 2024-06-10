@@ -5,8 +5,9 @@ from utils.logger import logger
 
 class DBManager:
     def __init__(self, engine):
+        self.engine = engine
         self.Session = sessionmaker(bind=engine)
-        logger.info('DBManager initialized', extra={'database_url': engine.url})
+        logger.info('DBManager initialized', extra={'database_url': self.engine.url})
 
     def add_account_info(self, account_info):
         session = self.Session()
