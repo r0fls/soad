@@ -44,7 +44,5 @@ brokers:
   tastytrade:
     apiKey: "your-tastytrade-api-key"
 
-resources: {}
-nodeSelector: {}
-tolerations: []
-affinity: []
+tradingConfig: |-
+  # trading config YAML here

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "trading-app.name" . }}-config
+  labels:
+    {{- include "trading-app.labels" . | nindent 4 }}
+data:
+  trading-config.yaml: |-
+    {{ .Values.tradingConfig | indent 4 }}
