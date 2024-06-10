@@ -19,14 +19,6 @@ def start_trading_system(config_path):
         logger.error('Failed to parse configuration', extra={'error': str(e)})
         return
 
-    # Initialize the brokers
-    try:
-        brokers = initialize_brokers(config)
-        logger.info('Brokers initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize brokers', extra={'error': str(e)})
-        return
-
     # Setup the database engine
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
@@ -44,13 +36,13 @@ def start_trading_system(config_path):
         logger.error('Failed to initialize database', extra={'error': str(e)})
         return
 
-    # Connect to each broker
-    for broker_name, broker in brokers.items():
-        try:
-            broker.connect()
-            logger.info(f'Connected to broker {broker_name}')
-        except Exception as e:
-            logger.error(f'Failed to connect to broker {broker_name}', extra={'error': str(e)})
+    # Initialize the brokers
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        return
 
     # Initialize the strategies
     try:
