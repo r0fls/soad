@@ -18,8 +18,7 @@ dashboard:
 
 service:
   type: ClusterIP
-  apiPort: 80
-  tradingPort: 81
+  apiPort: 8000
 
 database:
   enabled: true

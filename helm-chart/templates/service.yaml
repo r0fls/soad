@@ -12,9 +12,5 @@ spec:
       targetPort: {{ .Values.service.apiPort }}
       protocol: TCP
       name: api
-    - port: {{ .Values.service.tradingPort }}
-      targetPort: {{ .Values.service.tradingPort }}
-      protocol: TCP
-      name: trading
   selector:
     {{- include "trading-app.selectorLabels" . | nindent 4 }}
