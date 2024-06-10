@@ -1,6 +1,7 @@
 name: Build and Push Docker image
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -29,6 +30,14 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/soad-trading-system:latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: trading-dashboard
+          file: Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/soad-trading-dashboard:latest
 
       - name: Image digest
         run: echo ${{ steps.build-and-push.outputs.digest }}
