@@ -2,17 +2,17 @@ replicaCount: 1
 
 api:
   image:
-    repository: soad-trading-system
+    repository: r0fls/soad-trading-system
     tag: latest
     pullPolicy: Always
 trading:
   image:
-    repository: soad-trading-system
+    repository: r0fls/soad-trading-system
     tag: latest
     pullPolicy: Always
 dashboard:
   image:
-    repository: soad-trading-dashboard
+    repository: r0fls/soad-trading-dashboard
     tag: latest
     pullPolicy: Always
 
