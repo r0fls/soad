@@ -3,5 +3,6 @@ pytest
 sqlalchemy
 pyyaml
 flask
+flask-cors
 python-json-logger
 pytz
