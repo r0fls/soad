@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: trading-dashboard
-          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          image: r0fls/soad-trading-dashboard:latest
           imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
           ports:
             - containerPort: 80
