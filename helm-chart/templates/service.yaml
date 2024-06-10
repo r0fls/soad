@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "trading-app.name" . }}
+  name: {{ include "trading-app.name" . }}-api
   labels:
     {{- include "trading-app.labels" . | nindent 4 }}
 spec:

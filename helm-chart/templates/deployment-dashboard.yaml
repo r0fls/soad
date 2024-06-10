@@ -22,7 +22,7 @@ spec:
             - containerPort: 80
           env:
             - name: API_URL
-              value: "http://trading-api-service:8080"
+              value: "http://trading-api-service:8000"
           readinessProbe:
             httpGet:
               path: /
