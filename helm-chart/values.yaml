@@ -1,9 +1,18 @@
 replicaCount: 1
 
 image:
-  repository: local/soad-trading-system
-  tag: latest
-  pullPolicy: Always
+  api:
+      repository: soad-trading-system
+      tag: latest
+      pullPolicy: Always
+  trading:
+      repository: soad-trading-system
+      tag: latest
+      pullPolicy: Always
+  dashboard:
+      repository: soad-trading-dashboard
+      tag: latest
+      pullPolicy: Always
 
 service:
   type: ClusterIP
