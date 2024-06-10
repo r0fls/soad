@@ -19,8 +19,14 @@ RUN yarn build
 # Stage 2: Serve the react application
 FROM node:16
 
+# Copy built files from the previous stage
+COPY --from=build /app/build /app/build
+
+# Install serve globally
+RUN npm install -g serve
+
 # Expose port 3000
 EXPOSE 3000
 
 # Serve the app
-CMD ["yarn", "start"]
+CMD ["serve", "-s", "build", "-l", "3000"]
