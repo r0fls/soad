@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: trading-dashboard
-          file: Dockerfile
+          file: trading-dashboard/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/soad-trading-dashboard:latest
 
