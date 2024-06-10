@@ -29,6 +29,8 @@ def start_trading_system(config_path):
     # Setup the database engine
     if 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
+    elif os.environ.get("DATABASE_URL", None):
+        engine = create_engine(os.environ.get("DATABASE_URL"))
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
     logger.info('Database engine created', extra={'db_url': engine.url})
@@ -92,6 +94,8 @@ def start_api_server(config_path=None, local_testing=False):
         engine = create_engine('sqlite:///trading.db')
     elif 'database' in config and 'url' in config['database']:
         engine = create_engine(config['database']['url'])
+    elif os.environ.get("DATABASE_URL", None):
+        engine = create_engine(os.environ.get("DATABASE_URL"))
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
     logger.info('Database engine created for API server', extra={'db_url': engine.url})

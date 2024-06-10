@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: trading
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.trading.image.repository }}:{{ .Values.trading.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: DATABASE_URL

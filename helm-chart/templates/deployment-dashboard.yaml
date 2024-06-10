@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: trading-dashboard
-          image: your-docker-repo/trading-dashboard:latest
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           ports:
             - containerPort: 80
           env:
