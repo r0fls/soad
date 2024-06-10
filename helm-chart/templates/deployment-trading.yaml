@@ -33,4 +33,4 @@ spec:
           ports:
             - containerPort: {{ .Values.service.tradingPort }}
           command: ["python"]
-          args: ["main.py", "--mode", "trading"]
+          args: ["main.py", "--mode", "trade"]
