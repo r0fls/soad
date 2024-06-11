@@ -1,6 +1,8 @@
 replicaCount: 1
 
 api:
+  ingress:
+    enabled: false
   image:
     repository: r0fls/soad-trading-system
     tag: latest
@@ -11,6 +13,8 @@ trading:
     tag: latest
     pullPolicy: Always
 dashboard:
+  ingress:
+    enabled: false
   image:
     repository: r0fls/soad-trading-dashboard
     tag: latest
