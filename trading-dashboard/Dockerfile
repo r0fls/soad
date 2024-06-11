@@ -13,6 +13,8 @@ RUN yarn install
 # Copy the rest of the application code
 COPY . ./
 
+COPY .env ./
+
 # Build the application
 RUN yarn build
 
