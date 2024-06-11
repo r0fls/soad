@@ -10,7 +10,9 @@ import os
 
 app = Flask("TradingAPI")
 DASHBOARD_DOMAIN = os.environ.get("DASHBOARD_DOMAIN", "http://localhost:3000")
-CORS(app, origins=[DASHBOARD_DOMAIN], supports_credentials=True)
+
+# Configure CORS
+CORS(app, resources={r"/*": {"origins": DASHBOARD_DOMAIN}}, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
 jwt = JWTManager(app)
@@ -272,6 +274,13 @@ def get_sharpe_ratio():
 
     return jsonify({'sharpe_ratio': sharpe_ratio})
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', DASHBOARD_DOMAIN)
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
