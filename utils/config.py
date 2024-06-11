@@ -10,7 +10,7 @@ from sqlalchemy import create_engine
 # Mapping of broker types to their constructors
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'etrade': lambda config, engine: ETradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
+    'etrade': lambda config, engine: EtradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
     'tastytrade': lambda config, engine: TastytradeBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
 }
 
