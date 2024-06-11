@@ -274,14 +274,6 @@ def get_sharpe_ratio():
 
     return jsonify({'sharpe_ratio': sharpe_ratio})
 
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', DASHBOARD_URL)
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
-
 def create_app(engine):
     Session = sessionmaker(bind=engine)
     app.session = Session()
