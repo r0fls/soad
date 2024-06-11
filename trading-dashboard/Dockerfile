@@ -12,8 +12,6 @@ RUN yarn install
 
 # Copy the rest of the application code
 COPY . ./
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-
 COPY .env ./
 
 # Build the application
@@ -28,8 +26,12 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Copy the custom Nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
 
-# Start Nginx
-CMD ["./docker-entrypoint.sh"]
+# Use the entrypoint script to start Nginx
+ENTRYPOINT ["/entrypoint.sh"]
