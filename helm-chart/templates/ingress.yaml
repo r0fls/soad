@@ -39,5 +39,5 @@ spec:
               service:
                 name: system-of-a-dow-api
                 port:
-                  number: 8080
+                  number: 8000
 {{- end }}
