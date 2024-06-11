@@ -9,10 +9,10 @@ from scipy.stats import norm
 import os
 
 app = Flask("TradingAPI")
-DASHBOARD_DOMAIN = os.environ.get("DASHBOARD_DOMAIN", "http://localhost:3000")
+DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 
 # Configure CORS
-CORS(app, resources={r"/*": {"origins": DASHBOARD_DOMAIN}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}}, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
 jwt = JWTManager(app)
@@ -276,7 +276,7 @@ def get_sharpe_ratio():
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', DASHBOARD_DOMAIN)
+    response.headers.add('Access-Control-Allow-Origin', DASHBOARD_URL)
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
