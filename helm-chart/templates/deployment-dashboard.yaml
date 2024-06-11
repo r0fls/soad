@@ -21,7 +21,7 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: API_URL
+            - name: REACT_API_URL
               value: "http://system-of-a-dow-api:8000"
           readinessProbe:
             httpGet:
