@@ -12,6 +12,7 @@ RUN yarn install
 
 # Copy the rest of the application code
 COPY . ./
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 COPY .env ./
 
