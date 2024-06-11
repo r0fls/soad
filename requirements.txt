@@ -4,6 +4,7 @@ sqlalchemy
 pyyaml
 flask
 flask-cors
+flask-jwt-extended
 python-json-logger
 pytz
 numpy
