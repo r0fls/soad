@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
@@ -52,7 +52,7 @@ def historic_balance_per_strategy():
         historical_balances = app.session.query(
             Balance.strategy,
             Balance.broker,
-            func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour'),
+            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24').label('hour'),
             Balance.balance,
         ).group_by(
             Balance.strategy, Balance.broker, 'hour'
