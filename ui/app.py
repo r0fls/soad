@@ -17,6 +17,10 @@ jwt = JWTManager(app)
 USERNAME = os.environ.get('APP_USERNAME', 'admin')
 PASSWORD = os.environ.get('APP_PASSWORD', 'password')
 
+@app.route('/', methods=['GET'])
+def ok():
+    return jsonify({"status": "ok"}), 200
+
 @app.route('/login', methods=['POST'])
 def login():
     if not request.is_json:
