@@ -26,7 +26,9 @@ spec:
               value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
             - name: TRADIER_API_KEY
               value: "{{ .Values.brokers.tradier.apiKey }}"
-            - name: ETGTRADE_API_KEY
+            - name: DASHBOARD_URL
+              value: "http://{{ .Values.dashboard.ingress.host }}"
+            - name: ETRADE_API_KEY
               value: "{{ .Values.brokers.etrade.apiKey }}"
             - name: TASTYTRADE_API_KEY
               value: "{{ .Values.brokers.tastytrade.apiKey }}"

@@ -9,7 +9,8 @@ from scipy.stats import norm
 import os
 
 app = Flask("TradingAPI")
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+DASHBOARD_DOMAIN = os.environ.get("DASHBOARD_DOMAIN", "http://localhost:3000")
+CORS(app, origins=[DASHBOARD_DOMAIN], supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
 jwt = JWTManager(app)
