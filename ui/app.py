@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, render_template, request
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
@@ -10,13 +11,35 @@ import os
 app = Flask("TradingAPI")
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
+jwt = JWTManager(app)
+
+USERNAME = os.environ.get('APP_USERNAME', 'admin')
+PASSWORD = os.environ.get('APP_PASSWORD', 'password')
+
+@app.route('/login', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if username != USERNAME or password != PASSWORD:
+        return jsonify({"msg": "Bad username or password"}), 401
+
+    access_token = create_access_token(identity=username)
+    return jsonify(access_token=access_token), 200
+
+
 @app.route('/trades_per_strategy')
+@jwt_required()
 def trades_per_strategy():
     trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
+@jwt_required()
 def historic_balance_per_strategy():
     try:
         historical_balances = app.session.query(
@@ -42,12 +65,14 @@ def historic_balance_per_strategy():
         app.session.close()
 
 @app.route('/account_values')
+@jwt_required()
 def account_values():
     accounts = app.session.query(AccountInfo).all()
     accounts_data = {account.broker: account.value for account in accounts}
     return jsonify({"account_values": accounts_data})
 
 @app.route('/trade_success_rate')
+@jwt_required()
 def trade_success_rate():
     strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
     success_rate_by_strategy_and_broker = []
@@ -68,6 +93,7 @@ def trade_success_rate():
     return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
 
 @app.route('/positions')
+@jwt_required()
 def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -94,6 +120,7 @@ def get_positions():
     return jsonify({'positions': positions_data})
 
 @app.route('/trades', methods=['GET'])
+@jwt_required()
 def get_trades():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -121,6 +148,7 @@ def get_trades():
 
 
 @app.route('/trade_stats', methods=['GET'])
+@jwt_required()
 def get_trade_stats():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -165,6 +193,7 @@ def get_trade_stats():
     })
 
 @app.route('/var', methods=['GET'])
+@jwt_required()
 def get_var():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -189,6 +218,7 @@ def get_var():
     return jsonify({'var': var_95})
 
 @app.route('/max_drawdown', methods=['GET'])
+@jwt_required()
 def get_max_drawdown():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -213,6 +243,7 @@ def get_max_drawdown():
     return jsonify({'max_drawdown': max_drawdown})
 
 @app.route('/sharpe_ratio', methods=['GET'])
+@jwt_required()
 def get_sharpe_ratio():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
