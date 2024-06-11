@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
@@ -20,11 +20,26 @@ jwt = JWTManager(app)
 USERNAME = os.environ.get('APP_USERNAME', 'admin')
 PASSWORD = os.environ.get('APP_PASSWORD', 'password')
 
+def handle_options_request(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            response = make_response('', 200)
+            response.headers.add('Access-Control-Allow-Origin', DASHBOARD_URL)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            return response
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/', methods=['GET'])
+@handle_options_request
 def ok():
     return jsonify({"status": "ok"}), 200
 
 @app.route('/login', methods=['POST'])
+@handle_options_request
 def login():
     if not request.is_json:
         return jsonify({"msg": "Missing JSON in request"}), 400
@@ -37,9 +52,9 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
-
-@app.route('/trades_per_strategy')
+@app.route('/trades_per_strategy', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def trades_per_strategy():
     trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
@@ -47,6 +62,7 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def historic_balance_per_strategy():
     try:
         historical_balances = app.session.query(
@@ -71,15 +87,17 @@ def historic_balance_per_strategy():
     finally:
         app.session.close()
 
-@app.route('/account_values')
+@app.route('/account_values', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def account_values():
     accounts = app.session.query(AccountInfo).all()
     accounts_data = {account.broker: account.value for account in accounts}
     return jsonify({"account_values": accounts_data})
 
-@app.route('/trade_success_rate')
+@app.route('/trade_success_rate', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def trade_success_rate():
     strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
     success_rate_by_strategy_and_broker = []
@@ -99,8 +117,9 @@ def trade_success_rate():
 
     return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
 
-@app.route('/positions')
+@app.route('/positions', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_positions():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -128,6 +147,7 @@ def get_positions():
 
 @app.route('/trades', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_trades():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -153,9 +173,9 @@ def get_trades():
 
     return jsonify({'trades': trades_data})
 
-
 @app.route('/trade_stats', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_trade_stats():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -201,6 +221,7 @@ def get_trade_stats():
 
 @app.route('/var', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_var():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -226,6 +247,7 @@ def get_var():
 
 @app.route('/max_drawdown', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_max_drawdown():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
@@ -251,6 +273,7 @@ def get_max_drawdown():
 
 @app.route('/sharpe_ratio', methods=['GET'])
 @jwt_required()
+@handle_options_request
 def get_sharpe_ratio():
     brokers = request.args.getlist('brokers[]')
     strategies = request.args.getlist('strategies[]')
