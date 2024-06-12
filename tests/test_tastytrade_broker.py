@@ -28,15 +28,33 @@ class TestTastytradeBroker(BaseTest):
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
         self.mock_connect(mock_post)
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            'accounts': [{'accountId': '12345', 'value': 10000.0}]
+        mock_response_accounts = MagicMock()
+        mock_response_accounts.json.return_value = {
+            'data': {
+                'items': [{'account': {'account_number': '12345'}}]
+            }
         }
-        mock_get.return_value = mock_response
+        mock_response_balances = MagicMock()
+        mock_response_balances.json.return_value = {
+            'data': {
+                'account_number': '12345',
+                'cash_available': 5000.0,
+                'account_value': 10000.0,
+                'type': 'cash'
+            }
+        }
+        mock_get.side_effect = [mock_response_accounts, mock_response_balances]
 
         self.broker.connect()
-        account_info = self.broker.get_account_info()
-        self.assertEqual(account_info, {'value': 10000.0})
+        account_info = self.broker._get_account_info()
+        expected_account_info = {
+            'account_number': '12345',
+            'account_type': 'cash',
+            'buying_power': 5000.0,
+            'value': 10000.0
+        }
+
+        self.assertEqual(account_info, expected_account_info)
         self.assertEqual(self.broker.account_id, '12345')
 
     @patch('brokers.tastytrade_broker.requests.post')
