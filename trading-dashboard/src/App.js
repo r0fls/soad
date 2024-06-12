@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import axiosInstance from './axiosInstance';
-import Sidebar from './Sidebar';
-import Dashboard from './Dashboard';
-import AccountView from './AccountView';
-import Positions from './Positions';
-import Trades from './Trades';
-import Insights from './Insights';
-import Login from './Login';
 
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (token) {
@@ -22,28 +16,27 @@ const App = () => {
     }
   }, [token]);
 
+  useEffect(() => {
+    const responseInterceptor = axiosInstance.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response && error.response.status === 401) {
+          setToken(null);
+          navigate('/login');
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axiosInstance.interceptors.response.eject(responseInterceptor);
+    };
+  }, [navigate]);
+
   return (
-    <Router>
-      {token ? (
-        <>
-          <Sidebar />
-          <div className="container-fluid">
-            <Routes>
-              <Route exact path="/" element={<Dashboard />} />
-              <Route path="/accounts" element={<AccountView />} />
-              <Route path="/positions" element={<Positions />} />
-              <Route path="/trades" element={<Trades />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </div>
-        </>
-      ) : (
-        <Routes>
-          <Route path="*" element={<Login setToken={setToken} />} />
-        </Routes>
-      )}
-    </Router>
+    <>
+      <Outlet context={{ setToken }} />
+    </>
   );
 };
 
