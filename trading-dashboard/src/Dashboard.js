@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
+import { Spinner, Table } from 'react-bootstrap';
 import Select from 'react-select';
 import { Line } from 'react-chartjs-2';
 import {
