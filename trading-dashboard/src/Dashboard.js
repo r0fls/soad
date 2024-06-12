@@ -32,40 +32,34 @@ const Dashboard = () => {
   const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [selectedBrokers, setSelectedBrokers] = useState([]);
   const [historicalValueData, setHistoricalValueData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const loadFilters = async () => {
+  const fetchHistoricalValues = useCallback(async () => {
+    setLoading(true);
     try {
-      const response = await axiosInstance.get('/trades_per_strategy');
-      const strategies = new Set();
-      const brokers = new Set();
-
-      response.data.trades_per_strategy.forEach(item => {
-        strategies.add(item.strategy);
-        brokers.add(item.broker);
+      const response = await axiosInstance.get('/historic_balance_per_strategy', {
+        params: { brokers: selectedBrokers, strategies: selectedStrategies }
       });
-
-      setStrategies([...strategies]);
-      setBrokers([...brokers]);
+      setHistoricalValueData(processHistoricalValues(response.data));
     } catch (error) {
-      console.error('Error loading filters:', error);
+      console.error('Error fetching historical values:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [selectedBrokers, selectedStrategies]);
 
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
 
     data.historic_balance_per_strategy.forEach(item => {
-      if ((!selectedStrategies.length || selectedStrategies.includes(item.strategy)) &&
-          (!selectedBrokers.length || selectedBrokers.includes(item.broker))) {
-        let key = `${item.strategy} (${item.broker})`;
-        if (!historicalData[key]) {
-          historicalData[key] = [];
-        }
-        historicalData[key].push({
-          x: item.hour,
-          y: item.balance
-        });
+      let key = `${item.strategy} (${item.broker})`;
+      if (!historicalData[key]) {
+        historicalData[key] = [];
       }
+      historicalData[key].push({
+        x: item.hour,
+        y: item.balance
+      });
     });
 
     let datasets = [];
@@ -82,34 +76,46 @@ const Dashboard = () => {
     return {
       datasets
     };
-  }, [selectedStrategies, selectedBrokers]);
+  }, []);
 
-  const updateCharts = useCallback(async () => {
+  const populateFilters = useCallback(async () => {
     try {
-      const historicalValues = await axiosInstance.get('/historic_balance_per_strategy');
-      setHistoricalValueData(processHistoricalValues(historicalValues.data));
+      const response = await axiosInstance.get('/trades_per_strategy');
+      const strategiesSet = new Set();
+      const brokersSet = new Set();
+
+      response.data.trades_per_strategy.forEach(item => {
+        strategiesSet.add(item.strategy);
+        brokersSet.add(item.broker);
+      });
+
+      setStrategies([...strategiesSet]);
+      setBrokers([...brokersSet]);
     } catch (error) {
-      console.error('Error updating charts:', error);
+      console.error('Error populating filters:', error);
     }
-  }, [processHistoricalValues]);
+  }, []);
 
   useEffect(() => {
-    loadFilters();
-    updateCharts();
-  }, [updateCharts]);
+    populateFilters();
+    fetchHistoricalValues();
+  }, [populateFilters, fetchHistoricalValues]);
 
   useEffect(() => {
-    updateCharts();
-  }, [selectedStrategies, selectedBrokers, updateCharts]);
+    fetchHistoricalValues();
+  }, [selectedStrategies, selectedBrokers, fetchHistoricalValues]);
 
   return (
     <div className="container-fluid">
-      <div className="row filter-bar">
+      <div className="row mb-3">
         <div className="col-md-6">
           <Select
             isMulti
             options={strategies.map(strategy => ({ value: strategy, label: strategy }))}
             onChange={selectedOptions => setSelectedStrategies(selectedOptions.map(option => option.value))}
+            placeholder="Select Strategies"
+            className="basic-multi-select"
+            classNamePrefix="select"
           />
         </div>
         <div className="col-md-6">
@@ -117,6 +123,9 @@ const Dashboard = () => {
             isMulti
             options={brokers.map(broker => ({ value: broker, label: broker }))}
             onChange={selectedOptions => setSelectedBrokers(selectedOptions.map(option => option.value))}
+            placeholder="Select Brokers"
+            className="basic-multi-select"
+            classNamePrefix="select"
           />
         </div>
       </div>
@@ -127,7 +136,15 @@ const Dashboard = () => {
               Historical Value per Strategy
             </div>
             <div className="card-body">
-              {historicalValueData && <Line data={historicalValueData} options={{ scales: { x: { type: 'time', time: { unit: 'hour' }}}}} />}
+              {loading ? (
+                <div className="text-center my-5">
+                  <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </Spinner>
+                </div>
+              ) : (
+                historicalValueData && <Line data={historicalValueData} options={{ scales: { x: { type: 'time', time: { unit: 'hour' }}}}} />
+              )}
             </div>
           </div>
         </div>
