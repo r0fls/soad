@@ -45,6 +45,7 @@ def trades_per_strategy():
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
+
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 @jwt_required()
 def historic_balance_per_strategy():
@@ -53,11 +54,15 @@ def historic_balance_per_strategy():
             Balance.strategy,
             Balance.broker,
             func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24').label('hour'),
-            Balance.balance,
+            func.sum(Balance.balance).label('balance')  # Example of using an aggregate function
         ).group_by(
-            Balance.strategy, Balance.broker, 'hour'
+            Balance.strategy,
+            Balance.broker,
+            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24')  # Include the timestamp transformation in GROUP BY
         ).order_by(
-            Balance.strategy, Balance.broker, 'hour'
+            Balance.strategy,
+            Balance.broker,
+            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24')
         ).all()
         historical_balances_serializable = []
         for strategy, broker, hour, balance in historical_balances:
