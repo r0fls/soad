@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FaBars } from 'react-icons/fa';
 import { AiFillCloseCircle } from 'react-icons/ai';
 import './Sidebar.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Sidebar = () => {
   const [sidebar, setSidebar] = useState(false);
@@ -17,10 +18,10 @@ const Sidebar = () => {
         </Link>
       </div>
       <nav className={sidebar ? 'nav-menu active' : 'nav-menu'}>
-        <ul className="nav-menu-items" onClick={showSidebar}>
+        <ul className="nav-menu-items">
           <li className="navbar-toggle">
             <Link to="#" className="menu-bars">
-              <AiFillCloseCircle />
+              <AiFillCloseCircle onClick={showSidebar} />
             </Link>
           </li>
           <li className="nav-text">
