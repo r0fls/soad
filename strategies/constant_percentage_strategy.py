@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from strategies.base_strategy import BaseStrategy
 from database.models import Balance, Position
@@ -57,13 +58,19 @@ class ConstantPercentageStrategy(BaseStrategy):
             
             if current_position < target_quantity:
                 if is_market_open():
-                    self.broker.place_order(stock, target_quantity - current_position, 'buy', self.strategy_name)
+                    if asyncio.iscoroutinefunction(self.broker.place_order):
+                        await self.broker.place_order(stock, target_quantity - current_position, 'buy', self.strategy_name)
+                    else:
+                        self.broker.place_order(stock, target_quantity - current_position, 'buy', self.strategy_name)
                     logger.info(f"Placed buy order for {stock}: {target_quantity - current_position} shares")
                 else:
                     logger.info(f"Market is closed, not buying {stock}: {target_quantity - current_position} shares")
             elif current_position > target_quantity:
                 if is_market_open():
-                    self.broker.place_order(stock, current_position - target_quantity, 'sell', self.strategy_name)
+                    if asyncio.iscoroutinefunction(self.broker.place_order):
+                        await self.broker.place_order(stock, current_position - target_quantity, 'sell', self.strategy_name)
+                    else:
+                        self.broker.place_order(stock, current_position - target_quantity, 'sell', self.strategy_name)
                     logger.info(f"Placed sell order for {stock}: {current_position - target_quantity} shares")
                 else:
                     logger.info(f"Market is closed, not selling {stock}: {target_quantity - current_position} shares")
