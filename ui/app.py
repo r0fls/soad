@@ -45,25 +45,30 @@ def trades_per_strategy():
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
-
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 @jwt_required()
 def historic_balance_per_strategy():
     try:
+        if app.session.bind.dialect.name == 'postgresql':
+            hour_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24').label('hour')
+        elif app.session.bind.dialect.name == 'sqlite':
+            hour_expr = func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour')
+
         historical_balances = app.session.query(
             Balance.strategy,
             Balance.broker,
-            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24').label('hour'),
-            func.sum(Balance.balance).label('balance')  # Example of using an aggregate function
+            hour_expr,
+            func.sum(Balance.balance).label('balance')
         ).group_by(
             Balance.strategy,
             Balance.broker,
-            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24')  # Include the timestamp transformation in GROUP BY
+            hour_expr
         ).order_by(
             Balance.strategy,
             Balance.broker,
-            func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24')
+            hour_expr
         ).all()
+
         historical_balances_serializable = []
         for strategy, broker, hour, balance in historical_balances:
             historical_balances_serializable.append({
