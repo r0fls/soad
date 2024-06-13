@@ -47,7 +47,7 @@ async def start_trading_system(config_path):
 
     # Initialize the strategies
     try:
-        strategies = initialize_strategies(brokers, config)
+        strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
     except Exception as e:
         logger.error('Failed to initialize strategies', extra={'error': str(e)})
@@ -68,7 +68,7 @@ async def start_trading_system(config_path):
                     logger.info(f'Strategy {i} rebalanced successfully', extra={'time': now})
                 except Exception as e:
                     logger.error(f'Error during rebalancing strategy {i}', extra={'error': str(e)})
-        time.sleep(60)  # Check every minute
+        await asyncio.sleep(60)  # Check every minute
 
 def start_api_server(config_path=None, local_testing=False):
     logger.info('Starting API server', extra={'config_path': config_path, 'local_testing': local_testing})

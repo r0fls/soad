@@ -15,8 +15,10 @@ class ConstantPercentageStrategy(BaseStrategy):
         self.starting_capital = starting_capital
         self.strategy_name = 'constant_percentage'
         super().__init__(broker)
-        self.sync_positions_with_broker()  # Ensure positions are synced on initialization
         logger.info(f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
+
+    async def initialize(self):
+        await self.sync_positions_with_broker()  # Ensure positions are synced on initialization
 
     async def rebalance(self):
         logger.debug("Starting rebalance process")
@@ -83,7 +85,7 @@ class ConstantPercentageStrategy(BaseStrategy):
 
 
     # TODO: can we abstract this method across strategies?
-    def sync_positions_with_broker(self):
+    async def sync_positions_with_broker(self):
         logger.debug("Syncing positions with broker")
         
         broker_positions = self.broker.get_positions()
@@ -93,7 +95,10 @@ class ConstantPercentageStrategy(BaseStrategy):
         with self.broker.Session() as session:
             # Get the actual positions from the broker
             for symbol, data in broker_positions.items():
-                current_price = self.broker.get_current_price(symbol)
+                if asyncio.iscoroutinefunction(self.broker.get_current_price):
+                    current_price = await self.broker.get_current_price(symbol)
+                else:
+                    current_price = self.broker.get_current_price(symbol)
                 target_quantity = self.should_own(symbol, current_price)
                 if target_quantity > 0:
                     # We should own this, let's see if we know about it
