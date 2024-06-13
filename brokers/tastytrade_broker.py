@@ -1,5 +1,7 @@
 import requests
 import time
+import websocket
+import json
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
 
@@ -17,6 +19,7 @@ class TastytradeBroker(BaseBroker):
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.connect()
+        self.api_quote_token, self.ws_url = self.get_api_quote_token()
 
     def connect(self):
         logger.info('Connecting to Tastytrade API')
@@ -31,6 +34,14 @@ class TastytradeBroker(BaseBroker):
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
         logger.info('Connected to Tastytrade API')
+
+    def get_api_quote_token(self):
+        logger.info('Retrieving API quote token')
+        response = requests.get(f"{self.base_url}/api-quote-tokens", headers=self.headers)
+        response.raise_for_status()
+        token_data = response.json()['data']
+        logger.info('API quote token retrieved')
+        return token_data['token'], token_data['dxlink-url']
 
     def _get_account_info(self):
         logger.info('Retrieving account information')
@@ -51,7 +62,6 @@ class TastytradeBroker(BaseBroker):
 
             buying_power = account_data['equity-buying-power']
             account_value = account_data['net-liquidating-value']
-            # TODO: margin/cash does this matter here?
             account_type = None
 
             logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
@@ -81,15 +91,34 @@ class TastytradeBroker(BaseBroker):
     def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
-            quote_url = f"{self.base_url}/markets/quotes/{symbol}"
-            quote_response = requests.get(quote_url, headers=self.headers)
-            quote_response.raise_for_status()
-            quote = quote_response.json()['data']['items'][0]
-            bid = quote['bid']
-            ask = quote['ask']
+            def get_quote():
+                ws_url = self.ws_url
+                api_quote_token = self.api_quote_token
+
+                def on_message(ws, message):
+                    message = json.loads(message)
+                    if "data" in message:
+                        for item in message["data"]:
+                            if item.get("eventSymbol") == symbol:
+                                last_price = item.get("lastPrice")
+                                ws.close()
+                                return last_price
+
+                def on_open(ws):
+                    ws.send(json.dumps({"token": api_quote_token}))
+                    subscribe_message = json.dumps({
+                        "action": "quote-subscribe",
+                        "symbols": [symbol]
+                    })
+                    ws.send(subscribe_message)
+
+                ws = websocket.WebSocketApp(ws_url, on_open=on_open, on_message=on_message)
+                ws.run_forever()
+
+            last_price = get_quote()
 
             if price is None:
-                price = round((bid + ask) / 2, 2)
+                price = round(last_price, 2)
 
             order_data = {
                 "class": "equity",
@@ -153,7 +182,7 @@ class TastytradeBroker(BaseBroker):
     def _get_options_chain(self, symbol, expiration_date):
         logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
         try:
-            response = requests.get(f"{self.base_url}/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers=self.headers)
+            response = requests.get(f"{self.base_url}/markets/options/chains", params={"symbol": symbol, "expiration": expiration_date}, headers=self.headers)
             response.raise_for_status()
             options_chain = response.json()
             logger.info('Options chain retrieved', extra={'options_chain': options_chain})
@@ -161,14 +190,31 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
-    # TODO: fix
     def get_current_price(self, symbol):
         logger.info('Retrieving current price', extra={'symbol': symbol})
         try:
-            response = requests.get(f"{self.base_url}/market-data/quotes", params={"symbols": symbol}, headers=self.headers)
-            response.raise_for_status()
-            last_price = response.json()['data']['items'][0]['last']
-            logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
-            return last_price
+            ws_url = self.ws_url
+            api_quote_token = self.api_quote_token
+
+            def on_message(ws, message):
+                message = json.loads(message)
+                if "data" in message:
+                    for item in message["data"]:
+                        if item.get("eventSymbol") == symbol:
+                            last_price = item.get("lastPrice")
+                            logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
+                            ws.close()
+                            return last_price
+
+            def on_open(ws):
+                ws.send(json.dumps({"token": api_quote_token}))
+                subscribe_message = json.dumps({
+                    "action": "quote-subscribe",
+                    "symbols": [symbol]
+                })
+                ws.send(subscribe_message)
+
+            ws = websocket.WebSocketApp(ws_url, on_open=on_open, on_message=on_message)
+            ws.run_forever()
         except requests.RequestException as e:
             logger.error('Failed to retrieve current price', extra={'error': str(e)})

@@ -10,7 +10,7 @@ class TestTastytradeBroker(BaseTest):
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
 
-    def mock_connect(self, mock_post):
+    def mock_connect(self, mock_post, mock_get):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -24,14 +24,14 @@ class TestTastytradeBroker(BaseTest):
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_connect(self, mock_post, mock_get):
-        self.mock_connect(mock_post)
+        self.mock_connect(mock_post, mock_get)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get):
-        self.mock_connect(mock_post)
+        self.mock_connect(mock_post, mock_get)
         mock_response_accounts = MagicMock()
         mock_response_accounts.json.return_value = {
             'data': {
@@ -62,7 +62,7 @@ class TestTastytradeBroker(BaseTest):
     @patch('brokers.tastytrade_broker.requests.post')
     @patch('brokers.tastytrade_broker.requests.get')
     def skip_test_place_order(self, mock_get, mock_post):
-        self.mock_connect(mock_post)
+        self.mock_connect(mock_post, mock_get)
         
         # Mock get_account_info response
         mock_get.return_value = MagicMock(json=MagicMock(return_value={
@@ -92,7 +92,7 @@ class TestTastytradeBroker(BaseTest):
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_order_status(self, mock_post_connect, mock_get):
-        self.mock_connect(mock_post_connect)
+        self.mock_connect(mock_post_connect, mock_get)
         mock_response = MagicMock()
         mock_response.json.return_value = {'data': {'status': 'completed'}}
         mock_get.return_value = mock_response
@@ -101,10 +101,11 @@ class TestTastytradeBroker(BaseTest):
         order_status = self.broker._get_order_status('order_id')
         self.assertEqual(order_status, {'data': {'status': 'completed'}})
 
+    @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.put')
     @patch('brokers.tastytrade_broker.requests.post')
-    def test_cancel_order(self, mock_post_connect, mock_put):
-        self.mock_connect(mock_post_connect)
+    def test_cancel_order(self, mock_post_connect, mock_put, mock_get):
+        self.mock_connect(mock_post_connect, mock_get)
         mock_response = MagicMock()
         mock_response.json.return_value = {'data': {'status': 'cancelled'}}
         mock_put.return_value = mock_response
@@ -116,7 +117,7 @@ class TestTastytradeBroker(BaseTest):
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_options_chain(self, mock_post_connect, mock_get):
-        self.mock_connect(mock_post_connect)
+        self.mock_connect(mock_post_connect, mock_get)
         mock_response = MagicMock()
         mock_response.json.return_value = {'data': {'items': 'chain'}}
         mock_get.return_value = mock_response

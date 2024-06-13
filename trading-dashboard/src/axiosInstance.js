@@ -1,7 +1,8 @@
 import axios from 'axios';
 import history from './history';
 
-const baseURL = '$REACT_API_URL';
+const baseURL = 'http://localhost:8000';
+//const baseURL = '$REACT_API_URL';
 
 const axiosInstance = axios.create({
     baseURL: baseURL,
