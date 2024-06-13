@@ -1,50 +1,171 @@
 import requests
+import time
+import json
 from brokers.base_broker import BaseBroker
+from utils.logger import logger  # Import the logger
+from tastytrade import ProductionSession
+from tastytrade import DXLinkStreamer
+from tastytrade.dxfeed import EventType
 
 class TastytradeBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, engine):
-        super().__init__(api_key, secret_key, 'Tastytrade', engine)
+    def __init__(self, username, password, engine, **kwargs):
+        super().__init__(username, password, 'Tastytrade', engine=engine, **kwargs)
+        self.base_url = 'https://api.tastytrade.com'
+        self.username = username
+        self.password = password
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        self.order_timeout = 1
+        self.auto_cancel_orders = True
+        logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
+        self.session = None
+        self.connect()
 
     def connect(self):
-        # Implement the connection logic
-        response = requests.post("https://api.tastytrade.com/oauth/token", data={"key": self.api_key, "secret": self.secret_key})
-        self.auth = response.json().get('access_token')
+        logger.info('Connecting to Tastytrade API')
+        auth_data = {
+            "login": self.username,
+            "password": self.password,
+            "remember-me": True
+        }
+        response = requests.post(f"{self.base_url}/sessions", json=auth_data, headers={"Content-Type": "application/json"})
+        response.raise_for_status()
+        auth_response = response.json().get('data')
+        self.auth = auth_response['session-token']
+        self.headers["Authorization"] = self.auth
+        if self.session is None:
+            self.session = ProductionSession(self.username, self.password)
+        logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self):
-        response = requests.get("https://api.tastytrade.com/accounts", headers={"Authorization": f"Bearer {self.auth}"})
-        account_info = response.json()
-        account_id = account_info['accounts'][0]['accountId']
-        self.account_id = account_id
-        account_data = account_info.get('accounts')[0]
-        return {'value': account_data.get('value')}
+        logger.info('Retrieving account information')
+        try:
+            response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
+            response.raise_for_status()
+            account_info = response.json()
+            account_id = account_info['data']['items'][0]['account']['account-number']
+            self.account_id = account_id
+            logger.info('Account info retrieved', extra={'account_id': self.account_id})
 
-    def _place_order(self, symbol, quantity, order_type, price=None):
-        # Implement order placement
-        order_data = {
-            "symbol": symbol,
-            "quantity": quantity,
-            "order_type": order_type,
-            "price": price
-        }
-        response = requests.post("https://api.tastytrade.com/orders", json=order_data, headers={"Authorization": f"Bearer {self.auth}"})
-        return response.json()
+            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/balances", headers=self.headers)
+            response.raise_for_status()
+            account_data = response.json().get('data')
+
+            if not account_data:
+                logger.error("Invalid account info response")
+
+            buying_power = account_data['equity-buying-power']
+            account_value = account_data['net-liquidating-value']
+            account_type = None
+
+            logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
+            return {
+                'account_number': self.account_id,
+                'account_type': account_type,
+                'buying_power': float(buying_power),
+                'value': float(account_value)
+            }
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve account information', extra={'error': str(e)})
+
+    def get_positions(self):
+        logger.info('Retrieving positions')
+        url = f"{self.base_url}/accounts/{self.account_id}/positions"
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            positions_data = response.json()['data']['items']
+
+            positions = {p['symbol']: p for p in positions_data}
+            logger.info('Positions retrieved', extra={'positions': positions})
+            return positions
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve positions', extra={'error': str(e)})
+
+    async def _place_order(self, symbol, quantity, order_type, price=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        try:
+            last_price = await self.get_current_price(symbol)
+
+            if price is None:
+                price = round(last_price, 2)
+
+            order_data = {
+                "class": "equity",
+                "symbol": symbol,
+                "quantity": quantity,
+                "side": order_type,
+                "type": "limit",
+                "duration": "day",
+                "price": price
+            }
+
+            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", json=order_data, headers=self.headers)
+            response.raise_for_status()
+
+            order_id = response.json()['data']['order']['order_id']
+            logger.info('Order placed', extra={'order_id': order_id})
+
+            if self.auto_cancel_orders:
+                time.sleep(self.order_timeout)
+                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                status_response = requests.get(order_status_url, headers=self.headers)
+                status_response.raise_for_status()
+                order_status = status_response.json()['data']['order']['status']
+
+                if order_status != 'filled':
+                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                    cancel_response = requests.put(cancel_url, headers=self.headers)
+                    cancel_response.raise_for_status()
+                    logger.info('Order cancelled', extra={'order_id': order_id})
+
+            data = response.json()
+            if data.get('filled_price') is None:
+                data['filled_price'] = price
+            logger.info('Order execution complete', extra={'order_data': data})
+            return data
+        except requests.RequestException as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
 
     def _get_order_status(self, order_id):
-        # Implement order status retrieval
-        response = requests.get(f"https://api.tastytrade.com/orders/{order_id}", headers={"Authorization": f"Bearer {self.auth}"})
-        return response.json()
+        logger.info('Retrieving order status', extra={'order_id': order_id})
+        try:
+            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
+            response.raise_for_status()
+            order_status = response.json()
+            logger.info('Order status retrieved', extra={'order_status': order_status})
+            return order_status
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve order status', extra={'error': str(e)})
 
     def _cancel_order(self, order_id):
-        # Implement order cancellation
-        response = requests.put(f"https://api.tastytrade.com/orders/{order_id}/cancel", headers={"Authorization": f"Bearer {self.auth}"})
-        return response.json()
+        logger.info('Cancelling order', extra={'order_id': order_id})
+        try:
+            response = requests.put(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel", headers=self.headers)
+            response.raise_for_status()
+            cancellation_response = response.json()
+            logger.info('Order cancelled successfully', extra={'cancellation_response': cancellation_response})
+            return cancellation_response
+        except requests.RequestException as e:
+            logger.error('Failed to cancel order', extra={'error': str(e)})
 
     def _get_options_chain(self, symbol, expiration_date):
-        # Implement options chain retrieval
-        response = requests.get(f"https://api.tastytrade.com/markets/options/chains?symbol={symbol}&expiration={expiration_date}", headers={"Authorization": f"Bearer {self.auth}"})
-        return response.json()
+        logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
+        try:
+            response = requests.get(f"{self.base_url}/markets/options/chains", params={"symbol": symbol, "expiration": expiration_date}, headers=self.headers)
+            response.raise_for_status()
+            options_chain = response.json()
+            logger.info('Options chain retrieved', extra={'options_chain': options_chain})
+            return options_chain
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
-    def get_current_price(self, symbol):
-        # Implement current price retrieval
-        response = requests.get(f"https://api.tastytrade.com/markets/quotes/{symbol}", headers={"Authorization": f"Bearer {self.auth}"})
-        return response.json().get('lastPrice')
+    async def get_current_price(self, symbol):
+        async with DXLinkStreamer(self.session) as streamer:
+            subs_list = [symbol]
+            await streamer.subscribe(EventType.QUOTE, subs_list)
+            quote = await streamer.get_event(EventType.QUOTE)
+            # Just return the mid price for now
+            return round(float((quote.bidPrice + quote.askPrice) / 2), 2)

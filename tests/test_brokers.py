@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 from database.models import Trade, Balance, Position
 from .base_test import BaseTest
 from brokers.base_broker import BaseBroker
@@ -42,7 +42,7 @@ class TestTrading(BaseTest):
 
         # Additional setup
         additional_fake_trades = [
-            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.utcnow(), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
+            Trade(symbol='MSFT', quantity=8, price=200.0, executed_price=202.0, order_type='buy', status='executed', timestamp=datetime.now(timezone.utc), broker='Tastytrade', strategy='RSI', profit_loss=16.0, success='yes'),
         ]
         self.session.add_all(additional_fake_trades)
         self.session.commit()
@@ -56,7 +56,7 @@ class TestTrading(BaseTest):
             'executed_price': 151.0,
             'order_type': 'buy',
             'status': 'executed',
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'broker': 'E*TRADE',
             'strategy': 'SMA',
             'profit_loss': 10.0,

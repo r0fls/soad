@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import time
 import os
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from utils.config import parse_config, initialize_brokers, initialize_strategies
 from sqlalchemy import create_engine
 from utils.logger import logger  # Import the logger
 
-def start_trading_system(config_path):
+async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
 
     # Parse the configuration file
@@ -62,7 +63,7 @@ def start_trading_system(config_path):
         for i, strategy in enumerate(strategies):
             if now - last_rebalances[i] >= rebalance_intervals[i]:
                 try:
-                    strategy.rebalance()
+                    await strategy.rebalance()
                     last_rebalances[i] = now
                     logger.info(f'Strategy {i} rebalanced successfully', extra={'time': now})
                 except Exception as e:
@@ -109,7 +110,7 @@ def start_api_server(config_path=None, local_testing=False):
     except Exception as e:
         logger.error('Failed to start API server', extra={'error': str(e)})
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
     parser.add_argument('--mode', choices=['trade', 'api'], required=True, help='Mode to run the system in: "trade" or "api"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
@@ -119,9 +120,9 @@ def main():
     if args.mode == 'trade':
         if not args.config:
             parser.error('--config is required when mode is "trade"')
-        start_trading_system(args.config)
+        await start_trading_system(args.config)
     elif args.mode == 'api':
         start_api_server(config_path=args.config, local_testing=args.local_testing)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
