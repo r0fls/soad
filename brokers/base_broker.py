@@ -113,7 +113,7 @@ class BaseBroker(ABC):
                 return None
 
         try:
-            if self.broker_name == 'tastytrade':
+            if asyncio.iscoroutinefunction(self._place_order):
                 response = await self._place_order(symbol, quantity, order_type, price)
             else:
                 response = self._place_order(symbol, quantity, order_type, price)
