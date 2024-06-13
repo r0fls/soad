@@ -1,7 +1,13 @@
 # utils/json_logger.py
 import logging
-import os
 from pythonjsonlogger import jsonlogger
+
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
+        if record.levelno >= logging.ERROR:
+            log_record['lineno'] = record.lineno
+            log_record['pathname'] = record.pathname
 
 class JsonLogger:
     def __init__(self, log_file='app.log'):
@@ -13,7 +19,7 @@ class JsonLogger:
         console_handler = logging.StreamHandler()
 
         # Create formatters and add it to handlers
-        formatter = jsonlogger.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+        formatter = CustomJsonFormatter('%(asctime)s %(name)s %(levelname)s %(message)s')
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
 

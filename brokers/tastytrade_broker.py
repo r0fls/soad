@@ -4,32 +4,41 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
 
 class TastytradeBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, engine, **kwargs):
-        super().__init__(api_key, secret_key, 'Tastytrade', engine=engine, **kwargs)
+    def __init__(self, username, password, engine, **kwargs):
+        super().__init__(username, password, 'Tastytrade', engine=engine, **kwargs)
         self.base_url = 'https://api.tastytrade.com'
+        self.username = username
+        self.password = password
         self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "Content-Type": "application/json"
         }
         self.order_timeout = 1
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
+        self.connect()
 
     def connect(self):
         logger.info('Connecting to Tastytrade API')
-        response = requests.post(f"{self.base_url}/oauth/token", data={"key": self.api_key, "secret": self.secret_key})
+        auth_data = {
+            "login": self.username,
+            "password": self.password,
+            "remember-me": True
+        }
+        response = requests.post(f"{self.base_url}/sessions", json=auth_data, headers={"Content-Type": "application/json"})
         response.raise_for_status()
-        self.auth = response.json().get('access_token')
-        self.headers["Authorization"] = f"Bearer {self.auth}"
-        logger.info('Connected to Tastytrade API', extra={'auth_token': self.auth})
+        auth_response = response.json().get('data')
+        self.auth = auth_response['session-token']
+        self.headers["Authorization"] = self.auth
+        logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self):
         logger.info('Retrieving account information')
         try:
-            response = requests.get(f"{self.base_url}/accounts", headers=self.headers)
+            response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
             response.raise_for_status()
             account_info = response.json()
-            account_id = account_info['data']['items'][0]['account']['account_number']
+            account_id = account_info['data']['items'][0]['account']['account-number']
             self.account_id = account_id
             logger.info('Account info retrieved', extra={'account_id': self.account_id})
 
@@ -40,16 +49,17 @@ class TastytradeBroker(BaseBroker):
             if not account_data:
                 logger.error("Invalid account info response")
 
-            buying_power = account_data['cash_available']
-            account_value = account_data['account_value']
-            account_type = account_data['type']
+            buying_power = account_data['equity-buying-power']
+            account_value = account_data['net-liquidating-value']
+            # TODO: margin/cash does this matter here?
+            account_type = None
 
             logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
             return {
-                'account_number': account_data['account_number'],
+                'account_number': self.account_id,
                 'account_type': account_type,
-                'buying_power': buying_power,
-                'value': account_value
+                'buying_power': float(buying_power),
+                'value': float(account_value)
             }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
@@ -151,10 +161,11 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
+    # TODO: fix
     def get_current_price(self, symbol):
         logger.info('Retrieving current price', extra={'symbol': symbol})
         try:
-            response = requests.get(f"{self.base_url}/markets/quotes/{symbol}", headers=self.headers)
+            response = requests.get(f"{self.base_url}/market-data/quotes", params={"symbols": symbol}, headers=self.headers)
             response.raise_for_status()
             last_price = response.json()['data']['items'][0]['last']
             logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})

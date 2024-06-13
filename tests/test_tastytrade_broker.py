@@ -9,12 +9,16 @@ class TestTastytradeBroker(BaseTest):
 
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-        self.broker = TastytradeBroker('api_key', 'secret_key', engine=self.engine)
+        self.broker = TastytradeBroker('myusername', 'mypassword', engine=self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'access_token': 'token'}
+        mock_response.json.return_value = {
+            'data': {
+                'session-token': 'token'
+            }
+        }
         mock_post.return_value = mock_response
 
     @patch('brokers.tastytrade_broker.requests.get')
@@ -64,17 +68,19 @@ class TestTastytradeBroker(BaseTest):
         
         # Mock get_account_info response
         mock_get.return_value = MagicMock(json=MagicMock(return_value={
-            'accounts': [{'accountId': '12345', 'value': 10000.0}]
+            'data': {
+                'items': [{'account': {'account_number': '12345'}}]
+            }
         }))
         
         # Mock place_order response
-        mock_post.return_value = MagicMock(json=MagicMock(return_value={'status': 'filled', 'filled_price': 155.00}))
+        mock_post.return_value = MagicMock(json=MagicMock(return_value={'data': {'status': 'filled', 'filled_price': 155.00}}))
 
         self.broker.connect()
-        self.broker.get_account_info()
-        order_info = self.broker.place_order('AAPL', 10, 'buy', 'example_strategy', 150.00)
+        self.broker._get_account_info()
+        order_info = self.broker._place_order('AAPL', 10, 'buy', 150.00)
 
-        self.assertEqual(order_info, {'status': 'filled', 'filled_price': 155.00})
+        self.assertEqual(order_info, {'data': {'status': 'filled', 'filled_price': 155.00}})
 
         # Verify the trade was inserted
         trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
@@ -90,36 +96,37 @@ class TestTastytradeBroker(BaseTest):
     def test_get_order_status(self, mock_post_connect, mock_get):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
-        mock_response.json.return_value = {'status': 'completed'}
+        mock_response.json.return_value = {'data': {'status': 'completed'}}
         mock_get.return_value = mock_response
 
         self.broker.connect()
-        order_status = self.broker.get_order_status('order_id')
-        self.assertEqual(order_status, {'status': 'completed'})
+        order_status = self.broker._get_order_status('order_id')
+        self.assertEqual(order_status, {'data': {'status': 'completed'}})
 
     @patch('brokers.tastytrade_broker.requests.put')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_cancel_order(self, mock_post_connect, mock_put):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
-        mock_response.json.return_value = {'status': 'cancelled'}
+        mock_response.json.return_value = {'data': {'status': 'cancelled'}}
         mock_put.return_value = mock_response
 
         self.broker.connect()
-        cancel_status = self.broker.cancel_order('order_id')
-        self.assertEqual(cancel_status, {'status': 'cancelled'})
+        cancel_status = self.broker._cancel_order('order_id')
+        self.assertEqual(cancel_status, {'data': {'status': 'cancelled'}})
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_options_chain(self, mock_post_connect, mock_get):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
-        mock_response.json.return_value = {'options': 'chain'}
+        mock_response.json.return_value = {'data': {'items': 'chain'}}
         mock_get.return_value = mock_response
 
         self.broker.connect()
-        options_chain = self.broker.get_options_chain('AAPL', '2024-12-20')
-        self.assertEqual(options_chain, {'options': 'chain'})
+        options_chain = self.broker._get_options_chain('AAPL', '2024-12-20')
+        self.assertEqual(options_chain, {'data': {'items': 'chain'}})
 
 if __name__ == '__main__':
     unittest.main()
+
