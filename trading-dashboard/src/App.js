@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import axiosInstance from './axiosInstance';
+import './App.css';
 
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
