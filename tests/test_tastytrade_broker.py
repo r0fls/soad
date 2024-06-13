@@ -9,7 +9,6 @@ class TestTastytradeBroker(BaseTest):
 
     def setUp(self):
         super().setUp()  # Call the setup from BaseTest
-        self.broker = TastytradeBroker('myusername', 'mypassword', engine=self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()
@@ -20,6 +19,7 @@ class TestTastytradeBroker(BaseTest):
             }
         }
         mock_post.return_value = mock_response
+        self.broker = TastytradeBroker('myusername', 'mypassword', engine=self.engine)
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
@@ -35,16 +35,14 @@ class TestTastytradeBroker(BaseTest):
         mock_response_accounts = MagicMock()
         mock_response_accounts.json.return_value = {
             'data': {
-                'items': [{'account': {'account_number': '12345'}}]
+                'items': [{'account': {'account-number': '12345'}}]
             }
         }
         mock_response_balances = MagicMock()
         mock_response_balances.json.return_value = {
             'data': {
-                'account_number': '12345',
-                'cash_available': 5000.0,
-                'account_value': 10000.0,
-                'type': 'cash'
+                'equity-buying-power': 5000.0,
+                'net-liquidating-value': 10000.0,
             }
         }
         mock_get.side_effect = [mock_response_accounts, mock_response_balances]
@@ -53,7 +51,7 @@ class TestTastytradeBroker(BaseTest):
         account_info = self.broker._get_account_info()
         expected_account_info = {
             'account_number': '12345',
-            'account_type': 'cash',
+            'account_type': None,
             'buying_power': 5000.0,
             'value': 10000.0
         }

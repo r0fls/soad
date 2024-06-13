@@ -13,8 +13,8 @@ class TestConfigParser(unittest.TestCase):
             api_key: "your_tradier_api_key"
           tastytrade:
             type: "tastytrade"
-            api_key: "your_tastytrade_api_key"
-            secret_key: "example_key"
+            username: "your_tastytrade_username"
+            password: "password"
         strategies:
           - type: "constant_percentage"
             broker: "tradier"
