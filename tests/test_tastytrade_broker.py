@@ -23,7 +23,8 @@ class TestTastytradeBroker(BaseTest):
 
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
-    def test_connect(self, mock_post, mock_get):
+    def test_connect(self, mock_post, mock_get, prod_sesh):
+        prod_sesh = MagicMock()
         self.mock_connect(mock_post, mock_get)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))

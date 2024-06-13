@@ -10,7 +10,7 @@ class BaseBroker(ABC):
     def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
         self.api_key = api_key
         self.secret_key = secret_key
-        self.broker_name = broker_name
+        self.broker_name = broker_name.lower()
         self.db_manager = DBManager(engine)
         self.Session = sessionmaker(bind=engine)
         self.account_id = None
@@ -104,7 +104,7 @@ class BaseBroker(ABC):
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
 
-    def place_order(self, symbol, quantity, order_type, strategy, price=None):
+    async def place_order(self, symbol, quantity, order_type, strategy, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
         
         if self.prevent_day_trading and order_type == 'sell':
@@ -113,7 +113,10 @@ class BaseBroker(ABC):
                 return None
 
         try:
-            response = self._place_order(symbol, quantity, order_type, price)
+            if self.broker_name == 'tastytrade':
+                response = await self._place_order(symbol, quantity, order_type, price)
+            else:
+                response = self._place_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
 
             trade = Trade(

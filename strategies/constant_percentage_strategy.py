@@ -17,7 +17,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         self.sync_positions_with_broker()  # Ensure positions are synced on initialization
         logger.info(f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
 
-    def rebalance(self):
+    async def rebalance(self):
         logger.debug("Starting rebalance process")
         self.sync_positions_with_broker()  # Ensure positions are synced before rebalancing
         
@@ -47,7 +47,11 @@ class ConstantPercentageStrategy(BaseStrategy):
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
             current_position = current_positions.get(stock, 0)
-            current_price = self.broker.get_current_price(stock)
+            # async price fetcher
+            if self.broker.broker_name == 'tastytrade':
+                current_price = await self.broker.get_current_price(stock)
+            else:
+                current_price = self.broker.get_current_price(stock)
             target_quantity = target_balance // current_price
             logger.debug(f"Stock: {stock}, Allocation: {allocation}, Target balance: {target_balance}, Current position: {current_position}, Current price: {current_price}, Target quantity: {target_quantity}")
             

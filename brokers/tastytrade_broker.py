@@ -1,9 +1,11 @@
 import requests
 import time
-import websocket
 import json
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
+from tastytrade import ProductionSession
+from tastytrade import DXLinkStreamer
+from tastytrade.dxfeed import EventType
 
 class TastytradeBroker(BaseBroker):
     def __init__(self, username, password, engine, **kwargs):
@@ -19,7 +21,6 @@ class TastytradeBroker(BaseBroker):
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.connect()
-        self.api_quote_token, self.ws_url = self.get_api_quote_token()
 
     def connect(self):
         logger.info('Connecting to Tastytrade API')
@@ -33,15 +34,8 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
+        self.session = ProductionSession(self.username, self.password)
         logger.info('Connected to Tastytrade API')
-
-    def get_api_quote_token(self):
-        logger.info('Retrieving API quote token')
-        response = requests.get(f"{self.base_url}/api-quote-tokens", headers=self.headers)
-        response.raise_for_status()
-        token_data = response.json()['data']
-        logger.info('API quote token retrieved')
-        return token_data['token'], token_data['dxlink-url']
 
     def _get_account_info(self):
         logger.info('Retrieving account information')
@@ -88,34 +82,10 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
 
-    def _place_order(self, symbol, quantity, order_type, price=None):
+    async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
-            def get_quote():
-                ws_url = self.ws_url
-                api_quote_token = self.api_quote_token
-
-                def on_message(ws, message):
-                    message = json.loads(message)
-                    if "data" in message:
-                        for item in message["data"]:
-                            if item.get("eventSymbol") == symbol:
-                                last_price = item.get("lastPrice")
-                                ws.close()
-                                return last_price
-
-                def on_open(ws):
-                    ws.send(json.dumps({"token": api_quote_token}))
-                    subscribe_message = json.dumps({
-                        "action": "quote-subscribe",
-                        "symbols": [symbol]
-                    })
-                    ws.send(subscribe_message)
-
-                ws = websocket.WebSocketApp(ws_url, on_open=on_open, on_message=on_message)
-                ws.run_forever()
-
-            last_price = get_quote()
+            last_price = await self.get_current_price(symbol)
 
             if price is None:
                 price = round(last_price, 2)
@@ -190,31 +160,10 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
-    def get_current_price(self, symbol):
-        logger.info('Retrieving current price', extra={'symbol': symbol})
-        try:
-            ws_url = self.ws_url
-            api_quote_token = self.api_quote_token
-
-            def on_message(ws, message):
-                message = json.loads(message)
-                if "data" in message:
-                    for item in message["data"]:
-                        if item.get("eventSymbol") == symbol:
-                            last_price = item.get("lastPrice")
-                            logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
-                            ws.close()
-                            return last_price
-
-            def on_open(ws):
-                ws.send(json.dumps({"token": api_quote_token}))
-                subscribe_message = json.dumps({
-                    "action": "quote-subscribe",
-                    "symbols": [symbol]
-                })
-                ws.send(subscribe_message)
-
-            ws = websocket.WebSocketApp(ws_url, on_open=on_open, on_message=on_message)
-            ws.run_forever()
-        except requests.RequestException as e:
-            logger.error('Failed to retrieve current price', extra={'error': str(e)})
+    async def get_current_price(self, symbol):
+        async with DXLinkStreamer(self.session) as streamer:
+            subs_list = [symbol]
+            await streamer.subscribe(EventType.QUOTE, subs_list)
+            quote = await streamer.get_event(EventType.QUOTE)
+            # Just return the mid price for now
+            return round(float((quote.bidPrice + quote.askPrice) / 2), 2)

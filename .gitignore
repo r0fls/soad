@@ -7,3 +7,4 @@ Chart.lock
 charts/
 test-config.yaml
 app.log
+venv
