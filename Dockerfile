@@ -1,4 +1,4 @@
-FROM python:3.12-buster
+FROM python:3.12-bullseye
 
 # Set the working directory in the container
 WORKDIR /app
