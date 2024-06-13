@@ -1,5 +1,8 @@
+import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from utils.logger import logger
+from database.models import Position, Balance
 
 async def sync_worker(engine, brokers):
     Session = sessionmaker(bind=engine)
@@ -12,7 +15,7 @@ async def sync_worker(engine, brokers):
         positions = session.query(Position).all()
         for position in positions:
             broker_instance = get_broker_instance(position.broker)
-            latest_price = broker_instance.get_latest_price(position.symbol)
+            latest_price = broker_instance.get_current_price(position.symbol)
             position.latest_price = latest_price
             position.last_updated = datetime.utcnow()
         session.commit()
