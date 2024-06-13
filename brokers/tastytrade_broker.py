@@ -21,6 +21,7 @@ class TastytradeBroker(BaseBroker):
             "Content-Type": "application/json"
         }
         self.order_timeout = 1
+        # Not really needed here since we have IOC order type
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
@@ -114,7 +115,7 @@ class TastytradeBroker(BaseBroker):
             leg = symbol.build_leg(quantity, action)
 
             order = NewOrder(
-                time_in_force=OrderTimeInForce.DAY,
+                time_in_force=OrderTimeInForce.IOC,
                 order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
@@ -122,22 +123,12 @@ class TastytradeBroker(BaseBroker):
             )
 
             response = account.place_order(self.session, order, dry_run=False)
+
             if hasattr(response, 'id'):
                 order_id = response.id
+                logger.info('Order placed', extra={'order_id': order_id})
             else:
-                logger.info('Could not find an order to cancel', extra={'response': str(response)})
-                return {'filled_price': price }
-
-            logger.info('Order placed', extra={'order_id': order_id})
-
-            if self.auto_cancel_orders:
-                time.sleep(self.order_timeout)
-                order_status = account.get_order_status(self.session, order_id)
-
-                if order_status['status'] != 'filled':
-                    account.cancel_order(self.session, order_id)
-                    logger.info('Order cancelled', extra={'order_id': order_id})
-                    return {'filled_price': None}
+                logger.info('Could not find an order id', extra={'response': str(response)})
 
             logger.info('Order execution complete', extra={'order_data': response})
             return {'filled_price': price }
