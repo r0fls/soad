@@ -20,6 +20,7 @@ class TastytradeBroker(BaseBroker):
         self.order_timeout = 1
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
+        self.session = None
         self.connect()
 
     def connect(self):
@@ -34,7 +35,8 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
-        self.session = ProductionSession(self.username, self.password)
+        if self.session is None:
+            self.session = ProductionSession(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self):
