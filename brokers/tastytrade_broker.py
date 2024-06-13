@@ -122,7 +122,12 @@ class TastytradeBroker(BaseBroker):
             )
 
             response = account.place_order(self.session, order, dry_run=False)
-            order_id = response.id
+            if hasattr(response, 'id'):
+                order_id = response.id
+            else:
+                logger.info('Could not find an order to cancel', extra={'response': str(response)})
+                return {'filled_price': price }
+
             logger.info('Order placed', extra={'order_id': order_id})
 
             if self.auto_cancel_orders:
@@ -135,9 +140,10 @@ class TastytradeBroker(BaseBroker):
                     return {'filled_price': None}
 
             logger.info('Order execution complete', extra={'order_data': response})
-            return response
+            return {'filled_price': price }
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
+            return {'filled_price': None }
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
