@@ -3,11 +3,38 @@ import asyncio
 import time
 import os
 from datetime import datetime, timedelta
-from database.models import init_db, drop_then_init_db
+from sqlalchemy import create_engine
+from database.models import init_db
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
-from sqlalchemy import create_engine
 from utils.logger import logger  # Import the logger
+from data.sync_worker import sync_worker  # Import the sync worker
+
+def create_database_engine(config, local_testing=False):
+    if local_testing:
+        return create_engine('sqlite:///trading.db')
+    if 'database' in config and 'url' in config['database']:
+        return create_engine(config['database']['url'])
+    return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+
+def initialize_database(engine):
+    try:
+        init_db(engine)
+        logger.info('Database initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize database', extra={'error': str(e)})
+        raise
+
+def initialize_system_components(config):
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+        strategies = initialize_strategies(brokers, config)
+        logger.info('Strategies initialized successfully')
+        return brokers, strategies
+    except Exception as e:
+        logger.error('Failed to initialize system components', extra={'error': str(e)})
+        raise
 
 async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
@@ -21,36 +48,16 @@ async def start_trading_system(config_path):
         return
 
     # Setup the database engine
-    if 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
-    elif os.environ.get("DATABASE_URL", None):
-        engine = create_engine(os.environ.get("DATABASE_URL"))
-    else:
-        engine = create_engine('sqlite:///default_trading_system.db')
+    engine = create_database_engine(config)
     logger.info('Database engine created', extra={'db_url': engine.url})
 
     # Initialize the database
-    try:
-        init_db(engine)
-        logger.info('Database initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize database', extra={'error': str(e)})
-        return
+    initialize_database(engine)
 
-    # Initialize the brokers
+    # Initialize the brokers and strategies
     try:
-        brokers = initialize_brokers(config)
-        logger.info('Brokers initialized successfully')
+        brokers, strategies = initialize_system_components(config)
     except Exception as e:
-        logger.error('Failed to initialize brokers', extra={'error': str(e)})
-        return
-
-    # Initialize the strategies
-    try:
-        strategies = initialize_strategies(brokers, config)
-        logger.info('Strategies initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize strategies', extra={'error': str(e)})
         return
 
     # Execute the strategies loop
@@ -84,23 +91,11 @@ def start_api_server(config_path=None, local_testing=False):
             return
 
     # Setup the database engine
-    if local_testing:
-        engine = create_engine('sqlite:///trading.db')
-    elif 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
-    elif os.environ.get("DATABASE_URL", None):
-        engine = create_engine(os.environ.get("DATABASE_URL"))
-    else:
-        engine = create_engine('sqlite:///default_trading_system.db')
+    engine = create_database_engine(config, local_testing)
     logger.info('Database engine created for API server', extra={'db_url': engine.url})
 
     # Initialize the database
-    try:
-        init_db(engine)
-        logger.info('Database initialized successfully for API server')
-    except Exception as e:
-        logger.error('Failed to initialize database for API server', extra={'error': str(e)})
-        return
+    initialize_database(engine)
 
     # Create and run the app
     try:
@@ -110,9 +105,42 @@ def start_api_server(config_path=None, local_testing=False):
     except Exception as e:
         logger.error('Failed to start API server', extra={'error': str(e)})
 
+async def start_sync_worker(config_path):
+    logger.info('Starting sync worker', extra={'config_path': config_path})
+
+    # Parse the configuration file
+    try:
+        config = parse_config(config_path)
+        logger.info('Configuration parsed successfully')
+    except Exception as e:
+        logger.error('Failed to parse configuration', extra={'error': str(e)})
+        return
+
+    # Setup the database engine
+    engine = create_database_engine(config)
+    logger.info('Database engine created for sync worker', extra={'db_url': engine.url})
+
+    # Initialize the database
+    initialize_database(engine)
+
+    # Initialize the brokers
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        return
+
+    # Start the sync worker
+    try:
+        await sync_worker(engine, brokers)
+        logger.info('Sync worker started successfully')
+    except Exception as e:
+        logger.error('Failed to start sync worker', extra={'error': str(e)})
+
 async def main():
-    parser = argparse.ArgumentParser(description="Run trading strategies or start API server based on YAML configuration.")
-    parser.add_argument('--mode', choices=['trade', 'api'], required=True, help='Mode to run the system in: "trade" or "api"')
+    parser = argparse.ArgumentParser(description="Run trading strategies, start API server, or start sync worker based on YAML configuration.")
+    parser.add_argument('--mode', choices=['trade', 'api', 'sync'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
     args = parser.parse_args()
@@ -123,6 +151,10 @@ async def main():
         await start_trading_system(args.config)
     elif args.mode == 'api':
         start_api_server(config_path=args.config, local_testing=args.local_testing)
+    elif args.mode == 'sync':
+        if not args.config:
+            parser.error('--config is required when mode is "sync"')
+        await start_sync_worker(args.config)
 
 if __name__ == "__main__":
     asyncio.run(main())
