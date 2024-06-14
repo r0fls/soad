@@ -14,6 +14,9 @@ class TradierBroker(BaseBroker):
         self.order_timeout = 1
         self.auto_cancel_orders = True
         logger.info('Initialized TradierBroker', extra={'base_url': self.base_url})
+        self.cash = None
+        self.value = None
+        self.buying_power = None
 
     def connect(self):
         logger.info('Connecting to Tradier API')
@@ -49,12 +52,17 @@ class TradierBroker(BaseBroker):
             if account_info.get('pdt'):
                 self.account_type = 'pdt'
                 buying_power = account_info['pdt']['stock_buying_power']
+            cash = account_info['total_cash']
+            self.cash = cash
+            self.buying_power = buying_power
+            self.value = account_value
 
             logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': account_info['account_number'],
                 'account_type': self.account_type,
                 'buying_power': buying_power,
+                'cash': cash,
                 'value': account_value
             }
         except requests.RequestException as e:

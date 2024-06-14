@@ -11,11 +11,14 @@ async def sync_worker(engine, brokers):
     def get_broker_instance(broker_name):
         return brokers[broker_name]
 
-    def update_latest_prices(session):
+    async def update_latest_prices(session):
         positions = session.query(Position).all()
         for position in positions:
             broker_instance = get_broker_instance(position.broker)
-            latest_price = broker_instance.get_current_price(position.symbol)
+            if asyncio.iscoroutinefunction(broker_instance.get_current_price):
+                latest_price = await broker_instance.get_current_price(position.symbol)
+            else:
+                latest_price = broker_instance.get_current_price(position.symbol)
             position.latest_price = latest_price
             position.last_updated = datetime.utcnow()
         session.commit()
@@ -37,7 +40,7 @@ async def sync_worker(engine, brokers):
             cash_balance = session.query(Balance).filter_by(broker=broker_name, type='cash').first()
             if cash_balance:
                 # Assuming you have a way to get the actual cash balance
-                actual_cash_balance = get_broker_instance(broker_name).get_cash_balance()  # Replace with actual method
+                actual_cash_balance = get_broker_instance(broker_name).cash
                 cash_balance.balance = actual_cash_balance
                 cash_balance.timestamp = datetime.utcnow()
 
@@ -53,7 +56,7 @@ async def sync_worker(engine, brokers):
 
     while True:
         try:
-            update_latest_prices(session)
+            await update_latest_prices(session)
             update_position_balances(session)
             update_cash_and_total_balances(session)
             logger.info('Sync worker completed an iteration')
