@@ -2,6 +2,9 @@
 
 > NOTE: This is still being developed.
 
+![soad-logo](https://github.com/r0fls/soad/assets/1858004/7369c3af-b4e6-41d9-997c-eaa0b81b969d)
+
+
 ## Features
 
 - Execute multiple strategies simultaneously in isolation
