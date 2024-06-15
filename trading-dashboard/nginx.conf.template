@@ -29,9 +29,9 @@ http {
 
     server {
         listen 80;
-        server_name your_domain_or_IP;
+        server_name ${SERVER_NAME};
 
-        root /path/to/your/react/app/build;
+        root /usr/share/nginx/html;
         index index.html;
 
         location / {

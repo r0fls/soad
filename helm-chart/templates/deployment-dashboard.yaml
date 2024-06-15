@@ -23,6 +23,8 @@ spec:
           env:
             - name: REACT_API_URL
               value: http://{{ .Values.api.ingress.host }}
+            - name: SERVER_NAME
+              value: {{ .Values.dashboard.ingress.host }}
           readinessProbe:
             httpGet:
               path: /

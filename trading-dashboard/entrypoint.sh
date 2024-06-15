@@ -14,5 +14,8 @@ done
 # Replace placeholders in the HTML file
 sed -i "s|\$REACT_API_URL|${REACT_API_URL}|g" /usr/share/nginx/html/index.html
 
+# Replace the placeholder in the nginx configuration template
+envsubst '$SERVER_NAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
 # Start nginx
 nginx -g "daemon off;"
