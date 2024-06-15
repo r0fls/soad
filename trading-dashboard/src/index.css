@@ -12,11 +12,16 @@ code {
     monospace;
 }
 
+/* index.css */
+
 .App-banner {
   background-color: #282c34;
+  min-height: 10vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: calc(10px + 2vmin);
   color: white;
-  text-align: center;
-  padding: 10px;
-  font-size: 24px;
-  font-weight: bold;
+  z-index: 1; /* Ensure the banner is below the sidebar */
+  position: relative;
 }

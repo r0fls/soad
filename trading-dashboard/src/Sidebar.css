@@ -1,19 +1,29 @@
-/* Sidebar.css */
-
 .navbar {
-  background-color: #333;
-  height: 60px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: start;
-  z-index: 1000; /* Ensure navbar is on top */
+  background-color: #333;
+  padding: 0 20px;
+  height: 80px;
 }
 
 .menu-bars {
-  margin-left: auto;
-  margin-right: 2rem;
   font-size: 2rem;
-  background: none;
+  color: #f5f5f5;
+  cursor: pointer;
+  margin-right: 18px;
+}
+
+.header {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.header p {
+  font-size: 2rem;
+  color: #f5f5f5;
+  margin: 0;
+  font-weight: 700;
 }
 
 .nav-menu {
@@ -24,13 +34,13 @@
   justify-content: center;
   position: fixed;
   top: 0;
-  right: -100%;
+  right: -100%; /* Start from the right side */
   transition: 850ms;
-  z-index: 1000; /* Ensure sidebar is on top */
+  z-index: 10;
 }
 
 .nav-menu.active {
-  right: 0;
+  right: 0; /* Move in from the right side */
   transition: 350ms;
 }
 
@@ -41,8 +51,9 @@
 .navbar-toggle {
   background-color: #333;
   width: 100%;
+  height: 60px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: start;
   align-items: center;
 }
 
@@ -50,8 +61,9 @@
   display: flex;
   justify-content: start;
   align-items: center;
-  padding: 8px 0px 8px 16px;
+  padding: 8px 0 8px 16px;
   list-style: none;
+  font-weight:700;
   height: 60px;
 }
 
@@ -59,14 +71,14 @@
   text-decoration: none;
   color: #f5f5f5;
   font-size: 18px;
-  width: 100%;
+  width: 95%;
+  height: 100%;
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  height: 100%;
+  padding: 0 16px;
+  border-radius: 4px;
 }
 
 .nav-text a:hover {
-  background-color: #575757;
-  border-radius: 4px;
+  background-color: #1a83ff;
 }
