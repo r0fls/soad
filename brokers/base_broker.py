@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import and_
 from database.db_manager import DBManager
-from database.models import Trade, AccountInfo, Position
+from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
 from utils.logger import logger  # Import the logger
 
