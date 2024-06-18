@@ -1,5 +1,5 @@
 {{- if .Values.dashboard.ingress.enabled }}
-dashboardVersion: networking.k8s.io/v1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: trading-dashboard-ingress
