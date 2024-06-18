@@ -43,7 +43,7 @@ class TastytradeBroker(BaseBroker):
             self.session = ProductionSession(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
-    def _get_account_info(self):
+    def _get_account_info(self, retry=True):
         logger.info('Retrieving account information')
         try:
             response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
@@ -73,8 +73,13 @@ class TastytradeBroker(BaseBroker):
             }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
+            # TODO: handle auth errors properly
+            if retry:
+                logger.info('Trying to authenticate again')
+                self.connect()
+                self._get_account_info(retry=False)
 
-    def get_positions(self):
+    def get_positions(self, retry=True):
         logger.info('Retrieving positions')
         url = f"{self.base_url}/accounts/{self.account_id}/positions"
         try:
@@ -87,6 +92,12 @@ class TastytradeBroker(BaseBroker):
             return positions
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
+            # TODO: handle auth errors properly
+            if retry:
+                logger.info('Trying to authenticate again')
+                self.connect()
+                self.get_positions(retry=False)
+
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
