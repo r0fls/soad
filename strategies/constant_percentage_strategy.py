@@ -26,7 +26,7 @@ class ConstantPercentageStrategy(BaseStrategy):
     async def rebalance(self):
         logger.debug("Starting rebalance process")
         # Ensure positions are synced before rebalancing
-        self.sync_positions_with_broker()
+        await self.sync_positions_with_broker()
 
         account_info = self.broker.get_account_info()
         cash_balance = account_info.get('cash_available')
