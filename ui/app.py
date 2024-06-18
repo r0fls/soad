@@ -126,7 +126,7 @@ def get_positions():
     positions_data = []
     for position in positions:
         # TODO: prune these
-        if positions.quantity != 0:
+        if position.quantity != 0:
             positions_data.append({
                 'broker': position.broker,
                 'strategy': position.strategy,
