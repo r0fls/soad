@@ -4,7 +4,7 @@ from utils.logger import logger
 from database.models import Balance, Position
 from strategies.base_strategy import BaseStrategy
 import asyncio
-RDFNfrom datetime import timedelta
+from datetime import timedelta
 
 
 class ConstantPercentageStrategy(BaseStrategy):
