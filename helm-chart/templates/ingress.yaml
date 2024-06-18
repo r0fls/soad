@@ -31,7 +31,7 @@ spec:
               service:
                 name: system-of-a-dow-dashboard
                 port:
-                  number: 8000
+                  number: 80
 {{- end }}
 ---
 {{- if .Values.api.ingress.enabled }}
