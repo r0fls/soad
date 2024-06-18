@@ -29,7 +29,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: system-of-a-dow-dashboard
+                name: trading-dashboard-service
                 port:
                   number: 80
 {{- end }}
