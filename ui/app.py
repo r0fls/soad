@@ -125,14 +125,16 @@ def get_positions():
     positions = query.all()
     positions_data = []
     for position in positions:
-        positions_data.append({
-            'broker': position.broker,
-            'strategy': position.strategy,
-            'symbol': position.symbol,
-            'quantity': position.quantity,
-            'latest_price': position.latest_price,
-            'timestamp': position.last_updated,
-        })
+        # TODO: prune these
+        if positions.quantity != 0:
+            positions_data.append({
+                'broker': position.broker,
+                'strategy': position.strategy,
+                'symbol': position.symbol,
+                'quantity': position.quantity,
+                'latest_price': position.latest_price,
+                'timestamp': position.last_updated,
+            })
 
     return jsonify({'positions': positions_data})
 
@@ -156,6 +158,7 @@ def get_trades():
         'strategy': trade.strategy,
         'symbol': trade.symbol,
         'quantity': trade.quantity,
+        'order_type': trade.order_type,
         'price': trade.price,
         'profit_loss': trade.profit_loss,
         'timestamp': trade.timestamp
