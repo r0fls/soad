@@ -1,21 +1,23 @@
 {{- if .Values.dashboard.ingress.enabled }}
-apiVersion: networking.k8s.io/v1
+dashboardVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: trading-dashboard-ingress
   annotations:
-{{- if .Values.dashboard.ingress.tls.enabled }}
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
-{{- if .Values.dashboard.ingress.host }}
+  {{- if .Values.dashboard.ingress.tls.enabled }}
   tls:
   - hosts:
-    - {{- regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host }}
-    secretName: {{ .Values.api.ingress.tls.secretPrefix }}-tls
-{{- end }}
+    {{- $host := regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host }}
+    {{- if $host }}
+      - {{ $host }}
+    {{- else }}
+      - {{ .Values.dashboard.ingress.host }}
+    {{- end }}
+    secretName: {{ .Values.dashboard.ingress.tls.secretPrefix }}-tls
+  {{- end }}
   rules:
     - host: {{ .Values.dashboard.ingress.host }}
       http:
@@ -24,9 +26,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: trading-dashboard-service
+                name: system-of-a-dow-dashboard
                 port:
-                  number: 80
+                  number: 8000
 {{- end }}
 ---
 {{- if .Values.api.ingress.enabled }}
@@ -38,12 +40,17 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
-{{- if .Values.api.ingress.tls.enabled }}
+  {{- if .Values.api.ingress.tls.enabled }}
   tls:
   - hosts:
-    - {{- regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host }}
+    {{- $host := regexReplaceAll "^[^.]+\\." "" .Values.api.ingress.host }}
+    {{- if $host }}
+      - {{ $host }}
+    {{- else }}
+      - {{ .Values.api.ingress.host }}
+    {{- end }}
     secretName: {{ .Values.api.ingress.tls.secretPrefix }}-tls
-{{- end }}
+  {{- end }}
   rules:
     - host: {{ .Values.api.ingress.host }}
       http:
