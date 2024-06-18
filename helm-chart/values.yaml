@@ -3,6 +3,7 @@ replicaCount: 1
 api:
   ingress:
     tls:
+      secretPrefix: ""
       enabled: false
     enabled: false
   image:
@@ -17,6 +18,7 @@ trading:
 dashboard:
   ingress:
     tls:
+      secretPrefix: ""
       enabled: false
     enabled: false
   image:

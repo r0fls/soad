@@ -24,7 +24,7 @@ spec:
   tls:
   - hosts:
     - {{ include "stripSubdomain" .Values.dashboard.ingress.tls.domain | quote }}
-    secretName: {{ .Values.dashboard.ingress.tls.secret }}-tls
+    secretName: {{ .Values.dashboard.ingress.tls.secretPrefix }}-tls
 {{- end }}
   rules:
     - host: {{ .Values.dashboard.ingress.host }}
@@ -52,7 +52,7 @@ spec:
   tls:
   - hosts:
     - {{ include "stripSubdomain" .Values.api.ingress.host | quote }}
-    secretName: {{ .Values.api.ingress.tls.secret }}-tls
+    secretName: {{ .Values.api.ingress.tls.secretPrefix }}-tls
 {{- end }}
   rules:
     - host: {{ .Values.api.ingress.host }}
