@@ -154,7 +154,7 @@ class BaseBroker(ABC):
 
                 # Fetch the latest cash balance for the strategy
                 latest_balance = session.query(Balance).filter_by(
-                    strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).first()
+                    broker=self.broker_name, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).first()
                 if latest_balance:
                     # Calculate the order cost
                     order_cost = trade.executed_price * quantity
@@ -175,6 +175,8 @@ class BaseBroker(ABC):
                     )
                     session.add(new_balance)
                     session.commit()
+                else:
+                    logger.info('No balance records found for {strategy} in {self.broker_name}')
 
             return response
         except Exception as e:
