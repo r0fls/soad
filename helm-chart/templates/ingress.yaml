@@ -4,6 +4,9 @@ kind: Ingress
 metadata:
   name: trading-dashboard-ingress
   annotations:
+{{- if .Values.dashboard.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
@@ -37,6 +40,9 @@ kind: Ingress
 metadata:
   name: trading-api-ingress
   annotations:
+{{- if .Values.dashboard.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
