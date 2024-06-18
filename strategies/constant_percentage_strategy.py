@@ -52,7 +52,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                 broker=self.broker.broker_name
             ).all()
             current_db_positions_dict = {
-                pos.symbol: pos.quantity for pos in current_db_positions}
+                pos.symbol: pos.quantity for pos in current_db_positions if pos.quantity > 0}
             logger.debug(f"Current DB positions: {current_db_positions_dict}")
 
         target_cash_balance = total_balance * self.cash_percentage
