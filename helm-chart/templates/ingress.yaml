@@ -1,12 +1,31 @@
+{{- define "stripSubdomain" -}}
+{{- $host := . -}}
+{{- $parts := splitList "." $host -}}
+{{- if gt (len $parts) 2 -}}
+{{- $baseDomain := printf "%s.%s" (index $parts (sub (len $parts) 2)) (index $parts (sub (len $parts) 1)) -}}
+{{- else -}}
+{{- $baseDomain := $host -}}
+{{- end -}}
+{{- $baseDomain -}}
+{{- end -}}
 {{- if .Values.dashboard.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: trading-dashboard-ingress
   annotations:
+{{- if .Values.dashboard.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
+{{- if .Values.dashboard.ingress.host }}
+  tls:
+  - hosts:
+    - {{ include "stripSubdomain" .Values.dashboard.ingress.tls.domain | quote }}
+    secretName: {{ .Values.dashboard.ingress.tls.secret }}-tls
+{{- end }}
   rules:
     - host: {{ .Values.dashboard.ingress.host }}
       http:
@@ -29,6 +48,12 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
+{{- if .Values.api.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ include "stripSubdomain" .Values.api.ingress.host | quote }}
+    secretName: {{ .Values.api.ingress.tls.secret }}-tls
+{{- end }}
   rules:
     - host: {{ .Values.api.ingress.host }}
       http:
