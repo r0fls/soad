@@ -170,7 +170,7 @@ class BaseBroker(ABC):
                         broker=self.broker_name,
                         strategy=strategy,
                         type='cash',
-                        amount=new_balance_amount,
+                        balance=new_balance_amount,
                         timestamp=datetime.now()
                     )
                     session.add(new_balance)
