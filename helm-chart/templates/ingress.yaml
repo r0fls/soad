@@ -1,13 +1,3 @@
-{{- define "stripSubdomain" -}}
-{{- $host := . -}}
-{{- $parts := splitList "." $host -}}
-{{- if gt (len $parts) 2 -}}
-{{- $baseDomain := printf "%s.%s" (index $parts (sub (len $parts) 2)) (index $parts (sub (len $parts) 1)) -}}
-{{- else -}}
-{{- $baseDomain := $host -}}
-{{- end -}}
-{{- $baseDomain -}}
-{{- end -}}
 {{- if .Values.dashboard.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -23,7 +13,7 @@ spec:
 {{- if .Values.dashboard.ingress.host }}
   tls:
   - hosts:
-    - {{ include "stripSubdomain" .Values.dashboard.ingress.tls.domain | quote }}
+    - {{- regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host -}}
     secretName: {{ .Values.dashboard.ingress.tls.secretPrefix }}-tls
 {{- end }}
   rules:
@@ -51,7 +41,7 @@ spec:
 {{- if .Values.api.ingress.tls.enabled }}
   tls:
   - hosts:
-    - {{ include "stripSubdomain" .Values.api.ingress.host | quote }}
+    - {{- regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host -}}
     secretName: {{ .Values.api.ingress.tls.secretPrefix }}-tls
 {{- end }}
   rules:
