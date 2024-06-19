@@ -7,6 +7,8 @@ from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
 import os
+from datetime import timedelta
+
 
 app = Flask("TradingAPI")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
@@ -15,6 +17,7 @@ DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}}, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
 jwt = JWTManager(app)
 
 USERNAME = os.environ.get('APP_USERNAME', 'admin')
