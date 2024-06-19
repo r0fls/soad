@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from './AuthContext';
 import router from './routes';
 import './index.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -25,9 +26,11 @@ const App = () => {
 
   return (
     <>
-      <RouterProvider router={router}>
-        <Sidebar />
-      </RouterProvider>
+      <AuthProvider>
+        <RouterProvider router={router}>
+          <Sidebar />
+        </RouterProvider>
+      </AuthProvider>
     </>
   );
 };

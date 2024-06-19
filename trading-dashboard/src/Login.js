@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axiosInstance from './axiosInstance';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import loginImage from './assets/login-image.png'; // Make sure the path is correct
+import loginImage from './assets/login-image.png';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -13,11 +13,14 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); // Reset error state on form submission
+    console.log('Form submitted with:', { username, password }); // Debug log
     try {
       const response = await axiosInstance.post('/login', { username, password });
       console.log('Login response:', response); // Debug log to verify response
       if (response.status === 200 && response.data.access_token) {
         setToken(response.data.access_token);
+        console.log('Token set, navigating to /'); // Debug log for navigation
         navigate('/');
       } else {
         setError('Invalid username or password');
@@ -41,7 +44,11 @@ const Login = () => {
                 type="text"
                 className="form-control"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (error) setError(''); // Reset error when user starts typing
+                }}
+                required
               />
             </div>
             <div className="form-group mb-3">
@@ -50,7 +57,11 @@ const Login = () => {
                 type="password"
                 className="form-control"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(''); // Reset error when user starts typing
+                }}
+                required
               />
             </div>
             <button type="submit" className="btn btn-primary btn-block">Login</button>
