@@ -4,12 +4,26 @@ import history from './history';
 const baseURL = '$REACT_API_URL';
 
 const axiosInstance = axios.create({
-    baseURL: baseURL,
+  baseURL: baseURL,
 });
+
+export const isTokenExpired = (token) => {
+  if (!token) return true;
+
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  const currentTime = Date.now() / 1000;
+
+  return payload.exp < currentTime;
+};
 
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
+    if (isTokenExpired(token)) {
+      history.push('/login');
+      localStorage.removeItem('token');
+      throw new axios.Cancel('JWT token expired');
+    }
     config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
