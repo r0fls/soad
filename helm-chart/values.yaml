@@ -2,6 +2,9 @@ replicaCount: 1
 
 api:
   ingress:
+    tls:
+      secretPrefix: ""
+      enabled: false
     enabled: false
   image:
     repository: r0fls/soad-trading-system
@@ -14,6 +17,9 @@ trading:
     pullPolicy: Always
 dashboard:
   ingress:
+    tls:
+      secretPrefix: ""
+      enabled: false
     enabled: false
   image:
     repository: r0fls/soad-trading-dashboard

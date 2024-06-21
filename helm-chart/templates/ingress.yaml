@@ -4,9 +4,23 @@ kind: Ingress
 metadata:
   name: trading-dashboard-ingress
   annotations:
+{{- if .Values.dashboard.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
+  {{- if .Values.dashboard.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    {{- $host := regexReplaceAll "^[^.]+\\." "" .Values.dashboard.ingress.host }}
+    {{- if $host }}
+      - {{ $host }}
+    {{- else }}
+      - {{ .Values.dashboard.ingress.host }}
+    {{- end }}
+    secretName: {{ .Values.dashboard.ingress.tls.secretPrefix }}-tls
+  {{- end }}
   rules:
     - host: {{ .Values.dashboard.ingress.host }}
       http:
@@ -26,9 +40,23 @@ kind: Ingress
 metadata:
   name: trading-api-ingress
   annotations:
+{{- if .Values.dashboard.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+{{- end }}
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
+  {{- if .Values.api.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    {{- $host := regexReplaceAll "^[^.]+\\." "" .Values.api.ingress.host }}
+    {{- if $host }}
+      - {{ $host }}
+    {{- else }}
+      - {{ .Values.api.ingress.host }}
+    {{- end }}
+    secretName: {{ .Values.api.ingress.tls.secretPrefix }}-tls
+  {{- end }}
   rules:
     - host: {{ .Values.api.ingress.host }}
       http:

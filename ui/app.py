@@ -7,6 +7,8 @@ from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
 import os
+from datetime import timedelta
+
 
 app = Flask("TradingAPI")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
@@ -15,6 +17,7 @@ DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}}, supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
 jwt = JWTManager(app)
 
 USERNAME = os.environ.get('APP_USERNAME', 'admin')
@@ -125,14 +128,16 @@ def get_positions():
     positions = query.all()
     positions_data = []
     for position in positions:
-        positions_data.append({
-            'broker': position.broker,
-            'strategy': position.strategy,
-            'symbol': position.symbol,
-            'quantity': position.quantity,
-            'latest_price': position.latest_price,
-            'timestamp': position.last_updated,
-        })
+        # TODO: prune these
+        if position.quantity != 0:
+            positions_data.append({
+                'broker': position.broker,
+                'strategy': position.strategy,
+                'symbol': position.symbol,
+                'quantity': position.quantity,
+                'latest_price': position.latest_price,
+                'timestamp': position.last_updated,
+            })
 
     return jsonify({'positions': positions_data})
 
@@ -156,6 +161,7 @@ def get_trades():
         'strategy': trade.strategy,
         'symbol': trade.symbol,
         'quantity': trade.quantity,
+        'order_type': trade.order_type,
         'price': trade.price,
         'profit_loss': trade.profit_loss,
         'timestamp': trade.timestamp

@@ -1,11 +1,14 @@
 import requests
 import time
 import json
+from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
-from tastytrade import ProductionSession
-from tastytrade import DXLinkStreamer
+from tastytrade import ProductionSession, DXLinkStreamer, Account
+from tastytrade.instruments import Equity
 from tastytrade.dxfeed import EventType
+from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect
+
 
 class TastytradeBroker(BaseBroker):
     def __init__(self, username, password, engine, **kwargs):
@@ -18,6 +21,7 @@ class TastytradeBroker(BaseBroker):
             "Content-Type": "application/json"
         }
         self.order_timeout = 1
+        # Not really needed here since we have IOC order type
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
@@ -42,7 +46,7 @@ class TastytradeBroker(BaseBroker):
             self.session = ProductionSession(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
-    def _get_account_info(self):
+    def _get_account_info(self, retry=True):
         logger.info('Retrieving account information')
         try:
             response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
@@ -79,8 +83,13 @@ class TastytradeBroker(BaseBroker):
             }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
+            # TODO: handle auth errors properly
+            if retry:
+                logger.info('Trying to authenticate again')
+                self.connect()
+                self._get_account_info(retry=False)
 
-    def get_positions(self):
+    def get_positions(self, retry=True):
         logger.info('Retrieving positions')
         url = f"{self.base_url}/accounts/{self.account_id}/positions"
         try:
@@ -93,6 +102,12 @@ class TastytradeBroker(BaseBroker):
             return positions
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
+            # TODO: handle auth errors properly
+            if retry:
+                logger.info('Trying to authenticate again')
+                self.connect()
+                self.get_positions(retry=False)
+
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
@@ -102,42 +117,45 @@ class TastytradeBroker(BaseBroker):
             if price is None:
                 price = round(last_price, 2)
 
-            order_data = {
-                "class": "equity",
-                "symbol": symbol,
-                "quantity": quantity,
-                "side": order_type,
-                "type": "limit",
-                "duration": "day",
-                "price": price
-            }
+            # Convert to Decimal
+            quantity = Decimal(quantity)
+            price = Decimal(price)
 
-            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", json=order_data, headers=self.headers)
-            response.raise_for_status()
+            # Map order_type to OrderAction
+            if order_type.lower() == 'buy':
+                action = OrderAction.BUY_TO_OPEN
+                price_effect = PriceEffect.DEBIT
+            elif order_type.lower() == 'sell':
+                action = OrderAction.SELL_TO_CLOSE
+                price_effect = PriceEffect.CREDIT
+            else:
+                raise ValueError(f"Unsupported order type: {order_type}")
 
-            order_id = response.json()['data']['order']['order_id']
-            logger.info('Order placed', extra={'order_id': order_id})
+            account = Account.get_account(self.session, self.account_id)
+            symbol = Equity.get_equity(self.session, symbol)
+            leg = symbol.build_leg(quantity, action)
 
-            if self.auto_cancel_orders:
-                time.sleep(self.order_timeout)
-                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
-                status_response = requests.get(order_status_url, headers=self.headers)
-                status_response.raise_for_status()
-                order_status = status_response.json()['data']['order']['status']
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.IOC,
+                order_type=OrderType.LIMIT,
+                legs=[leg],
+                price=price,
+                price_effect=price_effect
+            )
 
-                if order_status != 'filled':
-                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
-                    cancel_response = requests.put(cancel_url, headers=self.headers)
-                    cancel_response.raise_for_status()
-                    logger.info('Order cancelled', extra={'order_id': order_id})
+            response = account.place_order(self.session, order, dry_run=False)
 
-            data = response.json()
-            if data.get('filled_price') is None:
-                data['filled_price'] = price
-            logger.info('Order execution complete', extra={'order_data': data})
-            return data
-        except requests.RequestException as e:
+            if hasattr(response, 'id'):
+                order_id = response.id
+                logger.info('Order placed', extra={'order_id': order_id})
+            else:
+                logger.info('Could not find an order id', extra={'response': str(response)})
+
+            logger.info('Order execution complete', extra={'order_data': response})
+            return {'filled_price': price }
+        except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
+            return {'filled_price': None }
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})

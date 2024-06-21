@@ -29,16 +29,14 @@ http {
 
     server {
         listen 80;
-        server_name your_domain_or_IP;
+        server_name ${SERVER_NAME};
 
-        root /path/to/your/react/app/build;
+        root /usr/share/nginx/html;
         index index.html;
 
         location / {
-            try_files $uri /index.html;
+            try_files $uri $uri/ /index.html;
         }
-
-        error_page 404 /index.html;
 
         location ~* \.(?:manifest|appcache|html?|xml|json)$ {
             expires -1;

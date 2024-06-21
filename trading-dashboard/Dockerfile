@@ -24,7 +24,7 @@ FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
 
 # Copy the custom Nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf.template /etc/nginx/nginx.conf.template
 
 # Copy the entrypoint script
 COPY entrypoint.sh /entrypoint.sh

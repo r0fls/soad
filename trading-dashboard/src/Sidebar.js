@@ -13,6 +13,9 @@ const Sidebar = () => {
   return (
     <>
       <div className="navbar">
+        <div className="header">
+          <p>System of a Dow</p>
+        </div>
         <Link to="#" className="menu-bars">
           <FaBars onClick={showSidebar} />
         </Link>

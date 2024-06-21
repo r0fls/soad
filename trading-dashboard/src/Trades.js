@@ -139,6 +139,7 @@ const Trades = () => {
                 <th>Symbol</th>
                 <th>Quantity</th>
                 <th>Price</th>
+                <th>Type</th>
                 <th>Profit/Loss</th>
                 <th>Timestamp</th>
               </tr>
@@ -151,6 +152,7 @@ const Trades = () => {
                   <td>{trade.symbol}</td>
                   <td>{trade.quantity}</td>
                   <td>{trade.price}</td>
+                  <td>{trade.order_type}</td>
                   <td>{trade.profit_loss}</td>
                   <td>{trade.timestamp}</td>
                 </tr>

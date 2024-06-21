@@ -1,20 +1,44 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from './AuthContext';
 import router from './routes';
 import './index.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import reportWebVitals from './reportWebVitals';
+import Sidebar from './Sidebar';
+import { isTokenExpired } from './axiosInstance';
+import history from './history';
+
+// Function to check token expiration and redirect if necessary
+const checkTokenExpiration = () => {
+  const token = localStorage.getItem('token');
+  if (isTokenExpired(token)) {
+    localStorage.removeItem('token');
+    history.push('/login');
+  }
+};
+
+const App = () => {
+  useEffect(() => {
+    checkTokenExpiration();
+  }, []);
+
+  return (
+    <>
+      <AuthProvider>
+        <RouterProvider router={router}>
+          <Sidebar />
+        </RouterProvider>
+      </AuthProvider>
+    </>
+  );
+};
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <div>
-      <header className="App-banner">
-        System Of A Dow
-      </header>
-      <RouterProvider router={router} />
-    </div>
+    <App />
   </React.StrictMode>
 );
 

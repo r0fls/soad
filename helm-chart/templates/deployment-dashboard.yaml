@@ -21,8 +21,15 @@ spec:
           ports:
             - containerPort: 80
           env:
+            {{- if .Values.api.ingress.tls.enabled }}
+            - name: REACT_API_URL
+              value: https://{{ .Values.api.ingress.host }}
+            {{- else }}
             - name: REACT_API_URL
               value: http://{{ .Values.api.ingress.host }}
+            {{- end }}
+            - name: SERVER_NAME
+              value: {{ .Values.dashboard.ingress.host }}
           readinessProbe:
             httpGet:
               path: /
