@@ -43,55 +43,60 @@ def login():
 @app.route('/get_brokers_strategies', methods=['GET'])
 @jwt_required()
 def get_brokers_strategies():
-    session = Session()
     try:
         # Fetch distinct brokers and strategies from the Balance table
-        brokers_strategies = session.query(Balance.broker, Balance.strategy).distinct().all()
+        brokers_strategies = app.session.query(Balance.broker, Balance.strategy).distinct().all()
         response = [{'broker': broker, 'strategy': strategy} for broker, strategy in brokers_strategies]
         return jsonify(response), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        session.close()
 
 @app.route('/adjust_balance', methods=['POST'])
 @jwt_required()
 def adjust_balance():
     data = request.get_json()
+    broker = data.get('broker')
     strategy_name = data.get('strategy_name')
     new_total_balance = data.get('new_total_balance')
 
     if new_total_balance is None or new_total_balance <= 0:
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400
 
-    session = Session()
     try:
         # Fetch the cash and position balances for the strategy
-        cash_balance = session.query(Balance).filter_by(
-            strategy=strategy_name, broker='tastytrade', type='cash'
+        cash_balance = app.session.query(Balance).filter_by(
+            strategy=strategy_name, broker=broker, type='cash'
         ).first()
-        positions_balance = session.query(Balance).filter_by(
-            strategy=strategy_name, broker='tastytrade', type='positions'
+        positions_balance = app.session.query(Balance).filter_by(
+            strategy=strategy_name, broker=broker, type='positions'
         ).first()
+
+        if not positions_balance:
+            # Update/retrieve these by hand
+            positions = app.session.query(Position).filter_by(
+                    strategy=strategy_name, broker=broker
+            ).all()
+            positions_balance = sum(p.quantity * p.latest_price for p in positions)
+        else:
+            positions_balance = positions_balance.balance
 
         if not cash_balance or not positions_balance:
             return jsonify({'status': 'error', 'message': 'Strategy balances not found'}), 404
 
+
         # Calculate the new cash balance
-        current_total_balance = cash_balance.balance + positions_balance.balance
+        current_total_balance = cash_balance.balance + positions_balance
         adjustment = new_total_balance - current_total_balance
         new_cash_balance = cash_balance.balance + adjustment
 
         # Update the cash balance
         cash_balance.balance = new_cash_balance
-        session.commit()
+        app.session.commit()
 
         return jsonify({'status': 'success', 'new_cash_balance': new_cash_balance}), 200
     except Exception as e:
-        session.rollback()
+        app.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        session.close()
 
 @app.route('/trades_per_strategy')
 @jwt_required()

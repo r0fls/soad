@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import axiosInstance from './axiosInstance';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const AdjustBalance = () => {
   const [brokersStrategies, setBrokersStrategies] = useState([]);
@@ -12,33 +14,42 @@ const AdjustBalance = () => {
   }, []);
 
   const fetchBrokersStrategies = async () => {
-    const response = await fetch('/get_brokers_strategies', {
-      method: 'GET',
-      headers: {
-        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-      }
-    });
-    const result = await response.json();
-    setBrokersStrategies(result);
+    try {
+      const response = await axiosInstance.get('/get_brokers_strategies', {
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+        }
+      });
+      setBrokersStrategies(response.data);
+    } catch (error) {
+      console.error('Error fetching brokers strategies:', error);
+      setResponseMessage('Error fetching brokers strategies: ' + error.message);
+    }
   };
 
   const handleAdjustBalance = async (broker, strategy, amount) => {
-    const response = await fetch('/adjust_balance', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
-      },
-      body: JSON.stringify({ broker, strategy_name: strategy, new_total_balance: parseFloat(amount) })
-    });
-    const result = await response.json();
-    setResponseMessage(JSON.stringify(result));
+    try {
+      const response = await axiosInstance.post('/adjust_balance', {
+        broker,
+        strategy_name: strategy,
+        new_total_balance: parseFloat(amount)
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+        }
+      });
+      setResponseMessage(JSON.stringify(response.data));
+    } catch (error) {
+      console.error('Error adjusting balance:', error);
+      setResponseMessage('Error adjusting balance: ' + error.message);
+    }
   };
 
   return (
-    <div>
-      <h1>Adjust Strategy Balance</h1>
-      <table>
+    <div className="container">
+      <h1 className="my-4">Adjust Strategy Balance</h1>
+      <table className="table table-striped">
         <thead>
           <tr>
             <th>Broker</th>
@@ -55,6 +66,7 @@ const AdjustBalance = () => {
               <td>
                 <input
                   type="number"
+                  className="form-control"
                   value={selectedBroker === item.broker && selectedStrategy === item.strategy ? newTotalBalance : ''}
                   onChange={(e) => {
                     setSelectedBroker(item.broker);
@@ -66,6 +78,7 @@ const AdjustBalance = () => {
               </td>
               <td>
                 <button
+                  className="btn btn-primary"
                   onClick={() => handleAdjustBalance(item.broker, item.strategy, newTotalBalance)}
                   disabled={selectedBroker !== item.broker || selectedStrategy !== item.strategy || !newTotalBalance}
                 >
@@ -76,7 +89,7 @@ const AdjustBalance = () => {
           ))}
         </tbody>
       </table>
-      <div id="response">{responseMessage}</div>
+      <div id="response" className="alert alert-info mt-4">{responseMessage}</div>
     </div>
   );
 };
