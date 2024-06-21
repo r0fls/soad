@@ -1,4 +1,5 @@
 from datetime import timedelta
+from database.models import Balance
 from utils.utils import is_market_open
 from utils.logger import logger
 from strategies.base_strategy import BaseStrategy
