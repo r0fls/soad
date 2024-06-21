@@ -7,7 +7,7 @@ from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 
 app = Flask("TradingAPI")
@@ -54,6 +54,7 @@ def get_brokers_strategies():
 @app.route('/adjust_balance', methods=['POST'])
 @jwt_required()
 def adjust_balance():
+    import pdb; pdb.set_trace()
     data = request.get_json()
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
@@ -63,34 +64,42 @@ def adjust_balance():
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400
 
     try:
-        # Fetch the cash and position balances for the strategy
-        cash_balance = app.session.query(Balance).filter_by(
-            strategy=strategy_name, broker=broker, type='cash'
-        ).first()
-        positions_balance = app.session.query(Balance).filter_by(
+        # Fetch the positions balance for the strategy
+        positions_balance_record = app.session.query(Balance).filter_by(
             strategy=strategy_name, broker=broker, type='positions'
         ).first()
 
-        if not positions_balance:
-            # Update/retrieve these by hand
+        if not positions_balance_record:
+            # Calculate positions balance if not found
             positions = app.session.query(Position).filter_by(
-                    strategy=strategy_name, broker=broker
+                strategy=strategy_name, broker=broker
             ).all()
             positions_balance = sum(p.quantity * p.latest_price for p in positions)
         else:
-            positions_balance = positions_balance.balance
+            positions_balance = positions_balance_record.balance
 
-        if not cash_balance or not positions_balance:
-            return jsonify({'status': 'error', 'message': 'Strategy balances not found'}), 404
+        # Calculate the current total balance and the adjustment
+        cash_balance_record = app.session.query(Balance).filter_by(
+            strategy=strategy_name, broker=broker, type='cash'
+        ).order_by(Balance.timestamp.desc()).first()
 
+        if cash_balance_record:
+            current_total_balance = cash_balance_record.balance + positions_balance
+        else:
+            current_total_balance = positions_balance
 
-        # Calculate the new cash balance
-        current_total_balance = cash_balance.balance + positions_balance
         adjustment = new_total_balance - current_total_balance
-        new_cash_balance = cash_balance.balance + adjustment
+        new_cash_balance = (cash_balance_record.balance if cash_balance_record else 0) + adjustment
 
-        # Update the cash balance
-        cash_balance.balance = new_cash_balance
+        # Create a new cash balance record
+        new_cash_balance_record = Balance(
+            strategy=strategy_name,
+            broker=broker,
+            type='cash',
+            balance=new_cash_balance,
+            timestamp=datetime.utcnow()  # Assuming timestamp is a field in Balance
+        )
+        app.session.add(new_cash_balance_record)
         app.session.commit()
 
         return jsonify({'status': 'success', 'new_cash_balance': new_cash_balance}), 200
