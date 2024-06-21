@@ -57,8 +57,7 @@ const AdjustBalance = () => {
           <tr>
             <th>Broker</th>
             <th>Strategy</th>
-            <th>Current Total Balance</th>
-            <th>New Total Balance</th>
+            <th>Balance</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -67,7 +66,6 @@ const AdjustBalance = () => {
             <tr key={index}>
               <td>{item.broker}</td>
               <td>{item.strategy}</td>
-              <td>{item.total_balance}</td>
               <td>
                 <input
                   type="number"
