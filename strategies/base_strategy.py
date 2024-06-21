@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
-from uitils.utils import is_market_open
+from utils.utils import is_market_open
 from datetime import datetime, timedelta
 import asyncio
 
@@ -108,17 +108,7 @@ class BaseStrategy(ABC):
             logger.debug("Positions synced with broker")
 
     def should_own(self, symbol, current_price):
-        with self.broker.Session() as session:
-            balance = session.query(Balance).filter_by(
-                strategy=self.strategy_name,
-                broker=self.broker.broker_name,
-                type='cash'
-            ).first()
-        allocation = self.stock_allocations.get(symbol, 0)
-        total_balance = balance.balance
-        target_investment_balance = total_balance * (1 - self.cash_percentage)
-        target_quantity = target_investment_balance * allocation / current_price
-        return target_quantity
+        pass
 
     def get_current_positions(self):
         positions = self.broker.get_positions()
