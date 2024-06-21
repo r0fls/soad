@@ -20,8 +20,8 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret') 
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
 jwt = JWTManager(app)
 
-USERNAME = os.environ.get('APP_USERNAME', 'admin')
-PASSWORD = os.environ.get('APP_PASSWORD', 'password')
+USERNAME = os.environ.get('APP_USERNAME', 'emperor')
+PASSWORD = os.environ.get('APP_PASSWORD', 'fugazi')
 
 @app.route('/', methods=['GET'])
 def ok():
@@ -124,6 +124,8 @@ def get_brokers_strategies():
         return jsonify(response), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 
 @app.route('/adjust_balance', methods=['POST'])
@@ -180,13 +182,20 @@ def adjust_balance():
     except Exception as e:
         app.session.rollback()
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/trades_per_strategy')
 @jwt_required()
 def trades_per_strategy():
-    trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
-    trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
-    return jsonify({"trades_per_strategy": trades_count_serializable})
+    try:
+        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+        trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
+        return jsonify({"trades_per_strategy": trades_count_serializable})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 
 @app.route('/historic_balance_per_strategy', methods=['GET'])
@@ -270,212 +279,254 @@ def historic_balance_per_strategy():
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/account_values')
 @jwt_required()
 def account_values():
-    accounts = app.session.query(AccountInfo).all()
-    accounts_data = {account.broker: account.value for account in accounts}
-    return jsonify({"account_values": accounts_data})
+    try:
+        accounts = app.session.query(AccountInfo).all()
+        accounts_data = {account.broker: account.value for account in accounts}
+        return jsonify({"account_values": accounts_data})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/trade_success_rate')
 @jwt_required()
 def trade_success_rate():
-    strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
-    success_rate_by_strategy_and_broker = []
+    try:
+        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
+        success_rate_by_strategy_and_broker = []
 
-    for strategy, broker in strategies_and_brokers:
-        total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-        successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
-        failed_trades = total_trades - successful_trades
+        for strategy, broker in strategies_and_brokers:
+            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
+            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+            failed_trades = total_trades - successful_trades
 
-        success_rate_by_strategy_and_broker.append({
-            "strategy": strategy,
-            "broker": broker,
-            "total_trades": total_trades,
-            "successful_trades": successful_trades,
-            "failed_trades": failed_trades
-        })
+            success_rate_by_strategy_and_broker.append({
+                "strategy": strategy,
+                "broker": broker,
+                "total_trades": total_trades,
+                "successful_trades": successful_trades,
+                "failed_trades": failed_trades
+            })
 
-    return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+        return jsonify({"trade_success_rate": success_rate_by_strategy_and_broker})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/positions')
 @jwt_required()
 def get_positions():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Position)
+        query = app.session.query(Position)
 
-    if brokers:
-        query = query.filter(Position.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Position.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Position.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Position.strategy.in_(strategies))
 
-    positions = query.all()
-    positions_data = []
-    for position in positions:
-        # TODO: prune these
-        if position.quantity != 0:
-            positions_data.append({
-                'broker': position.broker,
-                'strategy': position.strategy,
-                'symbol': position.symbol,
-                'quantity': position.quantity,
-                'latest_price': position.latest_price,
-                'timestamp': position.last_updated,
-            })
+        positions = query.all()
+        positions_data = []
+        for position in positions:
+            # TODO: prune these
+            if position.quantity != 0:
+                positions_data.append({
+                    'broker': position.broker,
+                    'strategy': position.strategy,
+                    'symbol': position.symbol,
+                    'quantity': position.quantity,
+                    'latest_price': position.latest_price,
+                    'timestamp': position.last_updated,
+                })
 
-    return jsonify({'positions': positions_data})
+        return jsonify({'positions': positions_data})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/trades', methods=['GET'])
 @jwt_required()
 def get_trades():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+        query = app.session.query(Trade)
 
-    if brokers:
-        query = query.filter(Trade.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
 
-    trades = query.all()
-    trades_data = [{
-        'id': trade.id,
-        'broker': trade.broker,
-        'strategy': trade.strategy,
-        'symbol': trade.symbol,
-        'quantity': trade.quantity,
-        'order_type': trade.order_type,
-        'price': trade.price,
-        'profit_loss': trade.profit_loss,
-        'timestamp': trade.timestamp
-    } for trade in trades]
+        trades = query.all()
+        trades_data = [{
+            'id': trade.id,
+            'broker': trade.broker,
+            'strategy': trade.strategy,
+            'symbol': trade.symbol,
+            'quantity': trade.quantity,
+            'order_type': trade.order_type,
+            'price': trade.price,
+            'profit_loss': trade.profit_loss,
+            'timestamp': trade.timestamp
+        } for trade in trades]
 
-    return jsonify({'trades': trades_data})
+        return jsonify({'trades': trades_data})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 
 @app.route('/trade_stats', methods=['GET'])
 @jwt_required()
 def get_trade_stats():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+        query = app.session.query(Trade)
 
-    if brokers:
-        query = query.filter(Trade.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
 
-    trades = query.all()
+        trades = query.all()
 
-    if not trades:
+        if not trades:
+            return jsonify({
+                'average_profit_loss': 0,
+                'win_loss_rate': 0,
+                'number_of_trades': 0,
+                'trades_per_day': {}
+            })
+
+        total_profit_loss = sum(trade.profit_loss for trade in trades)
+        number_of_trades = len(trades)
+        wins = sum(1 for trade in trades if trade.profit_loss > 0)
+        losses = sum(1 for trade in trades if trade.profit_loss <= 0)
+        win_loss_rate = wins / number_of_trades if number_of_trades > 0 else 0
+
+        trades_per_day = {}
+        for trade in trades:
+            day = trade.timestamp.date().isoformat()  # Convert date to string
+            if day not in trades_per_day:
+                trades_per_day[day] = 0
+            trades_per_day[day] += 1
+
+        average_profit_loss = total_profit_loss / number_of_trades
+
         return jsonify({
-            'average_profit_loss': 0,
-            'win_loss_rate': 0,
-            'number_of_trades': 0,
-            'trades_per_day': {}
+            'average_profit_loss': average_profit_loss,
+            'win_loss_rate': win_loss_rate,
+            'number_of_trades': number_of_trades,
+            'trades_per_day': trades_per_day
         })
-
-    total_profit_loss = sum(trade.profit_loss for trade in trades)
-    number_of_trades = len(trades)
-    wins = sum(1 for trade in trades if trade.profit_loss > 0)
-    losses = sum(1 for trade in trades if trade.profit_loss <= 0)
-    win_loss_rate = wins / number_of_trades if number_of_trades > 0 else 0
-
-    trades_per_day = {}
-    for trade in trades:
-        day = trade.timestamp.date().isoformat()  # Convert date to string
-        if day not in trades_per_day:
-            trades_per_day[day] = 0
-        trades_per_day[day] += 1
-
-    average_profit_loss = total_profit_loss / number_of_trades
-
-    return jsonify({
-        'average_profit_loss': average_profit_loss,
-        'win_loss_rate': win_loss_rate,
-        'number_of_trades': number_of_trades,
-        'trades_per_day': trades_per_day
-    })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/var', methods=['GET'])
 @jwt_required()
 def get_var():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+        query = app.session.query(Trade)
 
-    if brokers:
-        query = query.filter(Trade.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
 
-    trades = query.all()
+        trades = query.all()
 
-    if not trades:
-        return jsonify({'var': 0})
+        if not trades:
+            return jsonify({'var': 0})
 
-    returns = [trade.profit_loss for trade in trades]
-    mean_return = np.mean(returns)
-    std_dev_return = np.std(returns)
-    var_95 = norm.ppf(0.05, mean_return, std_dev_return)
+        returns = [trade.profit_loss for trade in trades]
+        mean_return = np.mean(returns)
+        std_dev_return = np.std(returns)
+        var_95 = norm.ppf(0.05, mean_return, std_dev_return)
 
-    return jsonify({'var': var_95})
+        return jsonify({'var': var_95})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/max_drawdown', methods=['GET'])
 @jwt_required()
 def get_max_drawdown():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+        query = app.session.query(Trade)
 
-    if brokers:
-        query = query.filter(Trade.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
 
-    trades = query.all()
+        trades = query.all()
 
-    if not trades:
-        return jsonify({'max_drawdown': 0})
+        if not trades:
+            return jsonify({'max_drawdown': 0})
 
-    cum_returns = np.cumsum([trade.profit_loss for trade in trades])
-    running_max = np.maximum.accumulate(cum_returns)
-    drawdowns = (running_max - cum_returns) / running_max
-    max_drawdown = np.max(drawdowns)
+        cum_returns = np.cumsum([trade.profit_loss for trade in trades])
+        running_max = np.maximum.accumulate(cum_returns)
+        drawdowns = (running_max - cum_returns) / running_max
+        max_drawdown = np.max(drawdowns)
 
-    return jsonify({'max_drawdown': max_drawdown})
+        return jsonify({'max_drawdown': max_drawdown})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/sharpe_ratio', methods=['GET'])
 @jwt_required()
 def get_sharpe_ratio():
-    brokers = request.args.getlist('brokers[]')
-    strategies = request.args.getlist('strategies[]')
+    try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
 
-    query = app.session.query(Trade)
+        query = app.session.query(Trade)
 
-    if brokers:
-        query = query.filter(Trade.broker.in_(brokers))
-    if strategies:
-        query = query.filter(Trade.strategy.in_(strategies))
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
 
-    trades = query.all()
+        trades = query.all()
 
-    if not trades:
-        return jsonify({'sharpe_ratio': 0})
+        if not trades:
+            return jsonify({'sharpe_ratio': 0})
 
-    returns = [trade.profit_loss for trade in trades]
-    mean_return = np.mean(returns)
-    std_dev_return = np.std(returns)
-    sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
+        returns = [trade.profit_loss for trade in trades]
+        mean_return = np.mean(returns)
+        std_dev_return = np.std(returns)
+        sharpe_ratio = mean_return / std_dev_return if std_dev_return != 0 else 0
 
-    return jsonify({'sharpe_ratio': sharpe_ratio})
+        return jsonify({'sharpe_ratio': sharpe_ratio})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
