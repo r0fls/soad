@@ -94,6 +94,19 @@ class TastytradeBroker(BaseBroker):
                 self.connect()
                 return self.get_positions(retry=False)
 
+    @staticmethod
+    def is_order_filled(order_response):
+        if order_response.order.status == OrderStatus.FILLED:
+            return True
+
+        for leg in order_response.order.legs:
+            if leg.remaining_quantity > 0:
+                return False
+            if not leg.fills:
+                return False
+
+        return True
+
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
@@ -130,14 +143,15 @@ class TastytradeBroker(BaseBroker):
 
             response = account.place_order(self.session, order, dry_run=False)
 
-            if hasattr(response, 'id'):
-                order_id = response.id
-                logger.info('Order placed', extra={'order_id': order_id})
-                logger.info('Order execution complete', extra={'order_data': response})
-                return {'filled_price': price, 'order_id': order_id }
-            else:
+            if hasattr(response, 'errors'):
                 logger.error('Order placement failed with no order ID', extra={'response': str(response)})
                 return {'filled_price': None }
+            else:
+                if self.is_order_filled(response):
+                    logger.info('Order filled', extra={'response': str(response)})
+                else:
+                    logger.info('Order likely still open', extra={'order_data': response})
+                return {'filled_price': price, 'order_id': response.getattr('id', 0) }
 
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
