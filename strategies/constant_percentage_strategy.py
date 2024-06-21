@@ -122,7 +122,6 @@ class ConstantPercentageStrategy(BaseStrategy):
         return positions_dict
 
     # TODO: can we abstract this method across strategies?
-
     async def sync_positions_with_broker(self):
         logger.debug("Syncing positions with broker")
 
@@ -170,6 +169,22 @@ class ConstantPercentageStrategy(BaseStrategy):
                         session.add(position)
                         logger.info(
                             f"Created new position for {symbol} with quantity {data['quantity']} and price {current_price}")
+
+            # Get all positions in the database for this strategy
+            db_positions = session.query(Position).filter_by(
+                broker=self.broker.broker_name,
+                strategy=self.strategy_name
+            ).all()
+
+            # Create a set of symbols from the broker positions for easy lookup
+            broker_symbols = set(broker_positions.keys())
+
+            # Remove any positions from the database that are not in the broker's list
+            for position in db_positions:
+                if position.symbol not in broker_symbols:
+                    logger.info(f"Removing position for {position.symbol} as it's not in broker's positions")
+                    session.delete(position)
+
             session.commit()
             logger.debug("Positions synced with broker")
 
