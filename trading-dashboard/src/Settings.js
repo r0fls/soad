@@ -4,9 +4,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 const AdjustBalance = () => {
   const [brokersStrategies, setBrokersStrategies] = useState([]);
-  const [selectedBroker, setSelectedBroker] = useState('');
-  const [selectedStrategy, setSelectedStrategy] = useState('');
-  const [newTotalBalance, setNewTotalBalance] = useState('');
   const [responseMessage, setResponseMessage] = useState('');
 
   useEffect(() => {
@@ -20,7 +17,12 @@ const AdjustBalance = () => {
           'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
       });
-      setBrokersStrategies(response.data);
+      // Initialize new_total_balance with total_balance for each item
+      const dataWithNewBalance = response.data.map(item => ({
+        ...item,
+        new_total_balance: item.total_balance
+      }));
+      setBrokersStrategies(dataWithNewBalance);
     } catch (error) {
       console.error('Error fetching brokers strategies:', error);
       setResponseMessage('Error fetching brokers strategies: ' + error.message);
@@ -40,6 +42,7 @@ const AdjustBalance = () => {
         }
       });
       setResponseMessage(JSON.stringify(response.data));
+      fetchBrokersStrategies();  // Refresh the balances after adjustment
     } catch (error) {
       console.error('Error adjusting balance:', error);
       setResponseMessage('Error adjusting balance: ' + error.message);
@@ -54,6 +57,7 @@ const AdjustBalance = () => {
           <tr>
             <th>Broker</th>
             <th>Strategy</th>
+            <th>Current Total Balance</th>
             <th>New Total Balance</th>
             <th>Action</th>
           </tr>
@@ -63,15 +67,17 @@ const AdjustBalance = () => {
             <tr key={index}>
               <td>{item.broker}</td>
               <td>{item.strategy}</td>
+              <td>{item.total_balance}</td>
               <td>
                 <input
                   type="number"
                   className="form-control"
-                  value={selectedBroker === item.broker && selectedStrategy === item.strategy ? newTotalBalance : ''}
+                  value={item.new_total_balance || ''}
                   onChange={(e) => {
-                    setSelectedBroker(item.broker);
-                    setSelectedStrategy(item.strategy);
-                    setNewTotalBalance(e.target.value);
+                    const newBrokersStrategies = brokersStrategies.map((el, idx) => (
+                      idx === index ? { ...el, new_total_balance: e.target.value } : el
+                    ));
+                    setBrokersStrategies(newBrokersStrategies);
                   }}
                   required
                 />
@@ -79,8 +85,8 @@ const AdjustBalance = () => {
               <td>
                 <button
                   className="btn btn-primary"
-                  onClick={() => handleAdjustBalance(item.broker, item.strategy, newTotalBalance)}
-                  disabled={selectedBroker !== item.broker || selectedStrategy !== item.strategy || !newTotalBalance}
+                  onClick={() => handleAdjustBalance(item.broker, item.strategy, item.new_total_balance)}
+                  disabled={!item.new_total_balance}
                 >
                   Adjust Balance
                 </button>

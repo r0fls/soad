@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import create_engine, func
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
@@ -40,21 +40,95 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
+
 @app.route('/get_brokers_strategies', methods=['GET'])
 @jwt_required()
 def get_brokers_strategies():
     try:
-        # Fetch distinct brokers and strategies from the Balance table
-        brokers_strategies = app.session.query(Balance.broker, Balance.strategy).distinct().all()
-        response = [{'broker': broker, 'strategy': strategy} for broker, strategy in brokers_strategies]
+        # Subquery to get the latest cash balance record for each broker and strategy
+        cash_subquery = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            func.max(Balance.timestamp).label('latest_cash_timestamp')
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy).subquery()
+
+        # Fetch the latest cash balances
+        latest_cash_balances = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            Balance.balance
+        ).join(
+            cash_subquery,
+            (Balance.broker == cash_subquery.c.broker) &
+            (Balance.strategy == cash_subquery.c.strategy) &
+            (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
+        ).filter(Balance.type == 'cash').all()
+
+        # Create a dictionary to store the results
+        broker_strategy_balances = {}
+        for broker, strategy, cash_balance in latest_cash_balances:
+            broker_strategy_balances[(broker, strategy)] = {
+                'cash_balance': cash_balance,
+                'positions_balance': 0
+            }
+
+        # Fetch the latest positions balance record for each broker and strategy
+        positions_subquery = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            func.max(Balance.timestamp).label('latest_positions_timestamp')
+        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy).subquery()
+
+        latest_positions_balances = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            Balance.balance
+        ).join(
+            positions_subquery,
+            (Balance.broker == positions_subquery.c.broker) &
+            (Balance.strategy == positions_subquery.c.strategy) &
+            (Balance.timestamp == positions_subquery.c.latest_positions_timestamp)
+        ).filter(Balance.type == 'positions').all()
+
+        # Update the dictionary with the positions balances
+        for broker, strategy, positions_balance in latest_positions_balances:
+            if (broker, strategy) in broker_strategy_balances:
+                broker_strategy_balances[(broker, strategy)]['positions_balance'] = positions_balance
+            else:
+                broker_strategy_balances[(broker, strategy)] = {
+                    'cash_balance': 0,
+                    'positions_balance': positions_balance
+                }
+
+        # Calculate total balance for each broker and strategy
+        for (broker, strategy), balances in broker_strategy_balances.items():
+            if balances['positions_balance'] == 0:
+                positions = app.session.query(Position).filter_by(
+                    strategy=strategy, broker=broker
+                ).all()
+                positions_balance = sum(p.quantity * p.latest_price for p in positions)
+                balances['positions_balance'] = positions_balance
+
+            balances['total_balance'] = balances['cash_balance'] + balances['positions_balance']
+
+        # Prepare the response
+        response = [
+            {
+                'broker': broker,
+                'strategy': strategy,
+                'total_balance': balances['total_balance']
+            }
+            for (broker, strategy), balances in broker_strategy_balances.items()
+        ]
+
         return jsonify(response), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/adjust_balance', methods=['POST'])
 @jwt_required()
 def adjust_balance():
-    import pdb; pdb.set_trace()
     data = request.get_json()
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
@@ -114,41 +188,88 @@ def trades_per_strategy():
     trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
     return jsonify({"trades_per_strategy": trades_count_serializable})
 
+
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 @jwt_required()
 def historic_balance_per_strategy():
     try:
         if app.session.bind.dialect.name == 'postgresql':
-            hour_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24').label('hour')
+            interval_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24:MI').label('interval')
         elif app.session.bind.dialect.name == 'sqlite':
-            hour_expr = func.strftime('%Y-%m-%d %H', Balance.timestamp).label('hour')
+            interval_expr = func.strftime('%Y-%m-%d %H:%M', Balance.timestamp).label('interval')
 
-        historical_balances = app.session.query(
-            Balance.strategy,
+        # Subquery to get the latest cash balance for each broker, strategy, and interval
+        latest_cash_subquery = app.session.query(
             Balance.broker,
-            hour_expr,
-            func.sum(Balance.balance).label('balance')
-        ).group_by(
             Balance.strategy,
+            interval_expr,
+            func.max(Balance.timestamp).label('latest_cash_timestamp')
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
+
+        # Subquery to get the latest positions balance for each broker, strategy, and interval
+        latest_positions_subquery = app.session.query(
             Balance.broker,
-            hour_expr
-        ).order_by(
             Balance.strategy,
+            interval_expr,
+            func.max(Balance.timestamp).label('latest_positions_timestamp')
+        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
+
+        # Query to get the latest cash balances
+        latest_cash_balances = app.session.query(
             Balance.broker,
-            hour_expr
+            Balance.strategy,
+            interval_expr,
+            Balance.balance.label('cash_balance')
+        ).join(
+            latest_cash_subquery,
+            (Balance.broker == latest_cash_subquery.c.broker) &
+            (Balance.strategy == latest_cash_subquery.c.strategy) &
+            (Balance.timestamp == latest_cash_subquery.c.latest_cash_timestamp)
+        ).filter(Balance.type == 'cash').subquery()
+
+        # Query to get the latest positions balances
+        latest_positions_balances = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            interval_expr,
+            Balance.balance.label('positions_balance')
+        ).join(
+            latest_positions_subquery,
+            (Balance.broker == latest_positions_subquery.c.broker) &
+            (Balance.strategy == latest_positions_subquery.c.strategy) &
+            (Balance.timestamp == latest_positions_subquery.c.latest_positions_timestamp)
+        ).filter(Balance.type == 'positions').subquery()
+
+        # Combine the cash and positions balances
+        combined_balances = app.session.query(
+            latest_cash_balances.c.broker,
+            latest_cash_balances.c.strategy,
+            latest_cash_balances.c.interval,
+            func.coalesce(latest_cash_balances.c.cash_balance, 0).label('cash_balance'),
+            func.coalesce(latest_positions_balances.c.positions_balance, 0).label('positions_balance'),
+            (func.coalesce(latest_cash_balances.c.cash_balance, 0) + func.coalesce(latest_positions_balances.c.positions_balance, 0)).label('total_balance')
+        ).outerjoin(
+            latest_positions_balances,
+            (latest_cash_balances.c.broker == latest_positions_balances.c.broker) &
+            (latest_cash_balances.c.strategy == latest_positions_balances.c.strategy) &
+            (latest_cash_balances.c.interval == latest_positions_balances.c.interval)
         ).all()
 
+        # Prepare the response
         historical_balances_serializable = []
-        for strategy, broker, hour, balance in historical_balances:
+        for broker, strategy, interval, cash_balance, positions_balance, total_balance in combined_balances:
             historical_balances_serializable.append({
                 "strategy": strategy,
                 "broker": broker,
-                "hour": hour,
-                "balance": balance
+                "interval": interval,
+                "cash_balance": cash_balance,
+                "positions_balance": positions_balance,
+                "total_balance": total_balance
             })
+
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
-    finally:
-        app.session.close()
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/account_values')
 @jwt_required()
@@ -358,5 +479,5 @@ def get_sharpe_ratio():
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)
-    app.session = Session()
+    app.session = scoped_session(Session)
     return app

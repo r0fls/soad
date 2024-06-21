@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
-import { Spinner, Table } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import Select from 'react-select';
 import { Line } from 'react-chartjs-2';
 import {
@@ -35,20 +35,6 @@ const Dashboard = () => {
   const [historicalValueData, setHistoricalValueData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistoricalValues = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await axiosInstance.get('/historic_balance_per_strategy', {
-        params: { brokers: selectedBrokers, strategies: selectedStrategies }
-      });
-      setHistoricalValueData(processHistoricalValues(response.data));
-    } catch (error) {
-      console.error('Error fetching historical values:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedBrokers, selectedStrategies]);
-
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
 
@@ -58,8 +44,8 @@ const Dashboard = () => {
         historicalData[key] = [];
       }
       historicalData[key].push({
-        x: item.hour,
-        y: item.balance
+        x: item.interval,
+        y: item.total_balance
       });
     });
 
@@ -78,6 +64,20 @@ const Dashboard = () => {
       datasets
     };
   }, []);
+
+  const fetchHistoricalValues = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get('/historic_balance_per_strategy', {
+        params: { brokers: selectedBrokers, strategies: selectedStrategies }
+      });
+      setHistoricalValueData(processHistoricalValues(response.data));
+    } catch (error) {
+      console.error('Error fetching historical values:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBrokers, selectedStrategies, processHistoricalValues]);
 
   const populateFilters = useCallback(async () => {
     try {
@@ -144,7 +144,7 @@ const Dashboard = () => {
                   </Spinner>
                 </div>
               ) : (
-                historicalValueData && <Line data={historicalValueData} options={{ scales: { x: { type: 'time', time: { unit: 'hour' }}}}} />
+                historicalValueData && <Line data={historicalValueData} options={{ scales: { x: { type: 'time', time: { unit: 'minute' }}}}} />
               )}
             </div>
           </div>
