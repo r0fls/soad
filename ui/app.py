@@ -40,6 +40,17 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
+@app.route('/account_values')
+@jwt_required()
+def account_values():
+    try:
+        accounts = app.session.query(AccountInfo).all()
+        accounts_data = {account.broker: account.value for account in accounts}
+        return jsonify({"account_values": accounts_data})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        app.session.remove()
 
 @app.route('/get_brokers_strategies', methods=['GET'])
 @jwt_required()
@@ -197,11 +208,13 @@ def trades_per_strategy():
     finally:
         app.session.remove()
 
-
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 @jwt_required()
 def historic_balance_per_strategy():
     try:
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
         if app.session.bind.dialect.name == 'postgresql':
             interval_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24:MI').label('interval')
         elif app.session.bind.dialect.name == 'sqlite':
@@ -213,7 +226,14 @@ def historic_balance_per_strategy():
             Balance.strategy,
             interval_expr,
             func.max(Balance.timestamp).label('latest_cash_timestamp')
-        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr)
+
+        if brokers:
+            latest_cash_subquery = latest_cash_subquery.filter(Balance.broker.in_(brokers))
+        if strategies:
+            latest_cash_subquery = latest_cash_subquery.filter(Balance.strategy.in_(strategies))
+
+        latest_cash_subquery = latest_cash_subquery.subquery()
 
         # Subquery to get the latest positions balance for each broker, strategy, and interval
         latest_positions_subquery = app.session.query(
@@ -221,7 +241,14 @@ def historic_balance_per_strategy():
             Balance.strategy,
             interval_expr,
             func.max(Balance.timestamp).label('latest_positions_timestamp')
-        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
+        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr)
+
+        if brokers:
+            latest_positions_subquery = latest_positions_subquery.filter(Balance.broker.in_(brokers))
+        if strategies:
+            latest_positions_subquery = latest_positions_subquery.filter(Balance.strategy.in_(strategies))
+
+        latest_positions_subquery = latest_positions_subquery.subquery()
 
         # Query to get the latest cash balances
         latest_cash_balances = app.session.query(
@@ -234,7 +261,14 @@ def historic_balance_per_strategy():
             (Balance.broker == latest_cash_subquery.c.broker) &
             (Balance.strategy == latest_cash_subquery.c.strategy) &
             (Balance.timestamp == latest_cash_subquery.c.latest_cash_timestamp)
-        ).filter(Balance.type == 'cash').subquery()
+        ).filter(Balance.type == 'cash')
+
+        if brokers:
+            latest_cash_balances = latest_cash_balances.filter(Balance.broker.in_(brokers))
+        if strategies:
+            latest_cash_balances = latest_cash_balances.filter(Balance.strategy.in_(strategies))
+
+        latest_cash_balances = latest_cash_balances.subquery()
 
         # Query to get the latest positions balances
         latest_positions_balances = app.session.query(
@@ -247,7 +281,14 @@ def historic_balance_per_strategy():
             (Balance.broker == latest_positions_subquery.c.broker) &
             (Balance.strategy == latest_positions_subquery.c.strategy) &
             (Balance.timestamp == latest_positions_subquery.c.latest_positions_timestamp)
-        ).filter(Balance.type == 'positions').subquery()
+        ).filter(Balance.type == 'positions')
+
+        if brokers:
+            latest_positions_balances = latest_positions_balances.filter(Balance.broker.in_(brokers))
+        if strategies:
+            latest_positions_balances = latest_positions_balances.filter(Balance.strategy.in_(strategies))
+
+        latest_positions_balances = latest_positions_balances.subquery()
 
         # Combine the cash and positions balances
         combined_balances = app.session.query(
@@ -277,18 +318,6 @@ def historic_balance_per_strategy():
             })
 
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        app.session.remove()
-
-@app.route('/account_values')
-@jwt_required()
-def account_values():
-    try:
-        accounts = app.session.query(AccountInfo).all()
-        accounts_data = {account.broker: account.value for account in accounts}
-        return jsonify({"account_values": accounts_data})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
