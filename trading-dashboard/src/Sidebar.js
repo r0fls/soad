@@ -52,6 +52,11 @@ const Sidebar = () => {
               <span>Insights</span>
             </Link>
           </li>
+          <li className="nav-text">
+            <Link to="/settings">
+              <span>Settings</span>
+            </Link>
+          </li>
         </ul>
       </nav>
     </>

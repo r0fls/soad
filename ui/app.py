@@ -40,6 +40,58 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
+@app.route('/get_brokers_strategies', methods=['GET'])
+@jwt_required()
+def get_brokers_strategies():
+    session = Session()
+    try:
+        # Fetch distinct brokers and strategies from the Balance table
+        brokers_strategies = session.query(Balance.broker, Balance.strategy).distinct().all()
+        response = [{'broker': broker, 'strategy': strategy} for broker, strategy in brokers_strategies]
+        return jsonify(response), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/adjust_balance', methods=['POST'])
+@jwt_required()
+def adjust_balance():
+    data = request.get_json()
+    strategy_name = data.get('strategy_name')
+    new_total_balance = data.get('new_total_balance')
+
+    if new_total_balance is None or new_total_balance <= 0:
+        return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400
+
+    session = Session()
+    try:
+        # Fetch the cash and position balances for the strategy
+        cash_balance = session.query(Balance).filter_by(
+            strategy=strategy_name, broker='tastytrade', type='cash'
+        ).first()
+        positions_balance = session.query(Balance).filter_by(
+            strategy=strategy_name, broker='tastytrade', type='positions'
+        ).first()
+
+        if not cash_balance or not positions_balance:
+            return jsonify({'status': 'error', 'message': 'Strategy balances not found'}), 404
+
+        # Calculate the new cash balance
+        current_total_balance = cash_balance.balance + positions_balance.balance
+        adjustment = new_total_balance - current_total_balance
+        new_cash_balance = cash_balance.balance + adjustment
+
+        # Update the cash balance
+        cash_balance.balance = new_cash_balance
+        session.commit()
+
+        return jsonify({'status': 'success', 'new_cash_balance': new_cash_balance}), 200
+    except Exception as e:
+        session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        session.close()
 
 @app.route('/trades_per_strategy')
 @jwt_required()
