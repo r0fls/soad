@@ -143,7 +143,7 @@ class TastytradeBroker(BaseBroker):
 
             response = account.place_order(self.session, order, dry_run=False)
 
-            if hasattr(response, 'errors'):
+            if getattr(response, 'errors', None):
                 logger.error('Order placement failed with no order ID', extra={'response': str(response)})
                 return {'filled_price': None }
             else:
