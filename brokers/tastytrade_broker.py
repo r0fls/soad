@@ -151,7 +151,7 @@ class TastytradeBroker(BaseBroker):
                     logger.info('Order filled', extra={'response': str(response)})
                 else:
                     logger.info('Order likely still open', extra={'order_data': response})
-                return {'filled_price': price, 'order_id': response.getattr('id', 0) }
+                return {'filled_price': price, 'order_id': getattr(response, 'id', 0) }
 
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
