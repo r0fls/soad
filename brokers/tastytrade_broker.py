@@ -7,7 +7,7 @@ from utils.logger import logger  # Import the logger
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity
 from tastytrade.dxfeed import EventType
-from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect
+from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
 
 class TastytradeBroker(BaseBroker):
