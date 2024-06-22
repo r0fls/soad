@@ -51,12 +51,15 @@ const Dashboard = () => {
 
     let datasets = [];
     Object.keys(historicalData).forEach(key => {
+      // Sort the data points by timestamp
+      historicalData[key].sort((a, b) => new Date(a.x) - new Date(b.x));
       datasets.push({
         label: key,
         data: historicalData[key],
         fill: false,
         borderColor: 'rgba(75, 192, 192, 1)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        spanGaps: true  // Connect data points even if there are gaps
       });
     });
 
