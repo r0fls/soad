@@ -69,8 +69,8 @@ class TestTastytradeBroker(BaseTest):
 
         # Perform assertions as needed
         self.assertEqual(self.broker.account_id, '12345')
-        self.assertEqual(self.broker.buying_power, 5000.0)
-        self.assertEqual(self.broker.cash, 2000.0)
+        self.assertEqual(account_info.get('buying_power'), 5000.0)
+        self.assertEqual(account_info.get('cash'), 2000.0)
 
     @patch('brokers.tastytrade_broker.DXLinkStreamer', new_callable=AsyncMock)
     @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
