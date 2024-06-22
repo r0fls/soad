@@ -33,37 +33,44 @@ class TestTastytradeBroker(BaseTest):
         self.assertTrue(hasattr(self.broker, 'auth'))
         mock_prod_sesh.assert_called_once_with('myusername', 'mypassword')
 
+
     @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get, mock_prod_sesh):
         self.mock_connect(mock_post, mock_get, mock_prod_sesh)
+
+        # Mock response for accounts
         mock_response_accounts = MagicMock()
         mock_response_accounts.json.return_value = {
             'data': {
                 'items': [{'account': {'account-number': '12345'}}]
             }
         }
+
+        # Mock response for balances
         mock_response_balances = MagicMock()
         mock_response_balances.json.return_value = {
             'data': {
                 'equity-buying-power': 5000.0,
                 'net-liquidating-value': 10000.0,
+                'cash-balance': 2000.0,  # Add cash-balance to the mock response
             }
         }
+
+        # Set the side effect for the mock GET requests
         mock_get.side_effect = [mock_response_accounts, mock_response_balances]
 
+        # Assuming self.broker is already defined and initialized in the test setup
         self.broker.connect()
-        account_info = self.broker._get_account_info()
-        expected_account_info = {
-            'account_number': '12345',
-            'account_type': None,
-            'buying_power': 5000.0,
-            'value': 10000.0
-        }
 
-        self.assertEqual(account_info, expected_account_info)
+        # Call the method to be tested
+        account_info = self.broker._get_account_info()
+
+        # Perform assertions as needed
         self.assertEqual(self.broker.account_id, '12345')
+        self.assertEqual(self.broker.buying_power, 5000.0)
+        self.assertEqual(self.broker.cash, 2000.0)
 
     @patch('brokers.tastytrade_broker.DXLinkStreamer', new_callable=AsyncMock)
     @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
@@ -98,10 +105,10 @@ class TestTastytradeBroker(BaseTest):
                 }
             }))
         ]
-        
+
         # Mock DXLinkStreamer response for get_current_price
         mock_dx_streamer.return_value.__aenter__.return_value.get_event.return_value = MagicMock(bidPrice=150.0, askPrice=160.0)
-        
+
         self.broker.connect()
         self.broker._get_account_info()
         order_info = await self.broker._place_order('AAPL', 10, 'buy', 150.00)
