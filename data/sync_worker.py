@@ -33,52 +33,55 @@ async def sync_worker(engine, brokers):
         for broker in brokers:
             broker_name = broker[0]
 
-            # Fetch the previous cash balance if it exists
-            previous_cash_balance = session.query(Balance).filter_by(broker=broker_name, type='cash').order_by(Balance.timestamp.desc()).first()
-            actual_cash_balance = previous_cash_balance.balance if previous_cash_balance else 0.0
+            # Fetch and update cash balance for each strategy if it exists
+            strategies = session.query(Position.strategy).filter_by(broker=broker_name).distinct().all()
+            for strategy in strategies:
+                strategy_name = strategy[0]
 
-            # Update cash balance if the actual cash balance has changed
-            broker_instance = get_broker_instance(broker_name)
-            if broker_instance:
-                actual_cash_balance = broker_instance.cash
+                # Fetch the previous cash balance for the strategy if it exists
+                previous_cash_balance = session.query(Balance).filter_by(
+                    broker=broker_name, strategy=strategy_name, type='cash'
+                ).order_by(Balance.timestamp.desc()).first()
+                actual_cash_balance = previous_cash_balance.balance if previous_cash_balance else 0.0
 
-            new_cash_balance = Balance(
-                broker=broker_name,
-                strategy=None,
-                type='cash',
-                balance=actual_cash_balance,
-                timestamp=datetime.utcnow()
-            )
-            session.add(new_cash_balance)
-
-            # Fetch all positions balances and create new position balance entries
-            positions = session.query(Position).filter_by(broker=broker_name).all()
-            positions_total = 0.0
-
-            for position in positions:
-                latest_price = await get_latest_price(position)
-                position_balance = position.quantity * latest_price
-                positions_total += position_balance
-
-                new_position_balance = Balance(
+                # Update cash balance if the actual cash balance has changed
+                new_cash_balance = Balance(
                     broker=broker_name,
-                    strategy=position.strategy,
-                    type='positions',
-                    balance=position_balance,
+                    strategy=strategy_name,
+                    type='cash',
+                    balance=actual_cash_balance,
                     timestamp=datetime.utcnow()
                 )
-                session.add(new_position_balance)
+                session.add(new_cash_balance)
 
-            # Create a new total balance entry
-            total_balance_value = positions_total + actual_cash_balance
-            new_total_balance = Balance(
-                broker=broker_name,
-                strategy=None,
-                type='positions',
-                balance=total_balance_value,
-                timestamp=datetime.utcnow()
-            )
-            session.add(new_total_balance)
+                # Fetch all positions balances for the strategy and create new position balance entries
+                positions = session.query(Position).filter_by(broker=broker_name, strategy=strategy_name).all()
+                positions_total = 0.0
+
+                for position in positions:
+                    latest_price = await get_latest_price(position)
+                    position_balance = position.quantity * latest_price
+                    positions_total += position_balance
+
+                    new_position_balance = Balance(
+                        broker=broker_name,
+                        strategy=position.strategy,
+                        type='positions',
+                        balance=position_balance,
+                        timestamp=datetime.utcnow()
+                    )
+                    session.add(new_position_balance)
+
+                # Create a new total balance entry for the strategy
+                total_balance_value = positions_total + actual_cash_balance
+                new_total_balance = Balance(
+                    broker=broker_name,
+                    strategy=strategy_name,
+                    type='total',
+                    balance=total_balance_value,
+                    timestamp=datetime.utcnow()
+                )
+                session.add(new_total_balance)
 
         session.commit()
 
