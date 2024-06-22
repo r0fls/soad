@@ -29,9 +29,9 @@ spec:
             - name: TASTYTRADE_API_KEY
               value: "{{ .Values.brokers.tastytrade.apiKey }}"
             - name: TRADING_CONFIG_FILE
-              value: "/etc/config/sync-config.yaml"
+              value: "/etc/config/trade-config.yaml"
           command: ["python3"]
-          args: ["main.py", "--mode", "sync", "--config", "/etc/config/sync-config.yaml"]
+          args: ["main.py", "--mode", "sync", "--config", "/etc/config/trade-config.yaml"]
           volumeMounts:
             - name: sync-worker-config-volume
               mountPath: /etc/config
