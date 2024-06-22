@@ -62,11 +62,15 @@ class TastytradeBroker(BaseBroker):
             account_value = account_data['net-liquidating-value']
             account_type = None
 
+            # TODO: is this redundant? Can we collapse/remove the above API calls?
+            cash = account_data.get('cash-balance')
+
             logger.info('Account balances retrieved', extra={'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': self.account_id,
                 'account_type': account_type,
                 'buying_power': float(buying_power),
+                'cash': float(cash),
                 'value': float(account_value)
             }
         except requests.RequestException as e:

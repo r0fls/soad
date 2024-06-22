@@ -15,6 +15,11 @@ trading:
     repository: r0fls/soad-trading-system
     tag: latest
     pullPolicy: Always
+sync:
+  image:
+    repository: r0fls/soad-trading-system
+    tag: latest
+    pullPolicy: Always
 dashboard:
   ingress:
     tls:

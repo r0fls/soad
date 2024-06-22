@@ -1,0 +1,41 @@
+# trading-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "trading-app.name" . }}-sync-worker
+  labels:
+    {{- include "trading-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "trading-app.selectorLabels" . | nindent 6 }}
+      component: sync-worker
+  template:
+    metadata:
+      labels:
+        {{- include "trading-app.selectorLabels" . | nindent 8 }}
+        component: sync-worker
+    spec:
+      containers:
+        - name: sync-worker
+          image: "{{ .Values.sync.image.repository }}:{{ .Values.trading.image.tag }}"
+          imagePullPolicy: {{ .Values.sync.image.pullPolicy }}
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
+            - name: TRADIER_API_KEY
+              value: "{{ .Values.brokers.tradier.apiKey }}"
+            - name: TASTYTRADE_API_KEY
+              value: "{{ .Values.brokers.tastytrade.apiKey }}"
+            - name: TRADING_CONFIG_FILE
+              value: "/etc/config/sync-config.yaml"
+          command: ["python3"]
+          args: ["main.py", "--mode", "sync", "--config", "/etc/config/sync-config.yaml"]
+          volumeMounts:
+            - name: sync-worker-config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: sync-worker-config-volume
+          configMap:
+            name: {{ include "trading-app.name" . }}-config

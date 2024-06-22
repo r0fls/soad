@@ -49,12 +49,14 @@ class TradierBroker(BaseBroker):
             if account_info.get('pdt'):
                 self.account_type = 'pdt'
                 buying_power = account_info['pdt']['stock_buying_power']
+            cash = account_info['total_cash']
 
             logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': account_info['account_number'],
                 'account_type': self.account_type,
                 'buying_power': buying_power,
+                'cash': cash,
                 'value': account_value
             }
         except requests.RequestException as e:
