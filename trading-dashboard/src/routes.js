@@ -6,6 +6,7 @@ import Positions from './Positions';
 import Trades from './Trades';
 import Insights from './Insights';
 import Login from './Login';
+import Settings from './Settings';
 import App from './App';
 
 const checkAuth = async () => {
@@ -48,6 +49,11 @@ const router = createBrowserRouter([
           {
             path: '/insights',
             element: <Insights />,
+            loader: checkAuth,
+          },
+          {
+            path: '/settings',
+            element: <Settings />,
             loader: checkAuth,
           },
         ],

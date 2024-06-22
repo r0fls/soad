@@ -3,12 +3,11 @@ import time
 import json
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
-from utils.logger import logger  # Import the logger
+from utils.logger import logger
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity
 from tastytrade.dxfeed import EventType
-from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect
-
+from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
 class TastytradeBroker(BaseBroker):
     def __init__(self, username, password, engine, **kwargs):
@@ -21,7 +20,6 @@ class TastytradeBroker(BaseBroker):
             "Content-Type": "application/json"
         }
         self.order_timeout = 1
-        # Not really needed here since we have IOC order type
         self.auto_cancel_orders = True
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
@@ -83,11 +81,10 @@ class TastytradeBroker(BaseBroker):
             }
         except requests.RequestException as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
-            # TODO: handle auth errors properly
             if retry:
                 logger.info('Trying to authenticate again')
                 self.connect()
-                self._get_account_info(retry=False)
+                return self._get_account_info(retry=False)
 
     def get_positions(self, retry=True):
         logger.info('Retrieving positions')
@@ -102,12 +99,23 @@ class TastytradeBroker(BaseBroker):
             return positions
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
-            # TODO: handle auth errors properly
             if retry:
                 logger.info('Trying to authenticate again')
                 self.connect()
-                self.get_positions(retry=False)
+                return self.get_positions(retry=False)
 
+    @staticmethod
+    def is_order_filled(order_response):
+        if order_response.order.status == OrderStatus.FILLED:
+            return True
+
+        for leg in order_response.order.legs:
+            if leg.remaining_quantity > 0:
+                return False
+            if not leg.fills:
+                return False
+
+        return True
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
@@ -136,7 +144,7 @@ class TastytradeBroker(BaseBroker):
             leg = symbol.build_leg(quantity, action)
 
             order = NewOrder(
-                time_in_force=OrderTimeInForce.IOC,
+                time_in_force=OrderTimeInForce.DAY,  # Changed to DAY from IOC
                 order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
@@ -145,14 +153,16 @@ class TastytradeBroker(BaseBroker):
 
             response = account.place_order(self.session, order, dry_run=False)
 
-            if hasattr(response, 'id'):
-                order_id = response.id
-                logger.info('Order placed', extra={'order_id': order_id})
+            if getattr(response, 'errors', None):
+                logger.error('Order placement failed with no order ID', extra={'response': str(response)})
+                return {'filled_price': None }
             else:
-                logger.info('Could not find an order id', extra={'response': str(response)})
+                if self.is_order_filled(response):
+                    logger.info('Order filled', extra={'response': str(response)})
+                else:
+                    logger.info('Order likely still open', extra={'order_data': response})
+                return {'filled_price': price, 'order_id': getattr(response, 'id', 0) }
 
-            logger.info('Order execution complete', extra={'order_data': response})
-            return {'filled_price': price }
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
             return {'filled_price': None }
@@ -195,5 +205,4 @@ class TastytradeBroker(BaseBroker):
             subs_list = [symbol]
             await streamer.subscribe(EventType.QUOTE, subs_list)
             quote = await streamer.get_event(EventType.QUOTE)
-            # Just return the mid price for now
             return round(float((quote.bidPrice + quote.askPrice) / 2), 2)

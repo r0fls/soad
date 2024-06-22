@@ -51,19 +51,15 @@ python main.py --mode api
 - Remove magic strings and numbers
 - Add more unit tests
 - Review failing unit tests
-- Add linting/pysort GHA
 
 **Features**
 - Add more brokers
 - Add more strategies
 - Add position/balance sync worker
-- test/develop tastytrade broker
 
 **Misc**
 - Documentation
 - Postgres helm deploy
 - RDS/Cloud Postgres deploy
 - Research a TSDB replacement
-- Implement async task methodology (use native python?)
-- go live on k8s or a VM
 - remove ETrade broker
