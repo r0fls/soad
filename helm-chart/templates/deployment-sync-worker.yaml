@@ -33,9 +33,9 @@ spec:
           command: ["python3"]
           args: ["main.py", "--mode", "sync", "--config", "/etc/config/trade-config.yaml"]
           volumeMounts:
-            - name: sync-worker-config-volume
+            - name: trading-config-volume
               mountPath: /etc/config
       volumes:
-        - name: sync-worker-config-volume
+        - name: trading-config-volume
           configMap:
             name: {{ include "trading-app.name" . }}-config
