@@ -30,7 +30,6 @@ async def sync_worker(engine, brokers):
 
     async def update_cash_and_position_balances(session):
         brokers = session.query(Balance.broker).distinct().all()
-        import pdb; pdb.set_trace()
         for broker in brokers:
             broker_name = broker[0]
 
