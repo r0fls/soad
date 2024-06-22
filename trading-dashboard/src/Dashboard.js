@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'chart.js';
 import 'chartjs-adapter-moment';
+import moment from 'moment-timezone';
 
 ChartJS.register(
   CategoryScale,
@@ -44,7 +45,7 @@ const Dashboard = () => {
         historicalData[key] = [];
       }
       historicalData[key].push({
-        x: item.interval,
+        x: moment.utc(item.interval).tz(moment.tz.guess()).format(), // Convert UTC to local timezone
         y: item.total_balance
       });
     });
@@ -147,7 +148,37 @@ const Dashboard = () => {
                   </Spinner>
                 </div>
               ) : (
-                historicalValueData && <Line data={historicalValueData} options={{ scales: { x: { type: 'time', time: { unit: 'minute' }}}}} />
+                historicalValueData && <Line
+                  data={historicalValueData}
+                  options={{
+                    scales: {
+                      x: {
+                        type: 'time',
+                        time: {
+                          unit: 'minute',
+                          tooltipFormat: 'll hh:mm A', // Use AM/PM format
+                          displayFormats: {
+                            minute: 'MMM D, hh:mm A' // Use AM/PM format
+                          }
+                        },
+                        adapters: {
+                          date: {
+                            zone: moment.tz.guess()  // Use local timezone
+                          }
+                        }
+                      }
+                    },
+                    plugins: {
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            return context.parsed.y !== null ? context.parsed.y.toLocaleString() : '';
+                          }
+                        }
+                      }
+                    }
+                  }}
+                />
               )}
             </div>
           </div>
