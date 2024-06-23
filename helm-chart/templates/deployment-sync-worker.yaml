@@ -31,7 +31,7 @@ spec:
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trade-config.yaml"
           command: ["python3"]
-          args: ["main.py", "--mode", "sync", "--config", "/etc/config/trade-config.yaml"]
+          args: ["main.py", "--mode", "sync", "--config", "/etc/config/trading-config.yaml"]
           volumeMounts:
             - name: trading-config-volume
               mountPath: /etc/config
