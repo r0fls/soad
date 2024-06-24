@@ -6,7 +6,7 @@ Base = declarative_base()
 
 class Trade(Base):
     __tablename__ = 'trades'
-    
+
     id = Column(Integer, primary_key=True)
     symbol = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)

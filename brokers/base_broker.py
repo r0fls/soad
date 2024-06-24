@@ -161,9 +161,9 @@ class BaseBroker(ABC):
 
                     # Subtract the order cost from the cash balance
                     if order_type == 'buy':
-                        new_balance_amount = latest_balance.amount - order_cost
+                        new_balance_amount = latest_balance.balance - order_cost
                     else:  # order_type == 'sell'
-                        new_balance_amount = latest_balance.amount + order_cost
+                        new_balance_amount = latest_balance.balance + order_cost
 
                     # Create a new balance record with the updated cash balance
                     new_balance = Balance(
