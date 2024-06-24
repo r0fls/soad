@@ -63,21 +63,11 @@ async def sync_worker(engine, brokers):
                     position_balance = position.quantity * latest_price
                     positions_total += position_balance
 
-                    new_position_balance = Balance(
-                        broker=broker_name,
-                        strategy=position.strategy,
-                        type='positions',
-                        balance=position_balance,
-                        timestamp=datetime.utcnow()
-                    )
-                    session.add(new_position_balance)
-
-                # Create a new total balance entry for the strategy
-                total_balance_value = positions_total + actual_cash_balance
-                new_total_balance = Balance(
+                # Create a new total position balance entry for the strategy
+                new_position_balance = Balance(
                     broker=broker_name,
                     strategy=strategy_name,
-                    type='total',
+                    type='positions',
                     balance=total_balance_value,
                     timestamp=datetime.utcnow()
                 )
