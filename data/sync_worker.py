@@ -68,10 +68,10 @@ async def sync_worker(engine, brokers):
                     broker=broker_name,
                     strategy=strategy_name,
                     type='positions',
-                    balance=total_balance_value,
+                    balance=positions_total,
                     timestamp=datetime.utcnow()
                 )
-                session.add(new_total_balance)
+                session.add(new_position_balance)
 
         session.commit()
 
