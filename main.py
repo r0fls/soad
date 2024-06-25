@@ -75,17 +75,17 @@ async def start_trading_system(config_path):
     brokers, strategies = await initialize_brokers_and_strategies(config)
 
     # Execute the strategies loop
-    rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
-    last_rebalances = [datetime.min for _ in strategies]
+    rebalance_intervals = { s: timedelta(minutes=strategies[s].rebalance_interval_minutes) for s in strategies }
+    last_rebalances = {s: datetime.min for s in strategies}
     logger.info('Entering the strategies execution loop')
 
     while True:
         now = datetime.now()
         for strategy_name, strategy in strategies.items():
-            if now - last_rebalances[i] >= rebalance_intervals[i]:
+            if now - last_rebalances[strategy_name] >= rebalance_intervals[strategy_name]:
                 try:
                     await strategy.rebalance()
-                    last_rebalances[i] = now
+                    last_rebalances[strategy_name] = now
                     logger.info(f'Strategy {strategy_name} rebalanced successfully', extra={'time': now})
                 except Exception as e:
                     # Try to reinitalize the brokers and strategies
