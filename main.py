@@ -36,6 +36,23 @@ def initialize_system_components(config):
         logger.error('Failed to initialize system components', extra={'error': str(e)})
         raise
 
+async def initialize_brokers_and_strategies(config):
+    # Initialize the brokers and strategies
+    try:
+        brokers, strategies = initialize_system_components(config)
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        return
+
+    # Initialize the strategies
+    try:
+        strategies = await initialize_strategies(brokers, config)
+        logger.info('Strategies initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize strategies', extra={'error': str(e)})
+        return
+    return brokers, strategies
+
 async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
 
@@ -55,19 +72,7 @@ async def start_trading_system(config_path):
     initialize_database(engine)
 
     # Initialize the brokers and strategies
-    try:
-        brokers, strategies = initialize_system_components(config)
-    except Exception as e:
-        logger.error('Failed to initialize brokers', extra={'error': str(e)})
-        return
-
-    # Initialize the strategies
-    try:
-        strategies = await initialize_strategies(brokers, config)
-        logger.info('Strategies initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize strategies', extra={'error': str(e)})
-        return
+    brokers, strategies = await initialize_brokers_and_strategies(config)
 
     # Execute the strategies loop
     rebalance_intervals = [timedelta(minutes=s.rebalance_interval_minutes) for s in strategies]
@@ -83,7 +88,9 @@ async def start_trading_system(config_path):
                     last_rebalances[i] = now
                     logger.info(f'Strategy {i} rebalanced successfully', extra={'time': now})
                 except Exception as e:
+                    # Try to reinitalize the brokers and strategies
                     logger.error(f'Error during rebalancing strategy {i}', extra={'error': str(e)})
+                    brokers, strategies = await initialize_brokers_and_strategies(config)
         await asyncio.sleep(60)  # Check every minute
 
 def start_api_server(config_path=None, local_testing=False):
