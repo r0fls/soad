@@ -29,7 +29,7 @@ def initialize_system_components(config):
     try:
         brokers = initialize_brokers(config)
         logger.info('Brokers initialized successfully')
-        strategies = initialize_strategies(brokers, config)
+        strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
         return brokers, strategies
     except Exception as e:
