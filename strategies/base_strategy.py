@@ -143,12 +143,12 @@ class BaseStrategy(ABC):
         logger.debug(f"Current DB positions: {current_db_positions_dict}")
         return current_db_positions_dict
 
-    async def place_order(self, stock, quantity, order_type):
+    async def place_order(self, stock, quantity, order_type, price):
         if is_market_open():
             if asyncio.iscoroutinefunction(self.broker.place_order):
-                await self.broker.place_order(stock, quantity, order_type, self.strategy_name)
+                await self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)
             else:
-                self.broker.place_order(stock, quantity, order_type, self.strategy_name)
+                self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)
             logger.info(
                 f"Placed {order_type} order for {stock}: {quantity} shares")
         else:
