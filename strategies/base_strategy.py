@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
 from utils.utils import is_market_open
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio
 
 class BaseStrategy(ABC):
-    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=timedelta(minutes=5)):
+    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=5):
         self.broker = broker
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
