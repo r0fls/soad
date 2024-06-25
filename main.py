@@ -25,7 +25,7 @@ def initialize_database(engine):
         logger.error('Failed to initialize database', extra={'error': str(e)})
         raise
 
-def initialize_system_components(config):
+async def initialize_system_components(config):
     try:
         brokers = initialize_brokers(config)
         logger.info('Brokers initialized successfully')
@@ -39,7 +39,7 @@ def initialize_system_components(config):
 async def initialize_brokers_and_strategies(config):
     # Initialize the brokers and strategies
     try:
-        brokers, strategies = initialize_system_components(config)
+        brokers, strategies = await initialize_system_components(config)
     except Exception as e:
         logger.error('Failed to initialize brokers', extra={'error': str(e)})
         return
