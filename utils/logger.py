@@ -13,7 +13,7 @@ class JsonLogger:
     def __init__(self, log_file='app.log'):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-        
+
         # Create handlers
         file_handler = logging.FileHandler(log_file)
         console_handler = logging.StreamHandler()
