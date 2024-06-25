@@ -37,11 +37,11 @@ spec:
           volumeMounts:
             - name: trading-config-volume
               mountPath: /etc/config
-        {{- if .Values.trading.image.pullSecret }}
-        imagePullSecrets:
-          - name: {{ .Values.trading.image.pullSecret }}
-        {{- end }}
       volumes:
         - name: trading-config-volume
           configMap:
             name: {{ include "trading-app.name" . }}-config
+      {{- if .Values.trading.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.trading.image.pullSecret }}
+      {{- end }}
