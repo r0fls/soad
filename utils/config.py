@@ -7,6 +7,7 @@ from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from sqlalchemy import create_engine
+from .logger import logger
 
 # Mapping of broker types to their constructors
 # TODO: refactor
