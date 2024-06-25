@@ -34,13 +34,13 @@ spec:
               value: "/etc/config/trading-config.yaml"
           command: ["python3"]
           args: ["main.py", "--mode", "trade", "--config", "/etc/config/trading-config.yaml"]
-          {{- if .Values.trading.image.pullSecret }}
-          imagePullSecrets:
-            - name: {{ .Values.trading.image.pullSecret }}
-          {{- end }}
           volumeMounts:
             - name: trading-config-volume
               mountPath: /etc/config
+        {{- if .Values.trading.image.pullSecret }}
+        imagePullSecrets:
+          - name: {{ .Values.trading.image.pullSecret }}
+        {{- end }}
       volumes:
         - name: trading-config-volume
           configMap:
