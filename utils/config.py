@@ -58,13 +58,13 @@ def initialize_brokers(config):
         engine = create_engine(os.environ.get("DATABASE_URL"))
     else:
         engine = create_engine('sqlite:///default_trading_system.db')
-    
+
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-        
+
         # Initialize the broker with the shared engine
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
-    
+
     return brokers
 
 async def initialize_strategy(strategy_type, broker, config):
@@ -80,7 +80,7 @@ async def initialize_strategy(strategy_type, broker, config):
 
 async def initialize_strategies(brokers, config):
     strategies_config = config['strategies']
-    strategies = []
+    strategies = {}
     for strategy_name in strategies_config:
         strategy_config = strategies_config[strategy_name]
         strategy_type = strategy_config['type']
@@ -88,7 +88,7 @@ async def initialize_strategies(brokers, config):
         broker = brokers[broker_name]
         if strategy_type in STRATEGY_MAP:
             strategy = await initialize_strategy(strategy_type, broker, strategy_config)
-            strategies.append(strategy)
+            strategies[strategy_name]= strategy
         else:
             raise ValueError(f"Unsupported strategy type: {strategy_type}")
     return strategies

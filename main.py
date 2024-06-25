@@ -81,15 +81,15 @@ async def start_trading_system(config_path):
 
     while True:
         now = datetime.now()
-        for i, strategy in enumerate(strategies):
+        for strategy_name, strategy in strategies.items():
             if now - last_rebalances[i] >= rebalance_intervals[i]:
                 try:
                     await strategy.rebalance()
                     last_rebalances[i] = now
-                    logger.info(f'Strategy {i} rebalanced successfully', extra={'time': now})
+                    logger.info(f'Strategy {strategy_name} rebalanced successfully', extra={'time': now})
                 except Exception as e:
                     # Try to reinitalize the brokers and strategies
-                    logger.error(f'Error during rebalancing strategy {i}', extra={'error': str(e)})
+                    logger.error(f'Error during rebalancing strategy {strategy_name}', extra={'error': str(e)})
                     brokers, strategies = await initialize_brokers_and_strategies(config)
         await asyncio.sleep(60)  # Check every minute
 
