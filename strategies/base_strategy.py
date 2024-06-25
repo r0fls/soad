@@ -6,11 +6,12 @@ from datetime import datetime, timedelta
 import asyncio
 
 class BaseStrategy(ABC):
-    def __init__(self, broker, strategy_name, starting_capital):
+    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=timedelta(minutes=5)):
         self.broker = broker
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
         self.initialize_starting_balance()
+        self.rebalance_interval_minutes = rebalance_interval_minutes
 
     @abstractmethod
     async def rebalance(self):
@@ -18,7 +19,7 @@ class BaseStrategy(ABC):
 
     def initialize_starting_balance(self):
         logger.debug("Initializing starting balance")
-        
+
         account_info = self.broker.get_account_info()
         buying_power = account_info.get('buying_power')
         logger.debug(f"Account info: {account_info}")
