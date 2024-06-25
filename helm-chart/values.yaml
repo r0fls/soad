@@ -16,6 +16,7 @@ trading:
     tag: latest
     pullPolicy: Always
 sync:
+  enabled: false
   image:
     repository: r0fls/soad-trading-system
     tag: latest
