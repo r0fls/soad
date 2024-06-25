@@ -12,6 +12,7 @@ api:
     pullPolicy: Always
 trading:
   image:
+    pullSecret: ""
     repository: r0fls/soad-trading-system
     tag: latest
     pullPolicy: Always
