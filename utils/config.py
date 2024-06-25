@@ -29,21 +29,28 @@ STRATEGY_MAP = {
 }
 
 def load_strategy_class(file_path, class_name):
-    spec = importlib.util.spec_from_file_location(class_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    strategy_class = getattr(module, class_name)
-    return strategy_class
+    logger.info(f"Attempting to load strategy class '{class_name}' from file '{file_path}'")
+    try:
+        spec = importlib.util.spec_from_file_location(class_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        strategy_class = getattr(module, class_name)
+        logger.info(f"Successfully loaded strategy class '{class_name}' from file '{file_path}'")
+        return strategy_class
+    except Exception as e:
+        logger.error(f"Failed to load strategy class '{class_name}' from file '{file_path}': {e}")
+        raise
 
 def load_custom_strategy(broker, config):
-    strategy_class = load_strategy_class(config['file'], config['className'])
-    return strategy_class(
-        broker=broker,
-        stock_allocations=config['stock_allocations'],
-        cash_percentage=config['cash_percentage'],
-        rebalance_interval_minutes=config['rebalance_interval_minutes'],
-        starting_capital=config['starting_capital']
-    )
+    try:
+        file_path = config['file_path']
+        class_name = config['class_name']
+        strategy_class = load_strategy_class(file_path, class_name)
+        logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
+        return strategy_class(broker, **config['strategy_params'])
+    except Exception as e:
+        logger.error(f"Error initializing custom strategy '{config['class_name']}': {e}")
+        raise
 
 def parse_config(config_path):
     with open(config_path, 'r') as file:
