@@ -2,6 +2,7 @@ import requests
 import time
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
+from utils.config import extract_underlying_symbol
 
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, **kwargs):
@@ -93,6 +94,57 @@ class TradierBroker(BaseBroker):
             order_data = {
                 "class": "equity",
                 "symbol": symbol,
+                "quantity": quantity,
+                "side": order_type,
+                "type": "limit",
+                "duration": "day",
+                "price": price
+            }
+
+            response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response.raise_for_status()
+
+            order_id = response.json()['order']['id']
+            logger.info('Order placed', extra={'order_id': order_id})
+
+            if self.auto_cancel_orders:
+                time.sleep(self.order_timeout)
+                order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                status_response = requests.get(order_status_url, headers=self.headers)
+                status_response.raise_for_status()
+                order_status = status_response.json()['order']['status']
+
+                if order_status != 'filled':
+                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                    cancel_response = requests.put(cancel_url, headers=self.headers)
+                    cancel_response.raise_for_status()
+                    logger.info('Order cancelled', extra={'order_id': order_id})
+
+            data = response.json()
+            if data.get('filled_price') is None:
+                data['filled_price'] = price
+            logger.info('Order execution complete', extra={'order_data': data})
+            return data
+        except requests.RequestException as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
+
+    def _place_option_order(symbol, quantity, order_type, price=None):
+        ticker = extract_underlying_symbol(symbol)
+        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        try:
+            if price is None:
+                quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+                quote_response = requests.get(quote_url, headers=self.headers)
+                quote_response.raise_for_status()
+                quote = quote_response.json()['quotes']['quote']
+                bid = quote['bid']
+                ask = quote['ask']
+                price = round((bid + ask) / 2, 2)
+
+            order_data = {
+                "class": "option",
+                "symbol": ticker,
+                "option_symbol": symbol,
                 "quantity": quantity,
                 "side": order_type,
                 "type": "limit",

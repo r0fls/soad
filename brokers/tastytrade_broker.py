@@ -111,6 +111,10 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
+    async def _place_option_order(self, symbol, quantity, order_type, price=None):
+        # TODO: review this method
+        return self.place_order(symbol, quantity, order_type, price)
+
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:

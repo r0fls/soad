@@ -1,6 +1,14 @@
 from datetime import datetime, time
 import pytz
 
+def extract_underlying_symbol(option_symbol):
+    # Regex pattern to match the beginning of the symbol consisting of uppercase letters
+    match = re.match(r'^([A-Z]+)', option_symbol)
+    if match:
+        return match.group(1)  # Return the matching part which is the underlying symbol
+    else:
+        return None  # Return None if no match is found
+
 def is_market_open():
     # Define market open and close times (e.g., 9:30 AM to 4:00 PM Eastern Time)
     market_open = time(9, 30)
