@@ -115,10 +115,13 @@ class TradierBroker(BaseBroker):
                 order_status = status_response.json()['order']['status']
 
                 if order_status != 'filled':
-                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
-                    cancel_response = requests.put(cancel_url, headers=self.headers)
-                    cancel_response.raise_for_status()
-                    logger.info('Order cancelled', extra={'order_id': order_id})
+                    try:
+                        cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                        cancel_response = requests.put(cancel_url, headers=self.headers)
+                        cancel_response.raise_for_status()
+                        logger.info('Order cancelled', extra={'order_id': order_id})
+                    except requests.RequestException as e:
+                        logger.error('Failed to cancel order', extra={'order_id': order_id})
 
             data = response.json()
             if data.get('filled_price') is None:
@@ -171,10 +174,14 @@ class TradierBroker(BaseBroker):
                 order_status = status_response.json()['order']['status']
 
                 if order_status != 'filled':
-                    cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
-                    cancel_response = requests.put(cancel_url, headers=self.headers)
-                    cancel_response.raise_for_status()
-                    logger.info('Order cancelled', extra={'order_id': order_id})
+                    try:
+                        cancel_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel"
+                        cancel_response = requests.put(cancel_url, headers=self.headers)
+                        cancel_response.raise_for_status()
+                        logger.info('Order cancelled', extra={'order_id': order_id})
+                        return None
+                    except requests.RequestException as e:
+                        logger.error('Failed to cancel order', extra={'order_id': order_id})
 
             data = response.json()
             if data.get('filled_price') is None:
