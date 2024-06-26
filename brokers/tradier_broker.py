@@ -81,14 +81,13 @@ class TradierBroker(BaseBroker):
     def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
-            quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
-            quote_response = requests.get(quote_url, headers=self.headers)
-            quote_response.raise_for_status()
-            quote = quote_response.json()['quotes']['quote']
-            bid = quote['bid']
-            ask = quote['ask']
-
             if price is None:
+                quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
+                quote_response = requests.get(quote_url, headers=self.headers)
+                quote_response.raise_for_status()
+                quote = quote_response.json()['quotes']['quote']
+                bid = quote['bid']
+                ask = quote['ask']
                 price = round((bid + ask) / 2, 2)
 
             order_data = {
