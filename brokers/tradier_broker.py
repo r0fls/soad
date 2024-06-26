@@ -131,6 +131,11 @@ class TradierBroker(BaseBroker):
     def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        # Sane conversions
+        if order_type == 'buy':
+            order_type = 'buy_to_open'
+        elif order_type == 'sell':
+            order_type = 'sell_to_close'
         try:
             if price is None:
                 quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
