@@ -146,7 +146,7 @@ class BaseStrategy(ABC):
     async def place_option_order(self, symbol, quantity, order_type, price, wait_till_open=True):
         if is_market_open() or not wait_till_open:
             if asyncio.iscoroutinefunction(self.broker.place_option_order):
-                await self.broker.place_order(symbol, quantity, order_type, self.strategy_name, price)
+                await self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price)
             else:
                 self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price)
             logger.info(
