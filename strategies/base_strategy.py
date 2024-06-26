@@ -143,8 +143,20 @@ class BaseStrategy(ABC):
         logger.debug(f"Current DB positions: {current_db_positions_dict}")
         return current_db_positions_dict
 
-    async def place_order(self, stock, quantity, order_type, price):
-        if is_market_open():
+    async def place_opttion_order(self, symbol, quantity, order_type, price, wait_till_open=True):
+        if is_market_open() or not wait_till_open:
+            if asyncio.iscoroutinefunction(self.broker.place_option_order):
+                await self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)
+            else:
+                self.broker.place_option_order(stock, quantity, order_type, self.strategy_name, price)
+            logger.info(
+                f"Placed {order_type} order for {stock}: {quantity} shares")
+        else:
+            logger.info(
+                f"Market is closed, not placing {order_type} order for {stock}: {quantity} shares")
+
+    async def place_order(self, stock, quantity, order_type, price, wait_till_open=True):
+        if is_market_open() or not wait_till_open:
             if asyncio.iscoroutinefunction(self.broker.place_order):
                 await self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)
             else:
