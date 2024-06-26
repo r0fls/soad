@@ -128,7 +128,7 @@ class TradierBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to place order', extra={'error': str(e)})
 
-    def _place_option_order(symbol, quantity, order_type, price=None):
+    def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         try:
