@@ -44,7 +44,7 @@ class TestTradierBroker(BaseTest):
         mock_response = MagicMock()
         mock_response.json.return_value = {'profile': {'account': {'account_number': '12345', 'balance': 10000.0}}}
         mock_get.return_value = mock_response
-        
+
         # Mock place_order response
         mock_post.return_value = MagicMock(json=MagicMock(return_value={'status': 'filled', 'filled_price': 155.00}))
 

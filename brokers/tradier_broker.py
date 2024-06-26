@@ -2,7 +2,7 @@ import requests
 import time
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
-from utils.config import extract_underlying_symbol
+from utils.utils import extract_underlying_symbol
 
 class TradierBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, **kwargs):

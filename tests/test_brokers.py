@@ -12,6 +12,9 @@ class MockBroker(BaseBroker):
     def _get_account_info(self):
         return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
 
+    def _place_option_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
+
     def _place_order(self, symbol, quantity, order_type, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
