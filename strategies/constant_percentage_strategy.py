@@ -50,9 +50,9 @@ class ConstantPercentageStrategy(BaseStrategy):
             current_price = await self.broker.get_current_price(stock) if asyncio.iscoroutinefunction(self.broker.get_current_price) else self.broker.get_current_price(stock)
             target_quantity = target_balance // current_price
             if current_position < target_quantity:
-                await self.place_order(stock, target_quantity - current_position, 'buy')
+                await self.place_order(stock, target_quantity - current_position, 'buy', current_price)
             elif current_position > target_quantity:
-                await self.place_order(stock, current_position - target_quantity, 'sell')
+                await self.place_order(stock, current_position - target_quantity, 'sell', current_price)
 
         for stock, quantity in current_db_positions_dict.items():
             if stock not in self.stock_allocations:
