@@ -8,6 +8,9 @@ from datetime import datetime
 from utils.logger import logger  # Import the logger
 
 
+# The contract size for options is 100 shares
+OPTIONS_CONTRACT_SIZE = 100
+
 class BaseBroker(ABC):
     def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
         self.api_key = api_key
@@ -161,7 +164,7 @@ class BaseBroker(ABC):
                     broker=self.broker_name, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).first()
                 if latest_balance:
                     # Calculate the order cost
-                    order_cost = trade.executed_price * quantity
+                    order_cost = trade.executed_price * quantity * OPTIONS_CONTRACT_SIZE
 
                     # Subtract the order cost from the cash balance
                     if order_type == 'buy':
