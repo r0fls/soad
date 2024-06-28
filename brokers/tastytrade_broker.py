@@ -6,7 +6,7 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger
 from utils.utils import extract_option_details
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity
+from tastytrade.instruments import Equity, OptionChain
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
