@@ -4,7 +4,7 @@ import json
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_option_details, get_option_chain
+from utils.utils import extract_option_details
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity
 from tastytrade.dxfeed import EventType
