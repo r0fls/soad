@@ -161,8 +161,8 @@ class TastytradeBroker(BaseBroker):
         )
 
         # Place the order
-        return await self.place_order(self.session, order, dry_run=False)
-            return self.place_order(symbol, quantity, order_type, price)
+        account = Account.get_account(self.session, self.account_id)
+        return await account.place_order(self.session, order, dry_run=False)
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
