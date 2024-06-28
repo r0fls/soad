@@ -1,7 +1,7 @@
 from datetime import datetime, time, date
 import re
 import pytz
-import Decimal
+from decimal import Decimal
 
 
 def extract_option_details(option_symbol):
