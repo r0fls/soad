@@ -1,6 +1,23 @@
 from datetime import datetime, time
 import re
 import pytz
+import Decimal
+
+
+def extract_option_details(option_symbol):
+    # Example pattern: AAPL230721C00250000 (AAPL, 2023-07-21, Call, 250.00)
+    match = re.match(r'^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$', option_symbol)
+    if match:
+        underlying = match.group(1)
+        year = int(match.group(2))
+        month = int(match.group(3))
+        day = int(match.group(4))
+        option_type = match.group(5)
+        strike_price = Decimal(match.group(6)) / 1000
+        return underlying, date(2000 + year, month, day), option_type, strike_price
+    else:
+        return None
+
 
 def extract_underlying_symbol(option_symbol):
     # Regex pattern to match the beginning of the symbol consisting of uppercase letters

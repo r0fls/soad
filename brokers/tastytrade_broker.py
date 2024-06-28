@@ -4,6 +4,7 @@ import json
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
+from utils.utils import extract_option_details, get_option_chain
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity
 from tastytrade.dxfeed import EventType
@@ -24,6 +25,24 @@ class TastytradeBroker(BaseBroker):
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
         self.connect()
+
+    async def get_option_chain(session, underlying_symbol):
+        """
+        Fetch the option chain for a given underlying symbol.
+
+        Args:
+            session: Tastytrade API session.
+            underlying_symbol: The underlying symbol for which to fetch the option chain.
+
+        Returns:
+            An OptionChain object containing the option chain data.
+        """
+        try:
+            option_chain = await OptionChain.get(session, underlying_symbol)
+            return option_chain
+        except Exception as e:
+            logger.error(f"Error fetching option chain for {underlying_symbol}: {e}")
+            return None
 
     def connect(self):
         logger.info('Connecting to Tastytrade API')
@@ -112,8 +131,38 @@ class TastytradeBroker(BaseBroker):
         return True
 
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
-        # TODO: review this method
-        return self.place_order(symbol, quantity, order_type, price)
+        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+
+        details = extract_option_details(symbol)
+        if not details:
+            logger.error('Invalid option symbol', extra={'symbol': symbol})
+            return
+
+        underlying, expiration_date, option_type, strike_price = details
+
+        # Fetch the option chain
+        chain = await self.get_option_chain(self.session, underlying)
+
+        # Find the specific option contract
+        if option_type == 'C':
+            option_contract = chain[expiration_date][strike_price].calls[0]
+        else:
+            option_contract = chain[expiration_date][strike_price].puts[0]
+
+        # Build the order
+        order = NewOrder(
+            time_in_force=OrderTimeInForce.DAY,
+            order_type=OrderType[order_type],
+            legs=[
+                option_contract.build_leg(Decimal(quantity), OrderAction.BUY_TO_OPEN)
+            ],
+            price=Decimal(price) if price else None,
+            price_effect=PriceEffect.DEBIT
+        )
+
+        # Place the order
+        return await self.place_order(self.session, order, dry_run=False)
+            return self.place_order(symbol, quantity, order_type, price)
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
