@@ -139,12 +139,15 @@ class BaseBroker(ABC):
                     symbol, quantity, order_type, price)
             logger.info('Order placed successfully',
                         extra={'response': response})
+            if not price:
+                # If price is not provided, use the filled price from the response
+                price = response.get('filled_price', None)
 
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
-                price=response.get('filled_price', price),
-                executed_price=response.get('filled_price', price),
+                price=price,
+                executed_price=price,
                 order_type=order_type,
                 status='filled',
                 timestamp=datetime.now(),
