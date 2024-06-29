@@ -26,7 +26,7 @@ class TastytradeBroker(BaseBroker):
         self.session = None
         self.connect()
 
-    async def get_option_chain(session, underlying_symbol):
+    async def get_option_chain(self, underlying_symbol):
         """
         Fetch the option chain for a given underlying symbol.
 
@@ -38,7 +38,7 @@ class TastytradeBroker(BaseBroker):
             An OptionChain object containing the option chain data.
         """
         try:
-            option_chain = await NestedOptionChain.get(session, underlying_symbol)
+            option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
             return option_chain
         except Exception as e:
             logger.error(f"Error fetching option chain for {underlying_symbol}: {e}")
@@ -141,7 +141,7 @@ class TastytradeBroker(BaseBroker):
         underlying, expiration_date, option_type, strike_price = details
 
         # Fetch the option chain
-        chain = await self.get_option_chain(self.session, underlying)
+        chain = await self.get_option_chain(underlying)
 
         # Find the specific option contract
         if option_type == 'C':
