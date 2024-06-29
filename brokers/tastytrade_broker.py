@@ -6,7 +6,7 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger
 from utils.utils import extract_option_details
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity, OptionChain
+from tastytrade.instruments import Equity, NestedOptionChain
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
@@ -38,7 +38,7 @@ class TastytradeBroker(BaseBroker):
             An OptionChain object containing the option chain data.
         """
         try:
-            option_chain = await OptionChain.get(session, underlying_symbol)
+            option_chain = await NestedOptionChain.get(session, underlying_symbol)
             return option_chain
         except Exception as e:
             logger.error(f"Error fetching option chain for {underlying_symbol}: {e}")
