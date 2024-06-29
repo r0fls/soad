@@ -5,7 +5,7 @@ import re
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_underyling_symbol
+from utils.utils import extract_underlying_symbol
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain, Option
 from tastytrade.dxfeed import EventType
