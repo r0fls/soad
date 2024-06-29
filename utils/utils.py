@@ -3,6 +3,13 @@ import re
 import pytz
 from decimal import Decimal
 
+def format_option_symbol(option_symbol):
+    details = extract_option_details(option_symbol)
+    if not details:
+        raise ValueError("Invalid option symbol format")
+    underlying, year, month, day, option_type, strike_price = details
+    formatted_symbol = f"{underlying:<6}{year+2000}{month:02}{day:02}{option_type}{strike_price}"
+    return formatted_symbol
 
 def extract_option_details(option_symbol):
     # Example pattern: AAPL230721C00250000 (AAPL, 2023-07-21, Call, 250.00)
