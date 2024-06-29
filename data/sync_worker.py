@@ -34,6 +34,7 @@ async def sync_worker(engine, brokers):
         return latest_price
 
     async def update_cash_and_position_balances(session):
+        now = datetime.utcnow()
         logger.info('Updating cash and position balances')
         brokers = session.query(Balance.broker).distinct().all()
         for broker in brokers:
@@ -54,7 +55,7 @@ async def sync_worker(engine, brokers):
                     strategy=strategy_name,
                     type='cash',
                     balance=actual_cash_balance,
-                    timestamp=datetime.utcnow()
+                    timestamp=now
                 )
                 session.add(new_cash_balance)
                 logger.debug(f'Added new cash balance for strategy {strategy_name} of broker {broker_name}: {actual_cash_balance}')
@@ -73,7 +74,7 @@ async def sync_worker(engine, brokers):
                     strategy=strategy_name,
                     type='positions',
                     balance=positions_total,
-                    timestamp=datetime.utcnow()
+                    timestamp=now
                 )
                 session.add(new_position_balance)
                 logger.debug(f'Added new position balance for strategy {strategy_name} of broker {broker_name}: {positions_total}')
