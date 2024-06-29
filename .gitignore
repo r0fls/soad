@@ -8,3 +8,4 @@ charts/
 test-config.yaml
 app.log
 venv
+custom_rsi_strategy.py

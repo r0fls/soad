@@ -4,7 +4,7 @@ import json
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_option_details
+from utils.utils import extract_option_details, format_option_symbol
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain
 from tastytrade.dxfeed import EventType
@@ -130,39 +130,25 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    async def _place_option_order(self, symbol, quantity, order_type, price=None):
-        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
-
-        details = extract_option_details(symbol)
-        if not details:
-            logger.error('Invalid option symbol', extra={'symbol': symbol})
-            return
-
-        underlying, expiration_date, option_type, strike_price = details
-
-        # Fetch the option chain
-        chain = await self.get_option_chain(underlying)
-
-        # Find the specific option contract
-        if option_type == 'C':
-            option_contract = chain[expiration_date][strike_price].calls[0]
-        else:
-            option_contract = chain[expiration_date][strike_price].puts[0]
-
-        # Build the order
+    def place_option_order(self, option_symbol, quantity, order_type, limit_price, dry_run=True):
+        if ' ' not in option_symbol:
+            option_symbol = format_option_symbol(option_symbol)
+        if order_type == 'buy':
+            action = OrderAction.BUY_TO_OPEN
+        elif order_type == 'sell':
+            action = OrderAction.SELL_TO_CLOSE
+        account = Account.get_account(session, account_number)
+        option = Option.get_option(session, option_symbol)
+        leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
-            order_type=OrderType[order_type],
-            legs=[
-                option_contract.build_leg(Decimal(quantity), OrderAction.BUY_TO_OPEN)
-            ],
-            price=Decimal(price) if price else None,
+            order_type=OrderType.LIMIT,
+            legs=[leg],
+            price=Decimal(limit_price),
             price_effect=PriceEffect.DEBIT
         )
-
-        # Place the order
-        account = Account.get_account(self.session, self.account_id)
-        return await account.place_order(self.session, order, dry_run=False)
+        response = account.place_order(session, order, dry_run=dry_run)
+        return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
