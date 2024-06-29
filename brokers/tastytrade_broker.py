@@ -6,7 +6,7 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger
 from utils.utils import extract_option_details, format_option_symbol
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity, NestedOptionChain
+from tastytrade.instruments import Equity, NestedOptionChain, Option
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
@@ -137,7 +137,7 @@ class TastytradeBroker(BaseBroker):
             action = OrderAction.BUY_TO_OPEN
         elif order_type == 'sell':
             action = OrderAction.SELL_TO_CLOSE
-        account = Account.get_account(self.session, account_number)
+        account = Account.get_account(self.session, self.account_id)
         option = Option.get_option(self.session, option_symbol)
         leg = option.build_leg(quantity, action)
         order = NewOrder(
@@ -147,7 +147,7 @@ class TastytradeBroker(BaseBroker):
             price=Decimal(limit_price),
             price_effect=PriceEffect.DEBIT
         )
-        response = account.place_order(session, order, dry_run=dry_run)
+        response = account.place_order(self.session, order, dry_run=dry_run)
         return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
