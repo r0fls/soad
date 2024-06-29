@@ -142,25 +142,25 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    async def _place_option_order(self, option_symbol, quantity, order_type, limit_price=None):
+    async def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         if price is None:
             price = await self.get_current_price(symbol)
-        if ' ' not in option_symbol:
-            option_symbol = self.format_option_symbol(option_symbol)
+        if ' ' not in symbol:
+            symbol = self.format_option_symbol(symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
         elif order_type == 'sell':
             action = OrderAction.SELL_TO_CLOSE
         account = Account.get_account(self.session, self.account_id)
-        option = Option.get_option(self.session, option_symbol)
+        option = Option.get_option(self.session, symbol)
         leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
             order_type=OrderType.LIMIT,
             legs=[leg],
-            price=Decimal(limit_price),
+            price=Decimal(price),
             price_effect=PriceEffect.DEBIT
         )
         response = account.place_order(self.session, order)
