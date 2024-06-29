@@ -155,10 +155,10 @@ const Dashboard = () => {
                       x: {
                         type: 'time',
                         time: {
-                          unit: 'minute',
-                          tooltipFormat: 'll hh:mm A', // Use AM/PM format
+                          unit: 'day', // Display unit by day
+                          tooltipFormat: 'll', // Format for tooltip
                           displayFormats: {
-                            minute: 'MMM D, hh:mm A' // Use AM/PM format
+                            day: 'MMM D, YYYY' // Format for display
                           }
                         },
                         adapters: {
