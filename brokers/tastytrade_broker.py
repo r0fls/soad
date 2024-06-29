@@ -4,7 +4,7 @@ import json
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_option_details, format_option_symbol
+from utils.utils import extract_option_details
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain, Option
 from tastytrade.dxfeed import EventType
@@ -25,6 +25,17 @@ class TastytradeBroker(BaseBroker):
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
         self.connect()
+
+    @staticmethod
+    def format_option_symbol(option_symbol):
+        match = re.match(r'^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$', option_symbol)
+        if not match:
+            raise ValueError("Invalid option symbol format")
+
+        underlying = match.group(1)
+        rest_of_symbol = ''.join(match.groups()[1:])
+        formatted_symbol = f"{underlying:<6}{rest_of_symbol}"
+        return formatted_symbol
 
     async def get_option_chain(self, underlying_symbol):
         """
@@ -136,7 +147,7 @@ class TastytradeBroker(BaseBroker):
         if price is None:
             price = await self.get_current_price(symbol)
         if ' ' not in option_symbol:
-            option_symbol = format_option_symbol(option_symbol)
+            option_symbol = self.format_option_symbol(option_symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
         elif order_type == 'sell':
