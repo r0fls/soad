@@ -48,6 +48,61 @@ class BaseStrategy(ABC):
             else:
                 logger.info(f"Existing balance found for {self.strategy_name} strategy: {strategy_balance.balance}")
 
+
+    @property
+    def current_positions(self):
+        # Get the current positions
+        with self.broker.Session() as session:
+            current_positions = session.query(Position).filter_by(
+                strategy=self.strategy_name,
+                broker=self.broker.broker_name
+            ).all()
+        return current_positions
+
+    @property
+    def current_balance(self):
+        with self.broker.Session() as session:
+            # Get the latest balance
+            balance = session.query(Balance).filter_by(
+                strategy=self.strategy_name,
+                broker=self.broker.broker_name,
+                type='cash'
+            ).order_by(Balance.timestamp.desc()).first()
+            total_balance = balance.balance
+            # Add the position values to the balance
+            positions = session.query(Position).filter_by(
+                strategy=self.strategy_name,
+                broker=self.broker.broker_name
+            ).all()
+            for position in positions:
+                total_balance += position.quantity * position.latest_price
+        return total_balance
+
+    @property
+    def cash(self):
+        # Get the latest cash balance
+        with self.broker.Session() as session:
+            balance = session.query(Balance).filter_by(
+                strategy=self.strategy_name,
+                broker=self.broker.broker_name,
+                type='cash'
+            ).order_by(Balance.timestamp.desc()).first()
+        return balance.balance
+
+    @property
+    def investment_value(self):
+        # Get the current position value
+        with self.broker.Session() as session:
+            position_balance = 0
+            positions = session.query(Position).filter_by(
+                strategy=self.strategy_name,
+                broker=self.broker.broker_name
+            ).all()
+            for position in positions:
+                position_balance += position.quantity * position.latest_price
+        return position_balance
+
+
     async def sync_positions_with_broker(self):
         logger.debug("Syncing positions with broker")
 
