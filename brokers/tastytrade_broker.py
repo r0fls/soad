@@ -130,15 +130,15 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    def place_option_order(self, option_symbol, quantity, order_type, limit_price, dry_run=True):
+    def _place_option_order(self, option_symbol, quantity, order_type, limit_price, dry_run=True):
         if ' ' not in option_symbol:
             option_symbol = format_option_symbol(option_symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
         elif order_type == 'sell':
             action = OrderAction.SELL_TO_CLOSE
-        account = Account.get_account(session, account_number)
-        option = Option.get_option(session, option_symbol)
+        account = Account.get_account(self.session, account_number)
+        option = Option.get_option(self.session, option_symbol)
         leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
