@@ -141,7 +141,7 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    def _place_option_order(self, option_symbol, quantity, order_type, limit_price=None):
+    async def _place_option_order(self, option_symbol, quantity, order_type, limit_price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         if price is None:
