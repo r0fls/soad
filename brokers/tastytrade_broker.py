@@ -130,7 +130,7 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    def _place_option_order(self, option_symbol, quantity, order_type, limit_price, dry_run=True):
+    def _place_option_order(self, option_symbol, quantity, order_type, limit_price, dry_run=False):
         if ' ' not in option_symbol:
             option_symbol = format_option_symbol(option_symbol)
         if order_type == 'buy':
