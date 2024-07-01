@@ -39,8 +39,8 @@ async def initialize_system_components(config):
 
 async def initialize_brokers_and_strategies(config):
     engine = create_database_engine(config)
-    if config.get('renameStrategies'):
-        for strategy in config['renameStrategies']:
+    if config.get('rename_strategies'):
+        for strategy in config['rename_strategies']:
             try:
                 DBManager(engine).rename_strategy(strategy['old_strategy_name'], strategy['new_strategy_name'], strategy['broker'])
             except Exception as e:
