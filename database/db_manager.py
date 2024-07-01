@@ -1,6 +1,6 @@
 import json
 from sqlalchemy.orm import sessionmaker
-from .models import Base, Trade, AccountInfo
+from .models import Base, Trade, AccountInfo, Position, Balance
 from utils.logger import logger
 
 class DBManager:
