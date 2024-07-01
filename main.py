@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from database.models import init_db
+from database.db_manager import DBManager
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from utils.logger import logger  # Import the logger
@@ -37,6 +38,14 @@ async def initialize_system_components(config):
         raise
 
 async def initialize_brokers_and_strategies(config):
+    engine = create_database_engine(config)
+    if config.get('renameStrategies'):
+        for strategy in config['renameStrategies']:
+            try:
+                DBManager(engine).rename_strategy(strategy['old_strategy_name'], strategy['new_strategy_name'], strategy['broker'])
+            except Exception as e:
+                logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy})
+                raise
     # Initialize the brokers and strategies
     try:
         brokers, strategies = await initialize_system_components(config)
