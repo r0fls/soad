@@ -163,7 +163,7 @@ class TastytradeBroker(BaseBroker):
             price=Decimal(price),
             price_effect=PriceEffect.DEBIT
         )
-        response = account.place_order(self.session, order)
+        response = account.place_order(self.session, order, dry_run=False)
         return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
