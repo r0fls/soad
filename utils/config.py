@@ -77,11 +77,11 @@ def initialize_brokers(config):
 
     return brokers
 
-async def initialize_strategy(strategy_type, broker, config):
+async def initialize_strategy(strategy_name, strategy_type, broker, config):
     constructor = STRATEGY_MAP.get(strategy_type)
     if constructor is None:
         raise ValueError(f"Unknown strategy type: {strategy_type}")
-    strategy = constructor(broker, config)
+    strategy = constructor(broker, strategy_name, config)
     if asyncio.iscoroutinefunction(strategy.initialize):
         await strategy.initialize()
         return strategy
@@ -97,7 +97,7 @@ async def initialize_strategies(brokers, config):
         broker_name = strategy_config['broker']
         broker = brokers[broker_name]
         if strategy_type in STRATEGY_MAP:
-            strategy = await initialize_strategy(strategy_type, broker, strategy_config)
+            strategy = await initialize_strategy(strategy_name, strategy_type, broker, strategy_config)
             strategies[strategy_name]= strategy
         else:
             raise ValueError(f"Unsupported strategy type: {strategy_type}")
