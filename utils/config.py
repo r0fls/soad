@@ -43,7 +43,7 @@ def load_strategy_class(file_path, class_name):
         logger.error(f"Failed to load strategy class '{class_name}' from file '{file_path}': {e}")
         raise
 
-def load_custom_strategy(broker, config):
+def load_custom_strategy(broker, strategy_name, config):
     try:
         file_path = config['file_path']
         class_name = config['class_name']
@@ -51,7 +51,7 @@ def load_custom_strategy(broker, config):
         rebalance_interval_minutes = config['rebalance_interval_minutes']
         strategy_class = load_strategy_class(file_path, class_name)
         logger.info(f"Initializing custom strategy '{class_name}' with config: {config}")
-        return strategy_class(broker, starting_capital, rebalance_interval_minutes, **config['strategy_params'])
+        return strategy_class(broker, strategy_name, starting_capital, rebalance_interval_minutes, **config['strategy_params'])
     except Exception as e:
         logger.error(f"Error initializing custom strategy '{config['class_name']}': {e}")
         raise
