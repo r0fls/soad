@@ -6,7 +6,7 @@ from strategies.base_strategy import BaseStrategy
 import asyncio
 
 class ConstantPercentageStrategy(BaseStrategy):
-    def __init__(self, broker, stock_allocations, cash_percentage, rebalance_interval_minutes, starting_capital):
+    def __init__(self, broker, strategy_name, stock_allocations, cash_percentage, rebalance_interval_minutes, starting_capital):
         self.stock_allocations = stock_allocations
         self.cash_percentage = cash_percentage
         self.rebalance_interval_minutes = rebalance_interval_minutes

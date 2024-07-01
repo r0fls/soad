@@ -19,14 +19,15 @@ BROKER_MAP = {
 
 # Mapping of strategy types to their constructors
 STRATEGY_MAP = {
-    'constant_percentage': lambda broker, config: ConstantPercentageStrategy(
+    'constant_percentage': lambda broker, strategy_name, config: ConstantPercentageStrategy(
         broker=broker,
+        strategy_name=strategy_name,
         stock_allocations=config['stock_allocations'],
         cash_percentage=config['cash_percentage'],
         rebalance_interval_minutes=config['rebalance_interval_minutes'],
         starting_capital=config['starting_capital']
     ),
-    'custom': lambda broker, config: load_custom_strategy(broker, config)
+    'custom': lambda broker, strategy_name, config: load_custom_strategy(broker, strategy_name, config)
 }
 
 def load_strategy_class(file_path, class_name):
