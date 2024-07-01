@@ -42,7 +42,7 @@ async def initialize_brokers_and_strategies(config):
     if config.get('rename_strategies'):
         for strategy in config['rename_strategies']:
             try:
-                DBManager(engine).rename_strategy(strategy['old_strategy_name'], strategy['new_strategy_name'], strategy['broker'])
+                DBManager(engine).rename_strategy(strategy['broker'], strategy['old_strategy_name'], strategy['new_strategy_name'])
             except Exception as e:
                 logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy})
                 raise
