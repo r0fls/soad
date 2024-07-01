@@ -250,8 +250,11 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        async with DXLinkStreamer(self.session) as streamer:
+        streamer = await DXLinkStreamer.create(self.session)
+        try:
             subs_list = [symbol]
             await streamer.subscribe(EventType.QUOTE, subs_list)
             quote = await streamer.get_event(EventType.QUOTE)
             return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
+        finally:
+            await streamer.close()
