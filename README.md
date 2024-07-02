@@ -63,3 +63,5 @@ python main.py --mode api
 - RDS/Cloud Postgres deploy
 - Research a TSDB replacement
 - remove ETrade broker
+
+![soad-mascot](https://github.com/r0fls/soad/assets/1858004/1ac6d1c7-5263-4b8a-a643-148ee54c12c1)
