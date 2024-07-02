@@ -145,10 +145,12 @@ class TastytradeBroker(BaseBroker):
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
-        if price is None:
-            price = await self.get_current_price(symbol)
         if ' ' not in symbol:
             symbol = self.format_option_symbol(symbol)
+        if '.' not in symbol:
+            symbol = Option.occ_to_streamer_symbol(symbol)
+        if price is None:
+            price = await self.get_current_price(symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
         elif order_type == 'sell':
