@@ -11,7 +11,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         self.cash_percentage = cash_percentage
         self.rebalance_interval_minutes = rebalance_interval_minutes
         self.rebalance_interval = timedelta(minutes=rebalance_interval_minutes)
-        super().__init__(broker, 'constant_percentage', starting_capital)
+        super().__init__(broker, strategy_name, starting_capital)
         logger.info(
             f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
 
