@@ -249,12 +249,21 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
+    @staticmethod
+    def is_ticker(symbol):
+        pattern = re.compile(r'^[A-Z]{1,5}(\.[A-Z]{1,2})?$')
+        return pattern.match(symbol)
+
     async def get_current_price(self, symbol):
-        streamer = await DXLinkStreamer.create(self.session)
-        if ' ' not in symbol:
-            symbol = self.format_option_symbol(symbol)
-        if '.' not in symbol:
-            symbol = Option.occ_to_streamer_symbol(symbol)
+        # Format option prices; should
+        # more explicitly look for options symbols
+        # in case we expand to futures etc
+        if not self.is_ticker(symbol):
+            return await self.get_option_price(symbol)
+            if ' ' not in symbol:
+                symbol = self.format_option_symbol(symbol)
+            if '.' not in symbol:
+                symbol = Option.occ_to_streamer_symbol(symbol)
         try:
             subs_list = [symbol]
             await streamer.subscribe(EventType.QUOTE, subs_list)
