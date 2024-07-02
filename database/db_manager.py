@@ -89,29 +89,31 @@ class DBManager:
             session.close()
 
     def rename_strategy(self, broker, old_strategy_name, new_strategy_name):
-        session = self.Session()
-        try:
-            logger.info('Updating strategy name', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
-            balances = session.query(Balance).filter_by(broker=broker, strategy=old_strategy_name).all()
-            for balance in balances:
-                balance.strategy = new_strategy_name
-                session.add(balance)
-            session.commit()
-            logger.info(f'Updated {len(balances)} balances', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
-            trades = session.query(Trade).filter_by(broker=broker, strategy=old_strategy_name).all()
-            for trade in trades:
-                trade.strategy = new_strategy_name
-                session.add(trade)
-            logger.info(f'Updated {len(trades)} trades', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
-            session.commit()
-            positions = session.query(Position).filter_by(broker=broker, strategy=old_strategy_name).all()
-            for position in positions:
-                position.strategy = new_strategy_name
-                session.add(position)
-            logger.info(f'Updated {len(positions)} positions', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logger.error('Failed to update strategy name', extra={'error': str(e)})
-        finally:
-            session.close()
+        with self.Session() as session:
+            try:
+                logger.info('Updating strategy name', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
+
+                # Update balances
+                balances = session.query(Balance).filter_by(broker=broker, strategy=old_strategy_name).all()
+                for balance in balances:
+                    balance.strategy = new_strategy_name
+                session.commit()
+                logger.info(f'Updated {len(balances)} balances', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
+
+                # Update trades
+                trades = session.query(Trade).filter_by(broker=broker, strategy=old_strategy_name).all()
+                for trade in trades:
+                    trade.strategy = new_strategy_name
+                session.commit()
+                logger.info(f'Updated {len(trades)} trades', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
+
+                # Update positions
+                positions = session.query(Position).filter_by(broker=broker, strategy=old_strategy_name).all()
+                for position in positions:
+                    position.strategy = new_strategy_name
+                session.commit()
+                logger.info(f'Updated {len(positions)} positions', extra={'old_strategy_name': old_strategy_name, 'broker': broker})
+
+            except Exception as e:
+                session.rollback()
+                logger.error('Failed to update strategy name', extra={'error': str(e)})
