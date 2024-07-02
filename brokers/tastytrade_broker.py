@@ -260,16 +260,17 @@ class TastytradeBroker(BaseBroker):
         # Format option prices; should
         # more explicitly look for options symbols
         # in case we expand to futures etc
-        if not self.is_ticker(symbol):
-            return await self.get_option_price(symbol)
-            if ' ' not in symbol:
-                symbol = self.format_option_symbol(symbol)
-            if '.' not in symbol:
-                symbol = Option.occ_to_streamer_symbol(symbol)
-        try:
-            subs_list = [symbol]
-            await streamer.subscribe(EventType.QUOTE, subs_list)
-            quote = await streamer.get_event(EventType.QUOTE)
-            return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
-        finally:
-            await streamer.close()
+        async with DXLinkStreamer(session) as streamer:
+            if not self.is_ticker(symbol):
+                return await self.get_option_price(symbol)
+                if ' ' not in symbol:
+                    symbol = self.format_option_symbol(symbol)
+                if '.' not in symbol:
+                    symbol = Option.occ_to_streamer_symbol(symbol)
+            try:
+                subs_list = [symbol]
+                await streamer.subscribe(EventType.QUOTE, subs_list)
+                quote = await streamer.get_event(EventType.QUOTE)
+                return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
+            finally:
+                await streamer.close()
