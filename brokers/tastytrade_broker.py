@@ -147,8 +147,6 @@ class TastytradeBroker(BaseBroker):
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         if ' ' not in symbol:
             symbol = self.format_option_symbol(symbol)
-        if '.' not in symbol:
-            symbol = Option.occ_to_streamer_symbol(symbol)
         if price is None:
             price = await self.get_current_price(symbol)
         if order_type == 'buy':
@@ -253,6 +251,10 @@ class TastytradeBroker(BaseBroker):
 
     async def get_current_price(self, symbol):
         streamer = await DXLinkStreamer.create(self.session)
+        if ' ' not in symbol:
+            symbol = self.format_option_symbol(symbol)
+        if '.' not in symbol:
+            symbol = Option.occ_to_streamer_symbol(symbol)
         try:
             subs_list = [symbol]
             await streamer.subscribe(EventType.QUOTE, subs_list)
