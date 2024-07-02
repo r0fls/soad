@@ -97,7 +97,7 @@ class TestTrading(BaseTest):
         self.session.query.return_value.filter_by.return_value.first.return_value = None
 
         self.broker.update_positions(self.session, trade)
-        self.session.add.assert_called_once()
+        self.session.add.assert_called()
 
         position = self.session.add.call_args[0][0]
         self.assertEqual(position.symbol, "AAPL")

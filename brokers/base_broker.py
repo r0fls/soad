@@ -92,9 +92,11 @@ class BaseBroker(ABC):
         try:
             position = session.query(Position).filter_by(
                 symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
-
             if trade.order_type == 'buy':
                 if position:
+                    position.cost_basis = (
+                        (getattr(position, 'cost_basis', 0) * position.quantity) + (trade.executed_price * trade.quantity)
+                    )
                     position.quantity += trade.quantity
                     position.latest_price = trade.executed_price
                     position.timestamp = datetime.now()
@@ -105,6 +107,7 @@ class BaseBroker(ABC):
                         symbol=trade.symbol,
                         quantity=trade.quantity,
                         latest_price=trade.executed_price,
+                        cost_basis=trade.price,
                     )
                     session.add(position)
             elif trade.order_type == 'sell':
@@ -115,7 +118,7 @@ class BaseBroker(ABC):
                         logger.error('Sell quantity exceeds current position quantity', extra={
                                      'trade': trade})
                         position.quantity = 0  # Set to 0 to handle the error gracefully
-
+            session.add(position)
             session.commit()
             logger.info('Position updated', extra={'position': position})
         except Exception as e:
@@ -188,6 +191,12 @@ class BaseBroker(ABC):
                 else:
                     logger.info('No balance records found for {strategy} in {self.broker_name}')
 
+                # Update the P/L for the trade
+                if order_type == 'sell':
+                    profit_loss = self.db_manager.calculate_profit_loss(trade)
+                    logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
+                    session.add(trade)
+                    session.commit()
             return response
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})

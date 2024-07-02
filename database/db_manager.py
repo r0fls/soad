@@ -53,6 +53,22 @@ class DBManager:
         finally:
             session.close()
 
+    def get_position(self, broker, symbol, strategy):
+        session = self.Session()
+        try:
+            logger.info('Retrieving position', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
+            position = session.query(Position).filter_by(broker=broker, symbol=symbol, strategy=strategy).all()
+            if len(position) > 1:
+                logger.warning('Multiple positions found', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
+            position = position[0] if position else None
+            logger.info('Position retrieved', extra={'position': position})
+            return position
+        except Exception as e:
+            logger.error('Failed to retrieve position', extra={'error': str(e)})
+            return None
+        finally:
+            session.close()
+
     def calculate_profit_loss(self, trade):
         try:
             logger.info('Calculating profit/loss', extra={'trade': trade})
@@ -62,9 +78,10 @@ class DBManager:
                 return None
 
             if trade.order_type.lower() == 'buy':
-                profit_loss = (current_price - trade.price) * trade.quantity
+                return None
             elif trade.order_type.lower() == 'sell':
-                profit_loss = (trade.price - current_price) * trade.quantity
+                position = self.get_position(trade.broker, trade.symbol, trade.strategy)
+                profit_lost = trade.executed_price - (position.cost_basis / position.quantity)
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:
