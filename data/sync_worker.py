@@ -17,6 +17,9 @@ async def sync_worker(engine, brokers):
         positions = session.query(Position).all()
         for position in positions:
             latest_price = await get_latest_price(position)
+            if latest_price is None:
+                logger.error(f'Could not get latest price for {position.symbol}')
+                continue
             logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
             position.latest_price = latest_price
             position.last_updated = datetime.utcnow()
