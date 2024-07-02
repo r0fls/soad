@@ -151,8 +151,10 @@ class TastytradeBroker(BaseBroker):
             price = await self.get_current_price(symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
+            effect = PriceEffect.DEBIT
         elif order_type == 'sell':
             action = OrderAction.SELL_TO_CLOSE
+            effect = PriceEffect.CREDIT
         account = Account.get_account(self.session, self.account_id)
         option = Option.get_option(self.session, symbol)
         leg = option.build_leg(quantity, action)
@@ -161,7 +163,7 @@ class TastytradeBroker(BaseBroker):
             order_type=OrderType.LIMIT,
             legs=[leg],
             price=Decimal(price),
-            price_effect=PriceEffect.DEBIT
+            price_effect=effect
         )
         response = account.place_order(self.session, order, dry_run=False)
         return response
