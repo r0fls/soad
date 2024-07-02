@@ -373,6 +373,7 @@ def get_positions():
                     'strategy': position.strategy,
                     'symbol': position.symbol,
                     'quantity': position.quantity,
+                    'cost_basis': position.cost_basis,
                     'latest_price': position.latest_price,
                     'timestamp': position.last_updated,
                 })
