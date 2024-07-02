@@ -71,6 +71,7 @@ class DBManager:
 
     def calculate_profit_loss(self, trade):
         try:
+            profit_loss = None
             logger.info('Calculating profit/loss', extra={'trade': trade})
             current_price = trade.executed_price
             if current_price is None:
@@ -78,10 +79,10 @@ class DBManager:
                 return None
 
             if trade.order_type.lower() == 'buy':
-                return None
+                return profit_loss
             elif trade.order_type.lower() == 'sell':
                 position = self.get_position(trade.broker, trade.symbol, trade.strategy)
-                profit_lost = trade.executed_price - (position.cost_basis / position.quantity)
+                profit_loss = trade.executed_price - (position.cost_basis / position.quantity)
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:
