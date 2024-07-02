@@ -43,25 +43,4 @@ yarn start
 ```
 python main.py --mode api
 ```
-
-## TODO
-
-
-**Code Quality**
-- Remove magic strings and numbers
-- Add more unit tests
-- Review failing unit tests
-
-**Features**
-- Add more brokers
-- Add more strategies
-- Add position/balance sync worker
-
-**Misc**
-- Documentation
-- Postgres helm deploy
-- RDS/Cloud Postgres deploy
-- Research a TSDB replacement
-- remove ETrade broker
-
 ![soad-mascot](https://github.com/r0fls/soad/assets/1858004/1ac6d1c7-5263-4b8a-a643-148ee54c12c1)
