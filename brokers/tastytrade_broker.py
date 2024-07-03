@@ -257,16 +257,15 @@ class TastytradeBroker(BaseBroker):
         return pattern.match(symbol)
 
     async def get_current_price(self, symbol):
-        # Format option prices; should
-        # more explicitly look for options symbols
-        # in case we expand to futures etc
-        async with DXLinkStreamer(session) as streamer:
-            if not self.is_ticker(symbol):
-                return await self.get_option_price(symbol)
-                if ' ' not in symbol:
-                    symbol = self.format_option_symbol(symbol)
-                if '.' not in symbol:
-                    symbol = Option.occ_to_streamer_symbol(symbol)
+        if not self.is_ticker(symbol):
+            # Format option prices; should
+            # more explicitly look for options symbols
+            # in case we expand to futures etc
+            if ' ' not in symbol:
+                symbol = self.format_option_symbol(symbol)
+            if '.' not in symbol:
+                symbol = Option.occ_to_streamer_symbol(symbol)
+        async with DXLinkStreamer(self.session) as streamer:
             try:
                 subs_list = [symbol]
                 await streamer.subscribe(EventType.QUOTE, subs_list)
