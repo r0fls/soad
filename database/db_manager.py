@@ -53,8 +53,25 @@ class DBManager:
         finally:
             session.close()
 
+    def get_position(self, broker, symbol, strategy):
+        session = self.Session()
+        try:
+            logger.info('Retrieving position', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
+            position = session.query(Position).filter_by(broker=broker, symbol=symbol, strategy=strategy).all()
+            if len(position) > 1:
+                logger.warning('Multiple positions found', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
+            position = position[0] if position else None
+            logger.info('Position retrieved', extra={'position': position})
+            return position
+        except Exception as e:
+            logger.error('Failed to retrieve position', extra={'error': str(e)})
+            return None
+        finally:
+            session.close()
+
     def calculate_profit_loss(self, trade):
         try:
+            profit_loss = None
             logger.info('Calculating profit/loss', extra={'trade': trade})
             current_price = trade.executed_price
             if current_price is None:
@@ -62,13 +79,29 @@ class DBManager:
                 return None
 
             if trade.order_type.lower() == 'buy':
-                profit_loss = (current_price - trade.price) * trade.quantity
+                return profit_loss
             elif trade.order_type.lower() == 'sell':
-                profit_loss = (trade.price - current_price) * trade.quantity
+                position = self.get_position(trade.broker, trade.symbol, trade.strategy)
+                if position.quantity == trade.quantity:
+                    profit_loss = trade.executed_price - position.cost_basis
+                else:
+                    profit_loss = self.calculate_partial_profit_loss(trade, position)
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:
             logger.error('Failed to calculate profit/loss', extra={'error': str(e)})
+            return None
+
+    def calculate_partial_profit_loss(self, trade, position):
+        try:
+            profit_loss = None
+            logger.info('Calculating partial profit/loss', extra={'trade': trade, 'position': position})
+            if trade.order_type.lower() == 'sell':
+                profit_loss = (trade.executed_price - (position.cost_basis / position.quantity)) * trade.quantity
+            logger.info('Partial profit/loss calculated', extra={'trade': trade, 'position': position, 'profit_loss': profit_loss})
+            return profit_loss
+        except Exception as e:
+            logger.error('Failed to calculate partial profit/loss', extra={'error': str(e)})
             return None
 
     def update_trade_status(self, trade_id, executed_price, success, profit_loss):

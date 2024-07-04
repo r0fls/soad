@@ -86,6 +86,7 @@ const Positions = () => {
               <th>Symbol</th>
               <th>Quantity</th>
               <th>Latest Price</th>
+			  <th>Cost Basis</th>
               <th>Timestamp</th>
             </tr>
           </thead>
@@ -97,6 +98,7 @@ const Positions = () => {
                 <td>{position.symbol}</td>
                 <td>{position.quantity}</td>
                 <td>{position.latest_price}</td>
+                <td>{position.cost_basis / position.quantity}</td>
                 <td>{position.timestamp}</td>
               </tr>
             ))}

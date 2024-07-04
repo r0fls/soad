@@ -89,12 +89,17 @@ class BaseBroker(ABC):
             return False
 
     def update_positions(self, session, trade):
+        if trade.quantity == 0:
+            logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
+            return
         try:
             position = session.query(Position).filter_by(
                 symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy).first()
-
             if trade.order_type == 'buy':
                 if position:
+                    position.cost_basis = (
+                        getattr(position, 'cost_basis', 0) + (trade.executed_price * trade.quantity)
+                    )
                     position.quantity += trade.quantity
                     position.latest_price = trade.executed_price
                     position.timestamp = datetime.now()
@@ -105,17 +110,28 @@ class BaseBroker(ABC):
                         symbol=trade.symbol,
                         quantity=trade.quantity,
                         latest_price=trade.executed_price,
+                        cost_basis=trade.executed_price * trade.quantity,
                     )
                     session.add(position)
             elif trade.order_type == 'sell':
                 if position:
-                    position.quantity -= trade.quantity
-                    position.latest_price = trade.executed_price
-                    if position.quantity < 0:
-                        logger.error('Sell quantity exceeds current position quantity', extra={
+                    if position.quantity == trade.quantity:
+                        logger.info('Deleting sold position', extra={'position': position})
+                        session.delete(position)
+                    elif position.quantity > trade.quantity:
+                        cost_per_share = position.cost_basis / position.quantity
+                        position.cost_basis = (
+                            getattr(position, 'cost_basis', 0)  - (trade.quantity * cost_per_share)
+                        )
+                        position.quantity -= trade.quantity
+                        position.latest_price = trade.executed_price
+                        session.add(position)
+                    elif position.quantity < 0:
+                        logger.warning('Sell quantity exceeds current position quantity', extra={
                                      'trade': trade})
-                        position.quantity = 0  # Set to 0 to handle the error gracefully
-
+                        session.delete(position)
+                else:
+                    logger.error('No position found for trade', extra={'trade': trade})
             session.commit()
             logger.info('Position updated', extra={'position': position})
         except Exception as e:
@@ -188,6 +204,12 @@ class BaseBroker(ABC):
                 else:
                     logger.info('No balance records found for {strategy} in {self.broker_name}')
 
+                # Update the P/L for the trade
+                if order_type == 'sell':
+                    profit_loss = self.db_manager.calculate_profit_loss(trade)
+                    logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
+                    session.add(trade)
+                    session.commit()
             return response
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
