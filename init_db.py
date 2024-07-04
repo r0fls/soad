@@ -59,11 +59,11 @@ print("Fake trades inserted into the database.")
 print("Generating and inserting fake balance data and positions...")
 for broker in brokers:
     for strategy in strategies:
-        initial_cash_balance = random.uniform(5000, 20000)
-        initial_position_balance = random.uniform(5000, 20000)
+        initial_cash_balance = round(random.uniform(5000, 20000), 2)
+        initial_position_balance = round(random.uniform(5000, 20000), 2)
         for timestamp in timestamps:
-            cash_balance = initial_cash_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for cash
-            position_balance = initial_position_balance + random.uniform(-1000, 1000)  # Simulate some profit/loss for positions
+            cash_balance = initial_cash_balance + round(random.uniform(-1000, 1000), 2)  # Simulate some profit/loss for cash
+            position_balance = initial_position_balance + round(random.uniform(-1000, 1000), 2)  # Simulate some profit/loss for positions
             cash_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
@@ -88,7 +88,7 @@ for broker in brokers:
         # Generate and insert fake positions for each balance record
         for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
             quantity = random.randint(1, 100)
-            latest_price = random.uniform(100, 3000)
+            latest_price = round(random.uniform(100, 3000), 2)
             cost_basis = quantity * latest_price
             position_record = Position(
                 broker=broker,
