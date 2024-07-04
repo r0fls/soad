@@ -17,7 +17,7 @@ drop_then_init_db(engine)
 brokers = ['Tradier', 'Tastytrade']
 strategies = ['RSI', 'Bollinger Bands', 'MACD', 'Ichimoku']
 
-# Generate unique hourly timestamps for the past 30 days
+# Generate unique hourly timestamps for the past 5 days
 start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
@@ -29,17 +29,22 @@ fake_trades = []
 print("Generating fake trade data...")
 for timestamp in timestamps:
     for _ in range(num_trades_per_hour):
+        order_type = random.choice(['buy', 'sell'])
+        quantity = random.randint(1, 20)
+        price = random.uniform(100, 3000)
+        executed_price = price if order_type == 'buy' else price + random.uniform(-50, 50)
+        profit_loss = None if order_type == 'buy' else (executed_price - price) * quantity
         fake_trades.append(Trade(
-           symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
-            quantity=random.randint(1, 20),
-            price=random.uniform(100, 3000),
-            executed_price=random.uniform(100, 3000),
-            order_type=random.choice(['buy', 'sell']),
+            symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
+            quantity=quantity,
+            price=price,
+            executed_price=executed_price,
+            order_type=order_type,
             status='executed',
             timestamp=timestamp,
             broker=random.choice(brokers),
             strategy=random.choice(strategies),
-            profit_loss=random.uniform(-100, 100),
+            profit_loss=profit_loss,
             success=random.choice(['yes', 'no'])
         ))
 print("Fake trade data generation completed.")
@@ -80,20 +85,23 @@ for broker in brokers:
             initial_position_balance = position_balance  # Update the initial balance for the next timestamp
             print(f"Inserted balance records for {broker}, {strategy} at {timestamp}. Cash balance: {cash_balance}, Position balance: {position_balance}")
 
-            # Generate and insert fake positions for each balance record
+        # Generate and insert fake positions for each balance record
         for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
             quantity = random.randint(1, 100)
             latest_price = random.uniform(100, 3000)
+            cost_basis = quantity * latest_price
             position_record = Position(
                 broker=broker,
                 strategy=strategy,
                 symbol=symbol,
                 quantity=quantity,
-                latest_price=latest_price
+                latest_price=latest_price,
+                cost_basis=cost_basis,
+                last_updated=timestamp
             )
             session.add(position_record)
             session.commit()
-            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}")
+            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}, Cost basis: {cost_basis}")
 
 print("Fake balance data and positions generation and insertion completed.")
 
