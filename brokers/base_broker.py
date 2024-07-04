@@ -112,12 +112,21 @@ class BaseBroker(ABC):
                     session.add(position)
             elif trade.order_type == 'sell':
                 if position:
-                    position.quantity -= trade.quantity
-                    position.latest_price = trade.executed_price
-                    if position.quantity < 0:
-                        logger.error('Sell quantity exceeds current position quantity', extra={
+                    if position.quantity == trade.quantity:
+                        logger.info('Deleting sold position', extra={'position': position})
+                        session.delete(position)
+                    elif position.quantity > trade.quantity:
+                        position.cost_basis = (
+                            (getattr(position, 'cost_basis', 0) * position.quantity) - (trade.executed_price * trade.quantity)
+                        )
+                        position.quantity -= trade.quantity
+                        position.latest_price = trade.executed_price
+                    elif position.quantity < 0:
+                        logger.warning('Sell quantity exceeds current position quantity', extra={
                                      'trade': trade})
-                        position.quantity = 0  # Set to 0 to handle the error gracefully
+                        session.delete(position)
+                else:
+                    logger.error('No position found for trade', extra={'trade': trade})
             session.add(position)
             session.commit()
             logger.info('Position updated', extra={'position': position})
