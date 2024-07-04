@@ -96,7 +96,7 @@ class BaseBroker(ABC):
                 if position:
                     position.cost_basis = (
                         (getattr(position, 'cost_basis', 0) * position.quantity) + (trade.executed_price * trade.quantity)
-                    )
+                    ) / (position.quantity + trade.quantity)
                     position.quantity += trade.quantity
                     position.latest_price = trade.executed_price
                     position.timestamp = datetime.now()
@@ -118,7 +118,7 @@ class BaseBroker(ABC):
                     elif position.quantity > trade.quantity:
                         position.cost_basis = (
                             (getattr(position, 'cost_basis', 0) * position.quantity) - (trade.executed_price * trade.quantity)
-                        )
+                        ) / (position.quantity - trade.quantity)
                         position.quantity -= trade.quantity
                         position.latest_price = trade.executed_price
                     elif position.quantity < 0:

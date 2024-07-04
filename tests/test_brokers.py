@@ -106,7 +106,7 @@ class TestTrading(BaseTest):
 
     def test_update_positions_sell(self):
         trade = Trade(symbol="AAPL", quantity=5, executed_price=155.0, order_type="sell", timestamp=datetime.now())
-        existing_position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0)
+        existing_position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
         self.session.query.return_value.filter_by.return_value.first.return_value = existing_position
 
         self.broker.update_positions(self.session, trade)
@@ -114,6 +114,55 @@ class TestTrading(BaseTest):
 
         self.assertEqual(existing_position.quantity, 5)
         self.assertEqual(existing_position.latest_price, 155.0)
+        self.assertAlmostEqual(existing_position.cost_basis, 750.0)  # Half of the original cost basis
+
+    def test_multiple_buys_update_cost_basis(self):
+        # First Buy Trade
+        trade1 = Trade(symbol="AAPL", quantity=10, executed_price=150.0, order_type="buy", timestamp=datetime.now())
+        self.session.query.return_value.filter_by.return_value.first.return_value = None
+
+        self.broker.update_positions(self.session, trade1)
+        self.session.add.assert_called()
+
+        position = self.session.add.call_args[0][0]
+        self.assertEqual(position.symbol, "AAPL")
+        self.assertEqual(position.quantity, 10)
+        self.assertEqual(position.latest_price, 150.0)
+        self.assertEqual(position.cost_basis, 1500.0)
+
+        trade2 = Trade(symbol="AAPL", quantity=5, executed_price=160.0, order_type="buy", timestamp=datetime.now())
+        self.session.query.return_value.filter_by.return_value.first.return_value = position
+
+        self.broker.update_positions(self.session, trade2)
+        self.session.commit.assert_called()
+
+        self.assertEqual(position.quantity, 15)
+        self.assertEqual(position.latest_price, 160.0)
+        self.assertAlmostEqual(position.cost_basis, 2300.0)  # 1500 + 5*160
+
+    def test_full_sell_update_cost_basis(self):
+        trade = Trade(symbol="AAPL", quantity=10, executed_price=155.0, order_type="sell", timestamp=datetime.now())
+        existing_position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
+        self.session.query.return_value.filter_by.return_value.first.return_value = existing_position
+
+        self.broker.update_positions(self.session, trade)
+        self.session.commit.assert_called()
+
+        self.assertEqual(existing_position.quantity, 0)
+        self.assertEqual(existing_position.latest_price, 155.0)
+        self.assertEqual(existing_position.cost_basis, 0.0)  # Fully sold position
+
+    def test_edge_case_zero_quantity(self):
+        trade = Trade(symbol="AAPL", quantity=0, executed_price=150.0, order_type="buy", timestamp=datetime.now())
+        existing_position = Position(symbol="AAPL", broker="dummy_broker", quantity=0, latest_price=150.0, cost_basis=0.0)
+        self.session.query.return_value.filter_by.return_value.first.return_value = existing_position
+
+        self.broker.update_positions(self.session, trade)
+        self.session.commit.assert_called()
+
+        self.assertEqual(existing_position.quantity, 0)
+        self.assertEqual(existing_position.latest_price, 150.0)
+        self.assertEqual(existing_position.cost_basis, 0.0)  # No change in cost basis
 
 if __name__ == '__main__':
     unittest.main()
