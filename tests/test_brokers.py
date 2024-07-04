@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 from database.models import Trade, Balance, Position, Base
+from database.db_manager import DBManager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from brokers.base_broker import BaseBroker
@@ -39,6 +40,7 @@ class TestTrading(unittest.TestCase):
         # Create an in-memory SQLite database
         cls.engine = create_engine('sqlite:///:memory:')
         cls.Session = sessionmaker(bind=cls.engine)
+        cls.db_manager = DBManager(cls.engine)
 
     def setUp(self):
         Base.metadata.drop_all(self.engine)
@@ -145,6 +147,78 @@ class TestTrading(unittest.TestCase):
 
         position = self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertIsNone(position)  # No position should be created
+
+    def test_pl_calculation_buy_trade(self):
+        trade = Trade(
+            symbol="AAPL",
+            quantity=10,
+            price=150.0,
+            executed_price=150.0,
+            order_type="buy",
+            status="executed",
+            timestamp=datetime.now(),
+            broker="dummy_broker",
+            strategy="test_strategy",
+            profit_loss=None,
+            success="yes"
+        )
+        self.session.add(trade)
+        self.session.commit()
+
+        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        self.assertIsNone(profit_loss, "Profit/Loss for a buy trade should be None")
+
+    def test_pl_calculation_sell_trade(self):
+        position = Position(
+            symbol="AAPL",
+            broker="dummy_broker",
+            quantity=10,
+            latest_price=150.0,
+            cost_basis=1500.0,
+            last_updated=datetime.now(),
+            strategy="test_strategy"
+        )
+        self.session.add(position)
+        self.session.commit()
+
+        trade = Trade(
+            symbol="AAPL",
+            quantity=5,
+            price=155.0,
+            executed_price=155.0,
+            order_type="sell",
+            status="executed",
+            timestamp=datetime.now(),
+            broker="dummy_broker",
+            strategy="test_strategy",
+            profit_loss=None,
+            success="yes"
+        )
+        self.session.add(trade)
+        self.session.commit()
+
+        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        self.assertEqual(profit_loss, 25.0, "Profit/Loss calculation for sell trade is incorrect")
+
+    def test_pl_calculation_no_position(self):
+        trade = Trade(
+            symbol="AAPL",
+            quantity=5,
+            price=155.0,
+            executed_price=155.0,
+            order_type="sell",
+            status="executed",
+            timestamp=datetime.now(),
+            broker="dummy_broker",
+            strategy="test_strategy",
+            profit_loss=None,
+            success="yes"
+        )
+        self.session.add(trade)
+        self.session.commit()
+
+        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        self.assertIsNone(profit_loss, "Profit/Loss calculation should return None when no position exists")
 
 if __name__ == '__main__':
     unittest.main()
