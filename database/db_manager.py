@@ -61,6 +61,8 @@ class DBManager:
             if len(position) > 1:
                 logger.warning('Multiple positions found', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
             position = position[0] if position else None
+            if position is None:
+                logger.warning('Position not found', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
             logger.info('Position retrieved', extra={'position': position})
             return position
         except Exception as e:
