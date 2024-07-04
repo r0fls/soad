@@ -82,11 +82,26 @@ class DBManager:
                 return profit_loss
             elif trade.order_type.lower() == 'sell':
                 position = self.get_position(trade.broker, trade.symbol, trade.strategy)
-                profit_loss = trade.executed_price - (position.cost_basis / position.quantity)
+                if position.quantity == trade.quantity:
+                    profit_loss = trade.executed_price - position.cost_basis
+                else:
+                    profit_loss = self.calculate_partial_profit_loss(trade, position)
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:
             logger.error('Failed to calculate profit/loss', extra={'error': str(e)})
+            return None
+
+    def calculate_partial_profit_loss(self, trade, position):
+        try:
+            profit_loss = None
+            logger.info('Calculating partial profit/loss', extra={'trade': trade, 'position': position})
+            if trade.order_type.lower() == 'sell':
+                profit_loss = (trade.executed_price - (position.cost_basis / position.quantity)) * trade.quantity
+            logger.info('Partial profit/loss calculated', extra={'trade': trade, 'position': position, 'profit_loss': profit_loss})
+            return profit_loss
+        except Exception as e:
+            logger.error('Failed to calculate partial profit/loss', extra={'error': str(e)})
             return None
 
     def update_trade_status(self, trade_id, executed_price, success, profit_loss):
