@@ -1,0 +1,35 @@
+.positions-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .positions-table thead {
+    display: none;
+  }
+
+  .positions-table tbody, .positions-table tr, .positions-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .positions-table tr {
+    margin-bottom: 15px;
+  }
+
+  .positions-table td {
+    text-align: right;
+    padding-left: 50%;
+    position: relative;
+  }
+
+  .positions-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 50%;
+    padding-left: 15px;
+    font-weight: bold;
+    text-align: left;
+  }
+}

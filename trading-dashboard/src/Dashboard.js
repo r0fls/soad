@@ -35,11 +35,12 @@ const Dashboard = () => {
   const [selectedBrokers, setSelectedBrokers] = useState([]);
   const [historicalValueData, setHistoricalValueData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialData, setInitialData] = useState([]);
 
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
 
-    data.historic_balance_per_strategy.forEach(item => {
+    data.forEach(item => {
       let key = `${item.strategy} (${item.broker})`;
       if (!historicalData[key]) {
         historicalData[key] = [];
@@ -69,19 +70,26 @@ const Dashboard = () => {
     };
   }, []);
 
+  const filterData = useCallback(() => {
+    const filteredData = initialData.filter(item => 
+      (selectedBrokers.length === 0 || selectedBrokers.includes(item.broker)) &&
+      (selectedStrategies.length === 0 || selectedStrategies.includes(item.strategy))
+    );
+    setHistoricalValueData(processHistoricalValues(filteredData));
+  }, [initialData, selectedBrokers, selectedStrategies, processHistoricalValues]);
+
   const fetchHistoricalValues = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get('/historic_balance_per_strategy', {
-        params: { brokers: selectedBrokers, strategies: selectedStrategies }
-      });
-      setHistoricalValueData(processHistoricalValues(response.data));
+      const response = await axiosInstance.get('/historic_balance_per_strategy');
+      setInitialData(response.data.historic_balance_per_strategy);
+      setHistoricalValueData(processHistoricalValues(response.data.historic_balance_per_strategy));
     } catch (error) {
       console.error('Error fetching historical values:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedBrokers, selectedStrategies, processHistoricalValues]);
+  }, [processHistoricalValues]);
 
   const populateFilters = useCallback(async () => {
     try {
@@ -107,8 +115,10 @@ const Dashboard = () => {
   }, [populateFilters, fetchHistoricalValues]);
 
   useEffect(() => {
-    fetchHistoricalValues();
-  }, [selectedStrategies, selectedBrokers, fetchHistoricalValues]);
+    if (initialData.length > 0) {
+      filterData();
+    }
+  }, [selectedStrategies, selectedBrokers, filterData]);
 
   return (
     <div className="container-fluid">
