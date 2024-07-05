@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import Select from 'react-select';
 import { Spinner, Table, Card, Row, Col } from 'react-bootstrap';
+import './Trades.css'; // Assuming you have a CSS file for custom styles
 
 const Trades = () => {
   const [brokers, setBrokers] = useState([]);
@@ -9,33 +10,43 @@ const Trades = () => {
   const [selectedBrokers, setSelectedBrokers] = useState([]);
   const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [trades, setTrades] = useState([]);
+  const [initialTrades, setInitialTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const filterTrades = useCallback(() => {
+    const filteredTrades = initialTrades.filter(trade =>
+      (selectedBrokers.length === 0 || selectedBrokers.includes(trade.broker)) &&
+      (selectedStrategies.length === 0 || selectedStrategies.includes(trade.strategy))
+    );
+    setTrades(filteredTrades);
+  }, [initialTrades, selectedBrokers, selectedStrategies]);
+
+  const calculateStats = useCallback((filteredTrades) => {
+    const average_profit_loss = filteredTrades.reduce((acc, trade) => acc + trade.profit_loss, 0) / filteredTrades.length;
+    const win_loss_rate = filteredTrades.filter(trade => trade.profit_loss > 0).length / filteredTrades.length;
+    const number_of_trades = filteredTrades.length;
+    const trades_per_day = filteredTrades.reduce((acc, trade) => {
+      const day = new Date(trade.timestamp).toLocaleDateString();
+      acc[day] = (acc[day] || 0) + 1;
+      return acc;
+    }, {});
+    return { average_profit_loss, win_loss_rate, number_of_trades, trades_per_day };
+  }, []);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get('/trades', {
-        params: { brokers: selectedBrokers, strategies: selectedStrategies }
-      });
+      const response = await axiosInstance.get('/trades');
+      setInitialTrades(response.data.trades);
       setTrades(response.data.trades);
+      setStats(calculateStats(response.data.trades));
     } catch (error) {
       console.error('Error fetching trades:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedBrokers, selectedStrategies]);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await axiosInstance.get('/trade_stats', {
-        params: { brokers: selectedBrokers, strategies: selectedStrategies }
-      });
-      setStats(response.data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  }, [selectedBrokers, selectedStrategies]);
+  }, [calculateStats]);
 
   const populateFilters = useCallback(async () => {
     try {
@@ -52,19 +63,18 @@ const Trades = () => {
   useEffect(() => {
     populateFilters();
     fetchTrades();
-    fetchStats();
-  }, [populateFilters, fetchTrades, fetchStats]);
+  }, [populateFilters, fetchTrades]);
 
   useEffect(() => {
-    fetchTrades();
-    fetchStats();
-  }, [selectedBrokers, selectedStrategies, fetchTrades, fetchStats]);
+    filterTrades();
+    setStats(calculateStats(trades));
+  }, [selectedBrokers, selectedStrategies, filterTrades, calculateStats, trades]);
 
   return (
     <div className="container-fluid">
       <h1 className="mt-5">Trades</h1>
       <div className="row mb-3">
-        <div className="col">
+        <div className="col-md-6">
           <Select
             isMulti
             options={brokers.map(broker => ({ value: broker, label: broker }))}
@@ -74,7 +84,7 @@ const Trades = () => {
             classNamePrefix="select"
           />
         </div>
-        <div className="col">
+        <div className="col-md-6">
           <Select
             isMulti
             options={strategies.map(strategy => ({ value: strategy, label: strategy }))}
@@ -131,34 +141,36 @@ const Trades = () => {
               </Col>
             </Row>
           )}
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>Broker</th>
-                <th>Strategy</th>
-                <th>Symbol</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Type</th>
-                <th>Profit/Loss</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trades.map((trade, index) => (
-                <tr key={index}>
-                  <td>{trade.broker}</td>
-                  <td>{trade.strategy}</td>
-                  <td>{trade.symbol}</td>
-                  <td>{trade.quantity}</td>
-                  <td>{trade.price}</td>
-                  <td>{trade.order_type}</td>
-                  <td>{trade.profit_loss}</td>
-                  <td>{trade.timestamp}</td>
+          <div className="table-responsive">
+            <Table striped bordered hover className="trades-table">
+              <thead>
+                <tr>
+                  <th>Broker</th>
+                  <th>Strategy</th>
+                  <th>Symbol</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                  <th>Type</th>
+                  <th>Profit/Loss</th>
+                  <th>Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {trades.map((trade, index) => (
+                  <tr key={index}>
+                    <td>{trade.broker}</td>
+                    <td>{trade.strategy}</td>
+                    <td>{trade.symbol}</td>
+                    <td>{trade.quantity}</td>
+                    <td>{trade.price}</td>
+                    <td>{trade.order_type}</td>
+                    <td>{trade.profit_loss}</td>
+                    <td>{trade.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
         </>
       )}
     </div>
