@@ -93,13 +93,16 @@ async def initialize_strategies(brokers, config):
     strategies_config = config['strategies']
     strategies = {}
     for strategy_name in strategies_config:
-        strategy_config = strategies_config[strategy_name]
-        strategy_type = strategy_config['type']
-        broker_name = strategy_config['broker']
-        broker = brokers[broker_name]
-        if strategy_type in STRATEGY_MAP:
-            strategy = await initialize_strategy(strategy_name, strategy_type, broker, strategy_config)
-            strategies[strategy_name]= strategy
-        else:
-            raise ValueError(f"Unsupported strategy type: {strategy_type}")
+        try:
+            strategy_config = strategies_config[strategy_name]
+            strategy_type = strategy_config['type']
+            broker_name = strategy_config['broker']
+            broker = brokers[broker_name]
+            if strategy_type in STRATEGY_MAP:
+                strategy = await initialize_strategy(strategy_name, strategy_type, broker, strategy_config)
+                strategies[strategy_name]= strategy
+            else:
+                logger.error(f"Unknown strategy type: {strategy_type}")
+        except Exception as e:
+            logger.error(f"Error initializing strategy '{strategy_name}': {e}")
     return strategies
