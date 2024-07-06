@@ -56,6 +56,8 @@ class BaseBroker(ABC):
         pass
 
     def get_account_info(self):
+        '''Get the account information'''
+        logger.info('Getting account information')
         try:
             account_info = self._get_account_info()
             self.db_manager.add_account_info(AccountInfo(
@@ -69,6 +71,8 @@ class BaseBroker(ABC):
             return None
 
     def has_bought_today(self, symbol):
+        '''Check if the symbol has been bought today'''
+        logger.info('Checking if bought today', extra={'symbol': symbol})
         today = datetime.now().date()
         try:
             with self.Session() as session:
@@ -89,6 +93,8 @@ class BaseBroker(ABC):
             return False
 
     def update_positions(self, session, trade):
+        '''Update the positions based on the trade'''
+        logger.info('Updating positions', extra={'trade': trade})
         if trade.quantity == 0:
             logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
             return
@@ -138,6 +144,7 @@ class BaseBroker(ABC):
             logger.error('Failed to update positions', extra={'error': str(e)})
 
     async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
+        '''Place an order for an option'''
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
 
@@ -218,6 +225,7 @@ class BaseBroker(ABC):
             return None
 
     async def place_order(self, symbol, quantity, order_type, strategy, price=None):
+        '''Place an order for a stock'''
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
 
@@ -287,6 +295,7 @@ class BaseBroker(ABC):
             return None
 
     def get_order_status(self, order_id):
+        '''Get the status of an order'''
         logger.info('Retrieving order status', extra={'order_id': order_id})
         try:
             order_status = self._get_order_status(order_id)
@@ -302,6 +311,7 @@ class BaseBroker(ABC):
             return None
 
     def cancel_order(self, order_id):
+        '''Cancel an order'''
         logger.info('Cancelling order', extra={'order_id': order_id})
         try:
             cancel_status = self._cancel_order(order_id)
@@ -317,6 +327,7 @@ class BaseBroker(ABC):
             return None
 
     def get_options_chain(self, symbol, expiration_date):
+        '''Get the options chain for a symbol'''
         logger.info('Retrieving options chain', extra={
                     'symbol': symbol, 'expiration_date': expiration_date})
         try:
@@ -330,6 +341,7 @@ class BaseBroker(ABC):
             return None
 
     def update_trade(self, session, trade_id, order_info):
+        '''Update the trade with the order information'''
         try:
             trade = session.query(Trade).filter_by(id=trade_id).first()
             if not trade:
