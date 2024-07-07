@@ -12,7 +12,10 @@ async def sync_worker(engine, brokers):
         logger.debug(f'Getting broker instance for {broker_name}')
         return brokers[broker_name]
 
-    async def update_latest_prices(session):
+    async def update_latest_prices(session, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+        now = timestamp
         logger.info('Updating latest prices for positions')
         positions = session.query(Position).all()
         for position in positions:
@@ -22,7 +25,7 @@ async def sync_worker(engine, brokers):
                 continue
             logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
             position.latest_price = latest_price
-            position.last_updated = datetime.utcnow()
+            position.last_updated = now
         session.commit()
         logger.info('Completed updating latest prices')
 
@@ -36,8 +39,48 @@ async def sync_worker(engine, brokers):
         logger.debug(f'Latest price for {position.symbol} is {latest_price}')
         return latest_price
 
-    async def update_cash_and_position_balances(session):
-        now = datetime.utcnow()
+    async def update_uncategorized_balances(session, timestamp=None):
+        """
+        Update uncategorized balances for each strategy of each broker
+        """
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+        now = timestamp
+        logger.info('Updating uncategorized balances')
+        brokers = session.query(Balance.broker).distinct().all()
+        for broker in brokers:
+            broker_instance = get_broker_instance(broker[0])
+            account_info = broker_instance.get_account_info()
+            logger.debug(f'Processing uncategorized balances for broker {broker[0]}')
+            total_value = account_info['value']
+            uncategorized_balance = total_value
+            strategies = session.query(Balance.strategy).filter_by(broker=broker[0]).distinct().all()
+            for strategy in strategies:
+                strategy_name = strategy.strategy
+                logger.debug(f'Processing uncategorized balances for strategy {strategy_name} of broker {broker[0]}')
+                cash_balance = session.query(Balance).filter_by(
+                    broker=broker[0], strategy=strategy_name, type='cash'
+                ).order_by(Balance.timestamp.desc()).first()
+                cash_balance = cash_balance.balance if cash_balance else 0.0
+                position_balance = session.query(Balance).filter_by(
+                    broker=broker[0], strategy=strategy_name, type='positions'
+                ).order_by(Balance.timestamp.desc()).first()
+                position_balance = position_balance.balance if position_balance else 0.0
+                uncategorized_balance = uncategorized_balance - cash_balance - position_balance
+            new_uncategorized_balance = Balance(
+                broker=broker[0],
+                strategy='uncategorized',
+                type='cash',
+                balance=total_value,
+                timestamp=now
+            )
+            session.add(new_uncategorized_balance)
+            logger.debug(f'Added new uncategorized balance for broker {broker[0]}: {uncategorized_balance}')
+
+    async def update_cash_and_position_balances(session, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+        now = timestamp
         logger.info('Updating cash and position balances')
         brokers = session.query(Balance.broker).distinct().all()
         for broker in brokers:
@@ -88,8 +131,10 @@ async def sync_worker(engine, brokers):
     while True:
         try:
             logger.info('Starting sync worker iteration')
-            await update_latest_prices(session)
-            await update_cash_and_position_balances(session)
+            now = datetime.utcnow()
+            await update_cash_and_position_balances(session, now)
+            await update_uncategorized_balances(session, now)
+            await update_latest_prices(session, now)
             logger.info('Sync worker completed an iteration')
         except Exception as e:
             logger.error('Error in sync worker iteration', extra={'error': str(e)})
