@@ -68,8 +68,8 @@ class TastytradeBroker(BaseBroker):
         auth_response = response.json().get('data')
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
-        if self.session is None:
-            self.session = ProductionSession(self.username, self.password)
+        # Refresh the session
+        self.session = ProductionSession(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self, retry=True):
