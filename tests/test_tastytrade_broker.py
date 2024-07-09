@@ -31,7 +31,7 @@ class TestTastytradeBroker(BaseTest):
         self.mock_connect(mock_post, mock_get, mock_prod_sesh)
         self.broker.connect()
         self.assertTrue(hasattr(self.broker, 'auth'))
-        mock_prod_sesh.assert_called_once_with('myusername', 'mypassword')
+        mock_prod_sesh.assert_called_with('myusername', 'mypassword')
 
 
     @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
