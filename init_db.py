@@ -1,4 +1,3 @@
-# This is a script to make fake data for testing the UI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
@@ -15,7 +14,7 @@ drop_then_init_db(engine)
 
 # Define brokers and strategies
 brokers = ['Tradier', 'Tastytrade']
-strategies = ['RSI', 'Bollinger Bands', 'MACD', 'Ichimoku']
+strategies = ['RSI', 'MACD']
 
 # Generate unique hourly timestamps for the past 5 days
 start_date = datetime.utcnow() - timedelta(days=5)
@@ -58,6 +57,33 @@ print("Fake trades inserted into the database.")
 # Generate and insert fake balance data and positions
 print("Generating and inserting fake balance data and positions...")
 for broker in brokers:
+    # Generate uncategorized balances for each broker
+    initial_cash_balance_uncategorized = round(random.uniform(5000, 20000), 2)
+    initial_position_balance_uncategorized = round(random.uniform(5000, 20000), 2)
+    for timestamp in timestamps:
+        cash_balance_uncategorized = initial_cash_balance_uncategorized + round(random.uniform(-1000, 1000), 2)
+        position_balance_uncategorized = initial_position_balance_uncategorized + round(random.uniform(-1000, 1000), 2)
+        cash_balance_record_uncategorized = Balance(
+            broker=broker,
+            strategy='uncategorized',
+            type='cash',
+            balance=cash_balance_uncategorized,
+            timestamp=timestamp
+        )
+        position_balance_record_uncategorized = Balance(
+            broker=broker,
+            strategy='uncategorized',
+            type='positions',
+            balance=position_balance_uncategorized,
+            timestamp=timestamp
+        )
+        session.add(cash_balance_record_uncategorized)
+        session.add(position_balance_record_uncategorized)
+        session.commit()
+        initial_cash_balance_uncategorized = cash_balance_uncategorized
+        initial_position_balance_uncategorized = position_balance_uncategorized
+        print(f"Inserted uncategorized balance records for {broker} at {timestamp}. Cash balance: {cash_balance_uncategorized}, Position balance: {position_balance_uncategorized}")
+
     for strategy in strategies:
         initial_cash_balance = round(random.uniform(5000, 20000), 2)
         initial_position_balance = round(random.uniform(5000, 20000), 2)

@@ -13,6 +13,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler
 } from 'chart.js';
 import 'chartjs-adapter-moment';
 import moment from 'moment-timezone';
@@ -25,7 +26,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 const Dashboard = () => {
@@ -58,10 +60,11 @@ const Dashboard = () => {
       datasets.push({
         label: key,
         data: historicalData[key],
-        fill: false,
+        fill: true,
         borderColor: 'rgba(75, 192, 192, 1)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        spanGaps: true  // Connect data points even if there are gaps
+        spanGaps: true,  // Connect data points even if there are gaps
+        stack: 'stacked'
       });
     });
 
@@ -175,7 +178,11 @@ const Dashboard = () => {
                           date: {
                             zone: moment.tz.guess()  // Use local timezone
                           }
-                        }
+                        },
+                        stacked: true
+                      },
+                      y: {
+                        stacked: true
                       }
                     },
                     plugins: {

@@ -231,7 +231,7 @@ def historic_balance_per_strategy():
         if brokers:
             latest_cash_subquery = latest_cash_subquery.filter(Balance.broker.in_(brokers))
         if strategies:
-            latest_cash_subquery = latest_cash_subquery.filter(Balance.strategy.in_(strategies))
+            latest_cash_subquery = latest_cash_subquery.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
 
         latest_cash_subquery = latest_cash_subquery.subquery()
 
@@ -246,7 +246,7 @@ def historic_balance_per_strategy():
         if brokers:
             latest_positions_subquery = latest_positions_subquery.filter(Balance.broker.in_(brokers))
         if strategies:
-            latest_positions_subquery = latest_positions_subquery.filter(Balance.strategy.in_(strategies))
+            latest_positions_subquery = latest_positions_subquery.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
 
         latest_positions_subquery = latest_positions_subquery.subquery()
 
@@ -266,7 +266,7 @@ def historic_balance_per_strategy():
         if brokers:
             latest_cash_balances = latest_cash_balances.filter(Balance.broker.in_(brokers))
         if strategies:
-            latest_cash_balances = latest_cash_balances.filter(Balance.strategy.in_(strategies))
+            latest_cash_balances = latest_cash_balances.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
 
         latest_cash_balances = latest_cash_balances.subquery()
 
@@ -286,7 +286,7 @@ def historic_balance_per_strategy():
         if brokers:
             latest_positions_balances = latest_positions_balances.filter(Balance.broker.in_(brokers))
         if strategies:
-            latest_positions_balances = latest_positions_balances.filter(Balance.strategy.in_(strategies))
+            latest_positions_balances = latest_positions_balances.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
 
         latest_positions_balances = latest_positions_balances.subquery()
 
@@ -322,6 +322,7 @@ def historic_balance_per_strategy():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/trade_success_rate')
 @jwt_required()
