@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import is_option
+from utils.utils import is_option, is_market_open
 from database.models import Position, Balance
 
 OPTION_MULTIPLIER = 100
@@ -137,6 +137,10 @@ async def sync_worker(engine, brokers):
 
     while True:
         try:
+            if not is_market_open():
+                logger.info('Market is closed. Sync worker will sleep for 30 minutes')
+                await asyncio.sleep(1800)
+                continue
             logger.info('Starting sync worker iteration')
             now = datetime.utcnow()
             await update_cash_and_position_balances(session, now)
