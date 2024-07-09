@@ -2,7 +2,10 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
+from utils,utils import is_option
 from database.models import Position, Balance
+
+OPTION_MULTIPLIER = 100
 
 async def sync_worker(engine, brokers):
     Session = sessionmaker(bind=engine)
@@ -111,7 +114,10 @@ async def sync_worker(engine, brokers):
 
                 for position in positions:
                     latest_price = await get_latest_price(position)
-                    position_balance = position.quantity * latest_price
+                    multiplier = 1
+                    if is_option(position.symbol):
+                        multiplier = OPTION_MULTIPLIER
+                    position_balance = position.quantity * latest_price * multiplier
                     positions_total += position_balance
                     logger.debug(f'Updated position balance for {position.symbol}: {position_balance}')
 
@@ -122,6 +128,7 @@ async def sync_worker(engine, brokers):
                     balance=positions_total,
                     timestamp=now
                 )
+
                 session.add(new_position_balance)
                 logger.debug(f'Added new position balance for strategy {strategy_name} of broker {broker_name}: {positions_total}')
 

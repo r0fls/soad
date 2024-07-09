@@ -3,6 +3,19 @@ import re
 import pytz
 from decimal import Decimal
 
+def is_ticker(symbol):
+    '''
+    Check if the input symbol is a valid stock ticker.
+    '''
+    pattern = re.compile(r'^[A-Z]{1,5}(\.[A-Z]{1,2})?$')
+    return pattern.match(symbol)
+
+def is_option(symbol):
+    '''
+    Check if the input symbol is a valid option symbol.
+    '''
+    pattern = re.compile(r'^[A-Z]{1,5}\d{6}[CP]\d{8}$')
+    return pattern.match(symbol)
 
 def extract_option_details(option_symbol):
     # Example pattern: AAPL230721C00250000 (AAPL, 2023-07-21, Call, 250.00)
@@ -17,7 +30,6 @@ def extract_option_details(option_symbol):
         return underlying, date(2000 + year, month, day), option_type, strike_price
     else:
         return None
-
 
 def extract_underlying_symbol(option_symbol):
     # Regex pattern to match the beginning of the symbol consisting of uppercase letters
