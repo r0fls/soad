@@ -41,7 +41,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState([]);
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
-  const [endDate, setEndDate] = useState(moment().toDate());
+  // For some reason, the default value for the
+  // date picker doesn't work properly with the current date
+  const [endDate, setEndDate] = useState(moment().add(1, 'days').toDate());
 
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
