@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
-from utils,utils import is_option
+from utils.utils import is_option
 from database.models import Position, Balance
 
 OPTION_MULTIPLIER = 100
