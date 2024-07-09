@@ -71,7 +71,7 @@ async def sync_worker(engine, brokers):
                 broker=broker[0],
                 strategy='uncategorized',
                 type='cash',
-                balance=total_value,
+                balance=uncategorized_balance,
                 timestamp=now
             )
             session.add(new_uncategorized_balance)
