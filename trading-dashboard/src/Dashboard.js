@@ -17,6 +17,8 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-moment';
 import moment from 'moment-timezone';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 ChartJS.register(
   CategoryScale,
@@ -38,6 +40,8 @@ const Dashboard = () => {
   const [historicalValueData, setHistoricalValueData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState([]);
+  const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
+  const [endDate, setEndDate] = useState(moment().toDate());
 
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
@@ -76,10 +80,12 @@ const Dashboard = () => {
   const filterData = useCallback(() => {
     const filteredData = initialData.filter(item => 
       (selectedBrokers.length === 0 || selectedBrokers.includes(item.broker)) &&
-      (selectedStrategies.length === 0 || selectedStrategies.includes(item.strategy))
+      (selectedStrategies.length === 0 || selectedStrategies.includes(item.strategy)) &&
+      (!startDate || new Date(item.interval) >= startDate) &&
+      (!endDate || new Date(item.interval) <= endDate)
     );
     setHistoricalValueData(processHistoricalValues(filteredData));
-  }, [initialData, selectedBrokers, selectedStrategies, processHistoricalValues]);
+  }, [initialData, selectedBrokers, selectedStrategies, startDate, endDate, processHistoricalValues]);
 
   const fetchHistoricalValues = useCallback(async () => {
     setLoading(true);
@@ -121,12 +127,12 @@ const Dashboard = () => {
     if (initialData.length > 0) {
       filterData();
     }
-  }, [selectedStrategies, selectedBrokers, filterData]);
+  }, [selectedStrategies, selectedBrokers, startDate, endDate, filterData]);
 
   return (
     <div className="container-fluid">
       <div className="row mb-3">
-        <div className="col-md-6">
+        <div className="col-md-4">
           <Select
             isMulti
             options={strategies.map(strategy => ({ value: strategy, label: strategy }))}
@@ -136,7 +142,7 @@ const Dashboard = () => {
             classNamePrefix="select"
           />
         </div>
-        <div className="col-md-6">
+        <div className="col-md-4">
           <Select
             isMulti
             options={brokers.map(broker => ({ value: broker, label: broker }))}
@@ -144,6 +150,28 @@ const Dashboard = () => {
             placeholder="Select Brokers"
             className="basic-multi-select"
             classNamePrefix="select"
+          />
+        </div>
+        <div className="col-md-2">
+          <DatePicker
+            selected={startDate}
+            onChange={date => setStartDate(date)}
+            selectsStart
+            startDate={startDate}
+            endDate={endDate}
+            placeholderText="Start Date"
+            className="form-control"
+          />
+        </div>
+        <div className="col-md-2">
+          <DatePicker
+            selected={endDate}
+            onChange={date => setEndDate(date)}
+            selectsEnd
+            startDate={startDate}
+            endDate={endDate}
+            placeholderText="End Date"
+            className="form-control"
           />
         </div>
       </div>
