@@ -57,7 +57,8 @@ async def sync_worker(engine, brokers):
             logger.debug(f'Processing uncategorized balances for broker {broker[0]}')
             total_value = account_info['value']
             uncategorized_balance = total_value
-            strategies = session.query(Balance.strategy).filter_by(broker=broker[0]).distinct().all()
+            # Filter for all strategies of the broker except 'uncategorized'
+            strategies = session.query(Balance.strategy).filter_by(broker=broker[0]).where(Balance.strategy != 'uncategorized').distinct().all()
             for strategy in strategies:
                 strategy_name = strategy.strategy
                 logger.debug(f'Processing uncategorized balances for strategy {strategy_name} of broker {broker[0]}')
