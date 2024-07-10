@@ -12,6 +12,8 @@ from utils.logger import logger  # Import the logger
 from utils.utils import is_market_open
 from data.sync_worker import sync_worker  # Import the sync worker
 
+SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
+
 def create_database_engine(config, local_testing=False):
     if local_testing:
         return create_engine('sqlite:///trading.db')
@@ -163,7 +165,7 @@ async def start_sync_worker(config_path):
             await sync_worker(engine, brokers)
             logger.info('Sync worker started successfully')
             if is_market_open():
-                await asyncio.sleep(60)
+                await asyncio.sleep(SYNC_WORKER_INTERVAL_SECONDS)
             else:
                 logger.info('Market is closed, sleeping for 30 minutes')
                 await asyncio.sleep(60 * 30)
