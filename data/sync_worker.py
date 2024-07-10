@@ -136,19 +136,12 @@ async def sync_worker(engine, brokers):
         session.commit()
         logger.info('Completed updating cash and position balances')
 
-    while True:
-        try:
-            if not is_market_open():
-                logger.info('Market is closed. Sync worker will sleep for 30 minutes')
-                await asyncio.sleep(1800)
-                continue
-            logger.info('Starting sync worker iteration')
-            now = datetime.utcnow()
-            await update_cash_and_position_balances(session, now)
-            await update_uncategorized_balances(session, now)
-            await update_latest_prices(session, now)
-            logger.info('Sync worker completed an iteration')
-        except Exception as e:
-            logger.error('Error in sync worker iteration', extra={'error': str(e)})
-
-        await asyncio.sleep(300)
+    try:
+        logger.info('Starting sync worker iteration')
+        now = datetime.utcnow()
+        await update_cash_and_position_balances(session, now)
+        await update_uncategorized_balances(session, now)
+        await update_latest_prices(session, now)
+        logger.info('Sync worker completed an iteration')
+    except Exception as e:
+        logger.error('Error in sync worker iteration', extra={'error': str(e)})

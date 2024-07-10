@@ -9,6 +9,7 @@ from database.db_manager import DBManager
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from utils.logger import logger  # Import the logger
+from utils.utils import is_market_open
 from data.sync_worker import sync_worker  # Import the sync worker
 
 def create_database_engine(config, local_testing=False):
@@ -157,11 +158,18 @@ async def start_sync_worker(config_path):
         return
 
     # Start the sync worker
-    try:
-        await sync_worker(engine, brokers)
-        logger.info('Sync worker started successfully')
-    except Exception as e:
-        logger.error('Failed to start sync worker', extra={'error': str(e)})
+    while True:
+        try:
+            await sync_worker(engine, brokers)
+            logger.info('Sync worker started successfully')
+            if is_market_open():
+                await asyncio.sleep(60)
+            else:
+                logger.info('Market is closed, sleeping for 30 minutes')
+                await asyncio.sleep(60 * 30)
+        except Exception as e:
+            logger.error('Failed to start sync worker, trying to initialize brokers again', extra={'error': str(e)})
+            brokers = initialize_brokers(config)
 
 async def main():
     parser = argparse.ArgumentParser(description="Run trading strategies, start API server, or start sync worker based on YAML configuration.")
