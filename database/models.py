@@ -39,6 +39,8 @@ class Balance(Base):
 
     __table_args__ = (
         PrimaryKeyConstraint('id', name='balance_pk'),
+        Index('ix_broker_strategy_timestamp', 'broker', 'strategy', 'timestamp'),
+        Index('ix_type_timestamp', 'type', 'timestamp'),
     )
 
 class Position(Base):
