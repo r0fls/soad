@@ -12,3 +12,4 @@ scipy
 psycopg2
 websocket-client
 tastytrade
+webull
