@@ -208,12 +208,11 @@ def trades_per_strategy():
     finally:
         app.session.remove()
 
-@app.route('/historic_balance_per_strategy', methods=['GET'])
+@app.route('/historic_balance_per_strategy')
 @jwt_required()
-def historic_balance_per_strategy():
+def historic_balance_per_strategy(methods=['GET']):
     try:
-        brokers = request.args.getlist('brokers[]')
-        strategies = request.args.getlist('strategies[]')
+        one_week_ago = datetime.now() - timedelta(days=7)
 
         if app.session.bind.dialect.name == 'postgresql':
             interval_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24:MI').label('interval')
@@ -226,14 +225,7 @@ def historic_balance_per_strategy():
             Balance.strategy,
             interval_expr,
             func.max(Balance.timestamp).label('latest_cash_timestamp')
-        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr)
-
-        if brokers:
-            latest_cash_subquery = latest_cash_subquery.filter(Balance.broker.in_(brokers))
-        if strategies:
-            latest_cash_subquery = latest_cash_subquery.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
-
-        latest_cash_subquery = latest_cash_subquery.subquery()
+        ).filter(Balance.timestamp >= one_week_ago).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
 
         # Subquery to get the latest positions balance for each broker, strategy, and interval
         latest_positions_subquery = app.session.query(
@@ -241,14 +233,7 @@ def historic_balance_per_strategy():
             Balance.strategy,
             interval_expr,
             func.max(Balance.timestamp).label('latest_positions_timestamp')
-        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr)
-
-        if brokers:
-            latest_positions_subquery = latest_positions_subquery.filter(Balance.broker.in_(brokers))
-        if strategies:
-            latest_positions_subquery = latest_positions_subquery.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
-
-        latest_positions_subquery = latest_positions_subquery.subquery()
+        ).filter(Balance.timestamp >= one_week_ago).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
 
         # Query to get the latest cash balances
         latest_cash_balances = app.session.query(
@@ -261,14 +246,7 @@ def historic_balance_per_strategy():
             (Balance.broker == latest_cash_subquery.c.broker) &
             (Balance.strategy == latest_cash_subquery.c.strategy) &
             (Balance.timestamp == latest_cash_subquery.c.latest_cash_timestamp)
-        ).filter(Balance.type == 'cash')
-
-        if brokers:
-            latest_cash_balances = latest_cash_balances.filter(Balance.broker.in_(brokers))
-        if strategies:
-            latest_cash_balances = latest_cash_balances.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
-
-        latest_cash_balances = latest_cash_balances.subquery()
+        ).filter(Balance.type == 'cash').subquery()
 
         # Query to get the latest positions balances
         latest_positions_balances = app.session.query(
@@ -281,14 +259,7 @@ def historic_balance_per_strategy():
             (Balance.broker == latest_positions_subquery.c.broker) &
             (Balance.strategy == latest_positions_subquery.c.strategy) &
             (Balance.timestamp == latest_positions_subquery.c.latest_positions_timestamp)
-        ).filter(Balance.type == 'positions')
-
-        if brokers:
-            latest_positions_balances = latest_positions_balances.filter(Balance.broker.in_(brokers))
-        if strategies:
-            latest_positions_balances = latest_positions_balances.filter(Balance.strategy.in_(strategies) | (Balance.strategy == None))
-
-        latest_positions_balances = latest_positions_balances.subquery()
+        ).filter(Balance.type == 'positions').subquery()
 
         # Combine the cash and positions balances
         combined_balances = app.session.query(
@@ -322,7 +293,6 @@ def historic_balance_per_strategy():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
-
 
 @app.route('/trade_success_rate')
 @jwt_required()
