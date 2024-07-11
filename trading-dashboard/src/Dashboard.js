@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import { Spinner } from 'react-bootstrap';
 import Select from 'react-select';
-import { Line } from 'react-chartjs-2';
+import { Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,7 +13,8 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ArcElement,
 } from 'chart.js';
 import 'chartjs-adapter-moment';
 import moment from 'moment-timezone';
@@ -29,7 +30,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ArcElement
 );
 
 const Dashboard = () => {
@@ -41,9 +43,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState([]);
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
-  // For some reason, the default value for the
-  // date picker doesn't work properly with the current date
   const [endDate, setEndDate] = useState(moment().add(1, 'days').toDate());
+  const [breakdownData, setBreakdownData] = useState(null);
 
   const processHistoricalValues = useCallback((data) => {
     let historicalData = {};
@@ -102,6 +103,30 @@ const Dashboard = () => {
     }
   }, [processHistoricalValues]);
 
+  const fetchBreakdownData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get('/breakdown');
+      const { stocks, options, cash_balances } = response.data;
+
+      const cashValue = cash_balances.reduce((acc, balance) => acc + balance.balance, 0);
+      const stockValue = stocks.reduce((acc, stock) => acc + (stock.latest_price * stock.quantity), 0);
+      const optionValue = options.reduce((acc, option) => acc + (option.latest_price * option.quantity), 0);
+
+      setBreakdownData({
+        labels: ['Cash', 'Stocks', 'Options'],
+        datasets: [{
+          data: [cashValue, stockValue, optionValue],
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+        }]
+      });
+    } catch (error) {
+      console.error('Error fetching breakdown data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const populateFilters = useCallback(async () => {
     try {
       const response = await axiosInstance.get('/trades_per_strategy');
@@ -123,7 +148,8 @@ const Dashboard = () => {
   useEffect(() => {
     populateFilters();
     fetchHistoricalValues();
-  }, [populateFilters, fetchHistoricalValues]);
+    fetchBreakdownData();
+  }, [populateFilters, fetchHistoricalValues, fetchBreakdownData]);
 
   useEffect(() => {
     if (initialData.length > 0) {
@@ -226,6 +252,26 @@ const Dashboard = () => {
                     }
                   }}
                 />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="row mt-5">
+        <div className="col-md-12">
+          <div className="card">
+            <div className="card-header">
+              Breakdown of Values
+            </div>
+            <div className="card-body">
+              {loading ? (
+                <div className="text-center my-5">
+                  <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </Spinner>
+                </div>
+              ) : (
+                breakdownData && <Pie data={breakdownData} />
               )}
             </div>
           </div>

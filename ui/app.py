@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import norm
 import os
 from datetime import timedelta, datetime
+from utils.utils import is_option, is_ticker
 
 
 app = Flask("TradingAPI")
@@ -39,6 +40,38 @@ def login():
 
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
+
+@app.route('/breakdown', methods=['GET'])
+@jwt_required()
+def breakdown():
+    try:
+        positions = app.session.query(Position).all()
+        stocks = []
+        options = []
+        for position in positions:
+            if is_ticker(position.symbol):
+                stocks.append({
+                    'broker': position.broker,
+                    'strategy': position.strategy,
+                    'symbol': position.symbol,
+                    'quantity': position.quantity,
+                    'cost_basis': position.cost_basis,
+                    'latest_price': position.latest_price,
+                    'timestamp': position.last_updated,
+                })
+            elif is_option(position.symbol):
+                options.append({
+                    'broker': position.broker,
+                    'strategy': position.strategy,
+                    'symbol': position.symbol,
+                    'quantity': position.quantity,
+                    'cost_basis': position.cost_basis,
+                    'latest_price': position.latest_price,
+                    'timestamp': position.last_updated,
+                })
+        return jsonify({'stocks': stocks, 'options': options}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/account_values')
 @jwt_required()
