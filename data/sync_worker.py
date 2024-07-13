@@ -2,10 +2,9 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import is_option, is_market_open
+from utils.utils import is_option, is_market_open, OPTION_MULTIPLIER
 from database.models import Position, Balance
 
-OPTION_MULTIPLIER = 100
 
 async def sync_worker(engine, brokers):
     Session = sessionmaker(bind=engine)
