@@ -32,8 +32,9 @@ const Trades = () => {
 
   const calculateStats = useCallback((filteredTrades) => {
     if (filteredTrades.length === 0) return null;
-    const average_profit_loss = filteredTrades.reduce((acc, trade) => acc + trade.profit_loss, 0) / filteredTrades.length;
-    const win_loss_rate = filteredTrades.filter(trade => trade.profit_loss > 0).length / filteredTrades.length;
+	const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
+    const average_profit_loss = filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0) / filteredSellTrades.length;
+    const win_loss_rate = filteredSellTrades.filter(trade => trade.profit_loss > 0).length / filteredSellTrades.length;
     const number_of_trades = filteredTrades.length;
     const trades_per_day = filteredTrades.reduce((acc, trade) => {
       const day = new Date(trade.timestamp).toLocaleDateString();
