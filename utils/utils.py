@@ -3,6 +3,8 @@ import re
 import pytz
 from decimal import Decimal
 
+OPTION_MULTIPLIER = 100
+
 def is_ticker(symbol):
     '''
     Check if the input symbol is a valid stock ticker.

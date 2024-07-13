@@ -1,6 +1,7 @@
 import json
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Trade, AccountInfo, Position, Balance
+from utils.utils import is_option, OPTION_MULTIPLIER
 from utils.logger import logger
 
 class DBManager:
@@ -88,6 +89,8 @@ class DBManager:
                     profit_loss = trade.executed_price - position.cost_basis
                 else:
                     profit_loss = self.calculate_partial_profit_loss(trade, position)
+                if is_option(trade.symbol):
+                    profit_loss *= OPTION_MULTIPLIER
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:
