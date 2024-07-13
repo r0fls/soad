@@ -35,13 +35,14 @@ const Trades = () => {
 	const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
     const average_profit_loss = filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0) / filteredSellTrades.length;
     const win_loss_rate = filteredSellTrades.filter(trade => trade.profit_loss > 0).length / filteredSellTrades.length;
+    const total_profit_loss = filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0);
     const number_of_trades = filteredTrades.length;
     const trades_per_day = filteredTrades.reduce((acc, trade) => {
       const day = new Date(trade.timestamp).toLocaleDateString();
       acc[day] = (acc[day] || 0) + 1;
       return acc;
     }, {});
-    return { average_profit_loss, win_loss_rate, number_of_trades, trades_per_day };
+    return { average_profit_loss, win_loss_rate, total_profit_loss, number_of_trades, trades_per_day };
   }, []);
 
   const fetchTrades = useCallback(async () => {
@@ -157,7 +158,9 @@ const Trades = () => {
                 <Card>
                   <Card.Body>
                     <Card.Title>Average P/L</Card.Title>
-                    <Card.Text>{stats.average_profit_loss.toFixed(2)}</Card.Text>
+                    <Card.Text>
+						{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.average_profit_loss)}
+                    </Card.Text>
                   </Card.Body>
                 </Card>
               </Col>
@@ -166,6 +169,16 @@ const Trades = () => {
                   <Card.Body>
                     <Card.Title>Win/Loss Rate</Card.Title>
                     <Card.Text>{(stats.win_loss_rate * 100).toFixed(2)}%</Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={3}>
+                <Card>
+                  <Card.Body>
+                    <Card.Title>Total Profit/Loss</Card.Title>
+                    <Card.Text>
+						{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.total_profit_loss)}
+                    </Card.Text>
                   </Card.Body>
                 </Card>
               </Col>
@@ -214,9 +227,13 @@ const Trades = () => {
                     <td data-label="Strategy">{trade.strategy}</td>
                     <td data-label="Symbol">{trade.symbol}</td>
                     <td data-label="Quantity">{trade.quantity}</td>
-                    <td data-label="Price">{trade.price}</td>
+                    <td data-label="Price">
+					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.price)}
+					</td>
                     <td data-label="Type">{trade.order_type}</td>
-                    <td data-label="Profit/Loss">{trade.profit_loss}</td>
+                    <td data-label="Profit/Loss">
+					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.total_profit_loss)}
+					</td>
                     <td data-label="Timestamp">{new Date(trade.timestamp).toLocaleString()}</td>
                   </tr>
                 ))}

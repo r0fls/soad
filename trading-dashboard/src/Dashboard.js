@@ -129,7 +129,7 @@ const Dashboard = () => {
     if (initialData.length > 0) {
       filterData();
     }
-  }, [selectedStrategies, selectedBrokers, startDate, endDate, filterData]);
+  }, [initialData, selectedStrategies, selectedBrokers, startDate, endDate, filterData]);
 
   return (
     <div className="container-fluid">
