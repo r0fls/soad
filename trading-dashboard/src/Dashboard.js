@@ -19,6 +19,7 @@ import 'chartjs-adapter-moment';
 import moment from 'moment-timezone';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import './Dashboard.css';
 
 ChartJS.register(
   CategoryScale,
@@ -38,26 +39,64 @@ const Dashboard = () => {
   const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [selectedBrokers, setSelectedBrokers] = useState([]);
   const [historicalValueData, setHistoricalValueData] = useState(null);
+  const [totalFilteredValue, setTotalFilteredValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState([]);
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
-  // For some reason, the default value for the
-  // date picker doesn't work properly with the current date
   const [endDate, setEndDate] = useState(moment().add(1, 'days').toDate());
 
+  const getRandomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  };
+
+  const getColorsFromStorage = (key) => {
+    try {
+      const storedColors = localStorage.getItem(key);
+      return storedColors ? JSON.parse(storedColors) : {};
+    } catch (error) {
+      console.error('Error retrieving colors from local storage:', error);
+      return {};
+    }
+  };
+
+  const saveColorsToStorage = (key, colors) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(colors));
+    } catch (error) {
+      console.error('Error saving colors to local storage:', error);
+    }
+  };
+
   const processHistoricalValues = useCallback((data) => {
+    const colorKey = 'strategyColors';
+    let colors = getColorsFromStorage(colorKey);
     let historicalData = {};
+    let totalValue = 0;
 
     data.forEach(item => {
       let key = `${item.strategy} (${item.broker})`;
       if (!historicalData[key]) {
         historicalData[key] = [];
       }
+      if (!colors[key]) {
+        colors[key] = { borderColor: getRandomColor(), backgroundColor: getRandomColor() };
+      }
       historicalData[key].push({
         x: moment.utc(item.interval).tz(moment.tz.guess()).format(), // Convert UTC to local timezone
-        y: item.total_balance
+        y: item.total_balance,
+        strategy: item.strategy,
+        interval: item.interval
       });
+      totalValue += item.total_balance;
     });
+
+    saveColorsToStorage(colorKey, colors);
+    setTotalFilteredValue(totalValue);
 
     let datasets = [];
     Object.keys(historicalData).forEach(key => {
@@ -67,10 +106,11 @@ const Dashboard = () => {
         label: key,
         data: historicalData[key],
         fill: true,
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: colors[key].borderColor,
+        backgroundColor: colors[key].backgroundColor,
         spanGaps: true,  // Connect data points even if there are gaps
-        stack: 'stacked'
+        stack: 'stacked',
+        pointRadius: 0  // Remove dots from lines
       });
     });
 
@@ -133,6 +173,13 @@ const Dashboard = () => {
 
   return (
     <div className="container-fluid">
+      <div className="row mb-3">
+        <div className="col-md-12 text-center">
+          <div className="filtered-value-box">
+            ${totalFilteredValue.toLocaleString()}
+          </div>
+        </div>
+      </div>
       <div className="row mb-3">
         <div className="col-md-4">
           <Select
@@ -219,7 +266,8 @@ const Dashboard = () => {
                       tooltip: {
                         callbacks: {
                           label: function(context) {
-                            return context.parsed.y !== null ? context.parsed.y.toLocaleString() : '';
+                            const { strategy, interval } = context.raw;
+                            return `Strategy: ${strategy}, Time: ${moment(interval).format('MMM D, YYYY HH:mm')}, Balance: ${context.parsed.y.toLocaleString()}`;
                           }
                         }
                       }

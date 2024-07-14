@@ -1,0 +1,10 @@
+.filtered-value-box {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  font-size: 2em;
+  font-weight: 500;
+  margin-bottom: 15px;
+}
