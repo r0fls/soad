@@ -76,7 +76,7 @@ const Dashboard = () => {
     const colorKey = 'strategyColors';
     let colors = getColorsFromStorage(colorKey);
     let historicalData = {};
-    let totalValue = 0;
+    let latestBalances = {};
 
     data.forEach(item => {
       let key = `${item.strategy} (${item.broker})`;
@@ -92,10 +92,20 @@ const Dashboard = () => {
         strategy: item.strategy,
         interval: item.interval
       });
-      totalValue += item.total_balance;
+
+      // Update latest balance for each strategy and broker
+      if (!latestBalances[key] || moment(item.interval).isAfter(moment(latestBalances[key].interval))) {
+        latestBalances[key] = {
+          total_balance: item.total_balance,
+          interval: item.interval
+        };
+      }
     });
 
     saveColorsToStorage(colorKey, colors);
+
+    // Calculate total of latest balances
+    const totalValue = Object.values(latestBalances).reduce((sum, item) => sum + item.total_balance, 0);
     setTotalFilteredValue(totalValue);
 
     let datasets = [];
@@ -172,7 +182,7 @@ const Dashboard = () => {
   }, [initialData, selectedStrategies, selectedBrokers, startDate, endDate, filterData]);
 
   return (
-    <div className="container-fluid">
+    <div className="container-fluid dashboard">
       <div className="row mb-3">
         <div className="col-md-12 text-center">
           <div className="filtered-value-box">
@@ -226,9 +236,9 @@ const Dashboard = () => {
       </div>
       <div className="row">
         <div className="col-md-12">
-          <div className="card">
-            <div className="card-header">
-              Historical Value per Strategy
+          <div className="card shadow-sm">
+            <div className="card-header bg-transparent border-0">
+              <h5 className="mb-0">Historical Value per Strategy</h5>
             </div>
             <div className="card-body">
               {loading ? (
