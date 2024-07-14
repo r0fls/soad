@@ -89,7 +89,8 @@ async def sync_worker(engine, brokers):
         for broker in brokers:
             broker_name = broker[0]
             logger.debug(f'Processing balances for broker {broker_name}')
-            strategies = session.query(Position.strategy).filter_by(broker=broker_name).distinct().all()
+            # Look in balances for strategies for now since we don't have a strategy table
+            strategies = session.query(Balance.strategy).filter_by(broker=broker_name).distinct().all()
             for strategy in strategies:
                 strategy_name = strategy[0]
                 logger.debug(f'Processing balances for strategy {strategy_name} of broker {broker_name}')
