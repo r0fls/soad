@@ -190,115 +190,133 @@ const Dashboard = () => {
 
   return (
     <div className="container-fluid dashboard">
-      <div className="row mb-3">
-        <div className="col-md-12 text-center">
-          <div className="filtered-value-box">
-            ${totalFilteredValue.toLocaleString()}
+      <div className="content-box">
+        <div className="row mb-3">
+          <div className="col-md-12 text-center">
+            <div className="filtered-value-box">
+              ${totalFilteredValue.toLocaleString()}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="row mb-3">
-        <div className="col-md-4">
-          <Select
-            isMulti
-            options={strategies.map(strategy => ({ value: strategy, label: strategy }))}
-            onChange={selectedOptions => setSelectedStrategies(selectedOptions.map(option => option.value))}
-            placeholder="Select Strategies"
-            className="basic-multi-select"
-            classNamePrefix="select"
-          />
+        <div className="row mb-3">
+          <div className="col-md-4">
+            <Select
+              isMulti
+              options={strategies.map(strategy => ({ value: strategy, label: strategy }))}
+              onChange={selectedOptions => setSelectedStrategies(selectedOptions.map(option => option.value))}
+              placeholder="Select Strategies"
+              className="basic-multi-select"
+              classNamePrefix="select"
+            />
+          </div>
+          <div className="col-md-4">
+            <Select
+              isMulti
+              options={brokers.map(broker => ({ value: broker, label: broker }))}
+              onChange={selectedOptions => setSelectedBrokers(selectedOptions.map(option => option.value))}
+              placeholder="Select Brokers"
+              className="basic-multi-select"
+              classNamePrefix="select"
+            />
+          </div>
+          <div className="col-md-2 date-picker-container">
+            <DatePicker
+              selected={startDate}
+              onChange={date => setStartDate(date)}
+              selectsStart
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="Start Date"
+              className="form-control"
+            />
+          </div>
+          <div className="col-md-2 date-picker-container">
+            <DatePicker
+              selected={endDate}
+              onChange={date => setEndDate(date)}
+              selectsEnd
+              startDate={startDate}
+              endDate={endDate}
+              placeholderText="End Date"
+              className="form-control"
+            />
+          </div>
         </div>
-        <div className="col-md-4">
-          <Select
-            isMulti
-            options={brokers.map(broker => ({ value: broker, label: broker }))}
-            onChange={selectedOptions => setSelectedBrokers(selectedOptions.map(option => option.value))}
-            placeholder="Select Brokers"
-            className="basic-multi-select"
-            classNamePrefix="select"
-          />
-        </div>
-        <div className="col-md-2">
-          <DatePicker
-            selected={startDate}
-            onChange={date => setStartDate(date)}
-            selectsStart
-            startDate={startDate}
-            endDate={endDate}
-            placeholderText="Start Date"
-            className="form-control"
-          />
-        </div>
-        <div className="col-md-2">
-          <DatePicker
-            selected={endDate}
-            onChange={date => setEndDate(date)}
-            selectsEnd
-            startDate={startDate}
-            endDate={endDate}
-            placeholderText="End Date"
-            className="form-control"
-          />
-        </div>
-      </div>
-      <div className="row">
-        <div className="col-md-12">
-          <div className="card shadow-sm">
-            <div className="card-header bg-transparent border-0">
-              <h5 className="mb-0">Historical Value per Strategy</h5>
-            </div>
-            <div className="card-body">
-              {loading ? (
-                <div className="text-center my-5">
-                  <Spinner animation="border" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </Spinner>
-                </div>
-              ) : (
-                historicalValueData && <Line
-                  data={historicalValueData}
-                  options={{
-                    scales: {
-                      x: {
-                        type: 'time',
-                        time: {
-                          unit: 'day', // Display unit by day
-                          tooltipFormat: 'll', // Format for tooltip
-                          displayFormats: {
-                            day: 'MMM D, YYYY' // Format for display
-                          }
-                        },
-                        adapters: {
-                          date: {
-                            zone: moment.tz.guess()  // Use local timezone
-                          }
-                        },
-                        stacked: true
-                      },
-                      y: {
-                        beginAtZero: true,  // Ensure y-axis starts at 0
-                        stacked: true
-                      }
-                    },
-                    plugins: {
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            const { strategy, interval } = context.raw;
-                            return `Strategy: ${strategy}<br>Time: ${moment(interval).format('MMM D, YYYY HH:mm')}<br>Balance: ${context.parsed.y.toLocaleString()}`;
+        <div className="row">
+          <div className="col-md-12">
+            <div className="card shadow-sm">
+              <div className="card-header bg-transparent border-0">
+                <h5 className="mb-0">Historical Value per Strategy</h5>
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <div className="text-center my-5">
+                    <Spinner animation="border" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                  </div>
+                ) : (
+                  historicalValueData && <Line
+                    data={historicalValueData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        x: {
+                          type: 'time',
+                          time: {
+                            unit: 'day', // Display unit by day
+                            tooltipFormat: 'll', // Format for tooltip
+                            displayFormats: {
+                              day: 'MMM D, YYYY' // Format for display
+                            }
                           },
-                          labelTextColor: function() {
-                            return '#4A90E2';  // Custom color for label text
+                          adapters: {
+                            date: {
+                              zone: moment.tz.guess()  // Use local timezone
+                            }
+                          },
+                          stacked: true,
+                          ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: 6
                           }
                         },
-                        itemSort: function(a, b) {
-                          return b.parsed.y - a.parsed.y;
+                        y: {
+                          beginAtZero: true,  // Ensure y-axis starts at 0
+                          stacked: true,
+                          ticks: {
+                            maxTicksLimit: 6,
+                            callback: function(value) {
+                              return value.toLocaleString();
+                            }
+                          },
+                          grid: {
+                            display: false
+                          }
+                        }
+                      },
+                      plugins: {
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const { strategy, interval } = context.raw;
+                              return `Strategy: ${strategy}<br>Time: ${moment(interval).format('MMM D, YYYY HH:mm')}<br>Balance: ${context.parsed.y.toLocaleString()}`;
+                            },
+                            labelTextColor: function() {
+                              return '#4A90E2';  // Custom color for label text
+                            }
+                          },
+                          itemSort: function(a, b) {
+                            return b.parsed.y - a.parsed.y;
+                          }
                         }
                       }
-                    }
-                  }}
-                />
-              )}
+                    }}
+                    height={400}  // Adjust the height of the graph
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
