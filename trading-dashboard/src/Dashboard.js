@@ -245,9 +245,6 @@ const Dashboard = () => {
         <div className="row">
           <div className="col-md-12">
             <div className="card shadow-sm">
-              <div className="card-header bg-transparent border-0">
-                <h5 className="mb-0">Historical Value per Strategy</h5>
-              </div>
               <div className="card-body">
                 {loading ? (
                   <div className="text-center my-5">
@@ -297,6 +294,10 @@ const Dashboard = () => {
                         }
                       },
                       plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom'
+                        },
                         tooltip: {
                           callbacks: {
                             label: function(context) {
