@@ -232,7 +232,7 @@ const Trades = () => {
 					</td>
                     <td data-label="Type">{trade.order_type}</td>
                     <td data-label="Profit/Loss">
-					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.total_profit_loss)}
+					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.profit_loss)}
 					</td>
                     <td data-label="Timestamp">{new Date(trade.timestamp).toLocaleString()}</td>
                   </tr>
