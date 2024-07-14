@@ -33,6 +33,15 @@ ChartJS.register(
   Filler
 );
 
+const darkerPastelColors = [
+  '#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7',
+  '#C7CEEA', '#D3B8E6', '#B8D9E6', '#E6B8D2', '#B8E6C1',
+  '#FFCCF9', '#CCCCFF', '#FFB3BA', '#FFDFBA', '#FFFFBA',
+  '#BAFFC9', '#BAE1FF', '#FFD1DC', '#FFDAC1', '#FFF1BA',
+  '#B6FFCE', '#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB',
+  '#FFBF86', '#FFC3A0', '#FFCCBB', '#D1C4E9', '#E0BBE4'
+];
+
 const Dashboard = () => {
   const [strategies, setStrategies] = useState([]);
   const [brokers, setBrokers] = useState([]);
@@ -45,13 +54,12 @@ const Dashboard = () => {
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
   const [endDate, setEndDate] = useState(moment().add(1, 'days').toDate());
 
-  const getRandomColor = () => {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
+  const getColorForKey = (key, colors) => {
+    if (!colors[key]) {
+      const color = darkerPastelColors[Object.keys(colors).length % darkerPastelColors.length];
+      colors[key] = { borderColor: color, backgroundColor: color };
     }
-    return color;
+    return colors[key];
   };
 
   const getColorsFromStorage = (key) => {
@@ -83,9 +91,7 @@ const Dashboard = () => {
       if (!historicalData[key]) {
         historicalData[key] = [];
       }
-      if (!colors[key]) {
-        colors[key] = { borderColor: getRandomColor(), backgroundColor: getRandomColor() };
-      }
+      const { borderColor, backgroundColor } = getColorForKey(key, colors);
       historicalData[key].push({
         x: moment.utc(item.interval).tz(moment.tz.guess()).format(), // Convert UTC to local timezone
         y: item.total_balance,
@@ -112,12 +118,13 @@ const Dashboard = () => {
     Object.keys(historicalData).forEach(key => {
       // Sort the data points by timestamp
       historicalData[key].sort((a, b) => new Date(a.x) - new Date(b.x));
+      const { borderColor, backgroundColor } = colors[key];
       datasets.push({
         label: key,
         data: historicalData[key],
         fill: true,
-        borderColor: colors[key].borderColor,
-        backgroundColor: colors[key].backgroundColor,
+        borderColor: borderColor,
+        backgroundColor: backgroundColor,
         spanGaps: true,  // Connect data points even if there are gaps
         stack: 'stacked',
         pointRadius: 0  // Remove dots from lines
@@ -269,6 +276,7 @@ const Dashboard = () => {
                         stacked: true
                       },
                       y: {
+                        beginAtZero: true,  // Ensure y-axis starts at 0
                         stacked: true
                       }
                     },
@@ -277,8 +285,14 @@ const Dashboard = () => {
                         callbacks: {
                           label: function(context) {
                             const { strategy, interval } = context.raw;
-                            return `Strategy: ${strategy}, Time: ${moment(interval).format('MMM D, YYYY HH:mm')}, Balance: ${context.parsed.y.toLocaleString()}`;
+                            return `Strategy: ${strategy}<br>Time: ${moment(interval).format('MMM D, YYYY HH:mm')}<br>Balance: ${context.parsed.y.toLocaleString()}`;
+                          },
+                          labelTextColor: function() {
+                            return '#4A90E2';  // Custom color for label text
                           }
+                        },
+                        itemSort: function(a, b) {
+                          return b.parsed.y - a.parsed.y;
                         }
                       }
                     }

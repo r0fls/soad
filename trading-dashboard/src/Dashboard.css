@@ -48,3 +48,8 @@
   border-radius: 8px;
   border: 1px solid #dee2e6;
 }
+
+.chartjs-tooltip {
+  color: #4A90E2;
+  font-weight: bold;
+}
