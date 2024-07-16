@@ -65,6 +65,7 @@ async def initialize_brokers_and_strategies(config):
         return
     return brokers, strategies
 
+# TODO: fix the need to restart to refresh the tastytrade token
 async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
 
@@ -91,7 +92,12 @@ async def start_trading_system(config_path):
     last_rebalances = {s: datetime.min for s in strategies}
     logger.info('Entering the strategies execution loop')
 
-    while True:
+    # TODO: fix the need to restart to refresh the tastytrade token
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=24)
+
+    # TODO: fix the need to restart to refresh the tastytrade token
+    while datetime.now() < end_time:
         now = datetime.now()
         for strategy_name, strategy in strategies.items():
             if now - last_rebalances[strategy_name] >= rebalance_intervals[strategy_name]:
@@ -104,6 +110,7 @@ async def start_trading_system(config_path):
                     logger.error(f'Error during rebalancing strategy {strategy_name}', extra={'error': str(e)})
                     brokers, strategies = await initialize_brokers_and_strategies(config)
         await asyncio.sleep(60)  # Check every minute
+    logger.info('Trading system finished 24 hours of trading')
 
 def start_api_server(config_path=None, local_testing=False):
     logger.info('Starting API server', extra={'config_path': config_path, 'local_testing': local_testing})
@@ -183,7 +190,13 @@ async def main():
     if args.mode == 'trade':
         if not args.config:
             parser.error('--config is required when mode is "trade"')
-        await start_trading_system(args.config)
+        while True:
+            try:
+                await start_trading_system(args.config)
+            except Exception as e:
+                logger.error('Error in trading system', extra={'error': str(e)})
+                logger.info('Restarting the trading system')
+                continue
     elif args.mode == 'api':
         start_api_server(config_path=args.config, local_testing=args.local_testing)
     elif args.mode == 'sync':
