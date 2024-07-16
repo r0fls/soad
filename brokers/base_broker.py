@@ -55,6 +55,10 @@ class BaseBroker(ABC):
     def get_current_price(self, symbol):
         pass
 
+    @abstractmethod
+    def get_positions(self):
+        pass
+
     def get_account_info(self):
         '''Get the account information'''
         logger.info('Getting account information')
@@ -325,6 +329,11 @@ class BaseBroker(ABC):
         except Exception as e:
             logger.error('Failed to cancel order', extra={'error': str(e)})
             return None
+
+    def position_exists(self, symbol):
+        '''Check if a position exists for a symbol in the brokerage account'''
+        positions = self.get_positions()
+        return symbol in positions
 
     def get_options_chain(self, symbol, expiration_date):
         '''Get the options chain for a symbol'''
