@@ -85,6 +85,39 @@ async def sync_worker(engine, brokers):
             session.add(new_uncategorized_balance)
             logger.debug(f'Added new uncategorized balance for broker {broker[0]}: {uncategorized_balance}')
 
+    async def add_uncategorized_positions(session, timestamp=None):
+        """
+        Add uncategorized positions to the database
+        """
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+        now = timestamp
+        logger.info('Adding uncategorized positions')
+        brokers = session.query(Balance.broker).distinct().all()
+        for broker in brokers:
+            broker_instance = get_broker_instance(broker[0])
+            account_info = broker_instance.get_account_info()
+            logger.debug(f'Processing uncategorized positions for broker {broker[0]}')
+            positions = broker_instance.get_positions()
+            for position in positions:
+                # Get the current total quantity we have of this position in the database across all strategies
+                total_quantity = session.query(Position).filter_by(broker=broker[0], symbol=position['symbol']).all()
+                total_quantity = sum([p.quantity for p in total_quantity])
+                if total_quantity > 0:
+                    uncategorized_quantity = position['quantity'] - total_quantity
+                if uncategorized_quantity <= 0:
+                    continue
+                new_position = Position(
+                    broker=broker[0],
+                    symbol=position['symbol'],
+                    quantity=uncategorized_quantity,
+                    latest_price=position['latest_price'],
+                    cost_basis=position['cost_basis'],
+                    last_updated=now
+                )
+                session.add(new_position)
+                logger.debug(f'Added new uncategorized position {position["symbol"]}')
+
     async def update_cash_and_position_balances(session, timestamp=None):
         if timestamp is None:
             timestamp = datetime.utcnow()
@@ -151,6 +184,7 @@ async def sync_worker(engine, brokers):
         await update_cash_and_position_balances(session, now)
         await update_uncategorized_balances(session, now)
         await update_latest_prices(session, now)
+        await add_uncategorized_positions(session, now)
         logger.info('Sync worker completed an iteration')
     except Exception as e:
         logger.error('Error in sync worker iteration', extra={'error': str(e)})

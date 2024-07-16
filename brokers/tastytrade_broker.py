@@ -119,8 +119,8 @@ class TastytradeBroker(BaseBroker):
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             positions_data = response.json()['data']['items']
-
-            positions = {p['symbol']: p for p in positions_data}
+            # Tastytrade API returns positions with spaces in the symbol
+            positions = {p['symbol'].replace(' ', ''): p for p in positions_data}
             logger.info('Positions retrieved', extra={'positions': positions})
             return positions
         except requests.RequestException as e:
