@@ -6,6 +6,11 @@ from utils.utils import is_option, is_market_open, OPTION_MULTIPLIER
 from database.models import Position, Balance
 
 
+# Hack for unit testing
+def position_exists(broker, symbol):
+    return broker.position_exists(symbol)
+
+
 async def sync_worker(engine, brokers):
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -115,7 +120,7 @@ async def sync_worker(engine, brokers):
 
                 for position in positions:
                     # check if we still have the position in the broker account
-                    if not broker.position_exists(position.symbol):
+                    if not position_exists(broker, position.symbol):
                         logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, deleting from database')
                         session.delete(position)
                         continue
