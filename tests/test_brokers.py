@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 from database.models import Trade, Balance, Position, Base
 from database.db_manager import DBManager
@@ -8,6 +9,9 @@ from brokers.base_broker import BaseBroker
 
 class MockBroker(BaseBroker):
     def connect(self):
+        pass
+
+    def get_positions(self):
         pass
 
     def _get_account_info(self):
@@ -219,6 +223,22 @@ class TestTrading(unittest.TestCase):
 
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         self.assertIsNone(profit_loss, "Profit/Loss calculation should return None when no position exists")
+
+class TestBaseBroker(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Create an in-memory SQLite database
+        cls.engine = create_engine('sqlite:///:memory:')
+        cls.Session = sessionmaker(bind=cls.engine)
+        cls.db_manager = DBManager(cls.engine)
+
+    def setUp(self):
+        self.broker = MockBroker(api_key="dummy_api_key", secret_key="dummy_secret_key", broker_name="dummy_broker", engine=self.engine, prevent_day_trading=True)
+        self.broker.get_positions = MagicMock(return_value=['AAPL', 'GOOGL'])
+
+    def test_position_exists(self):
+        self.assertTrue(self.broker.position_exists('AAPL'))
+        self.assertFalse(self.broker.position_exists('TSLA'))
 
 if __name__ == '__main__':
     unittest.main()
