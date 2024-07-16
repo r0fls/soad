@@ -15,6 +15,7 @@ class TradierBroker(BaseBroker):
         self.order_timeout = 1
         self.auto_cancel_orders = True
         logger.info('Initialized TradierBroker', extra={'base_url': self.base_url})
+        self._get_account_info()
 
     def connect(self):
         logger.info('Connecting to Tradier API')
