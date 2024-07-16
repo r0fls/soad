@@ -26,6 +26,7 @@ class TastytradeBroker(BaseBroker):
         logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
         self.session = None
         self.connect()
+        self._get_account_info()
 
     @staticmethod
     def format_option_symbol(option_symbol):
