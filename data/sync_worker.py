@@ -75,6 +75,12 @@ async def sync_worker(engine, brokers):
                 ).order_by(Balance.timestamp.desc()).first()
                 position_balance = position_balance.balance if position_balance else 0.0
                 uncategorized_balance = uncategorized_balance - cash_balance - position_balance
+            # Subtract any uncategorized position balances
+            uncategorized_position_balance = session.query(Balance).filter_by(
+                broker=broker[0], strategy='uncategorized', type='positions'
+            ).order_by(Balance.timestamp.desc()).first()
+            uncategorized_position_balance = uncategorized_position_balance.balance if uncategorized_position_balance else 0.0
+            uncategorized_balance -= uncategorized_position_balance
             new_uncategorized_balance = Balance(
                 broker=broker[0],
                 strategy='uncategorized',
