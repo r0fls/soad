@@ -101,18 +101,19 @@ async def sync_worker(engine, brokers):
             positions = broker_instance.get_positions()
             for position in positions:
                 # Get the current total quantity we have of this position in the database across all strategies
-                total_quantity = session.query(Position).filter_by(broker=broker[0], symbol=position['symbol']).all()
+                total_quantity = session.query(Position).filter_by(broker=broker[0], symbol=position).all()
                 total_quantity = sum([p.quantity for p in total_quantity])
                 if total_quantity > 0:
-                    uncategorized_quantity = position['quantity'] - total_quantity
+                    uncategorized_quantity = positions[position]['quantity'] - total_quantity
                 if uncategorized_quantity <= 0:
                     continue
                 new_position = Position(
                     broker=broker[0],
-                    symbol=position['symbol'],
+                    symbol=position,
+                    strategy='uncategorized',
                     quantity=uncategorized_quantity,
-                    latest_price=position['latest_price'],
-                    cost_basis=position['cost_basis'],
+                    latest_price=positions[position].get('latest_price', 0),
+                    cost_basis=positions[position].get('cost_basis', 0),
                     last_updated=now
                 )
                 session.add(new_position)
