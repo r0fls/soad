@@ -166,7 +166,8 @@ async def sync_worker(engine, brokers):
                 for position in positions:
                     # check if we still have the position in the broker account
                     if not position_exists(get_broker_instance(position.broker), position.symbol):
-                        logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, should be deleted from database')
+                        logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, will be deleted from database')
+                        session.delete(position)
                         continue
                     latest_price = await get_latest_price(position)
                     multiplier = 1
