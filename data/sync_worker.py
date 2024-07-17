@@ -100,11 +100,12 @@ async def sync_worker(engine, brokers):
             logger.debug(f'Processing uncategorized positions for broker {broker[0]}')
             positions = broker_instance.get_positions()
             for position in positions:
+                uncategorized_quantity = positions[position]['quantity']
                 # Get the current total quantity we have of this position in the database across all strategies
                 total_quantity = session.query(Position).filter_by(broker=broker[0], symbol=position).all()
-                total_quantity = sum([p.quantity for p in total_quantity])
+                total_quantity = sum([p.quantity for p in total_quantity if p.quantity > 0])
                 if total_quantity > 0:
-                    uncategorized_quantity = positions[position]['quantity'] - total_quantity
+                    uncategorized_quantity = uncategorized_quantity - total_quantity
                 if uncategorized_quantity <= 0:
                     continue
                 new_position = Position(
