@@ -84,6 +84,8 @@ async def sync_worker(engine, brokers):
             )
             session.add(new_uncategorized_balance)
             logger.debug(f'Added new uncategorized balance for broker {broker[0]}: {uncategorized_balance}')
+        session.commit()
+        logger.info('Completed updating uncategorized balances')
 
     async def add_uncategorized_positions(session, timestamp=None):
         """
@@ -118,7 +120,9 @@ async def sync_worker(engine, brokers):
                     last_updated=now
                 )
                 session.add(new_position)
-                logger.debug(f'Added new uncategorized position {position["symbol"]}')
+                logger.debug(f'Added new uncategorized position {position}')
+        session.commit()
+        logger.info('Completed adding uncategorized positions')
 
     async def update_cash_and_position_balances(session, timestamp=None):
         if timestamp is None:
