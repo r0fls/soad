@@ -198,7 +198,7 @@ def adjust_balance():
 
 @app.route('/trades_per_strategy')
 @jwt_required()
-def trades_per_strategy():
+def trades_per_strategy(methods=['GET']):
     try:
         trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
         trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
