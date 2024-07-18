@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import norm
 import os
 from datetime import timedelta, datetime
+from utils.utils import is_option, OPTION_MULTIPLIER
 
 
 app = Flask("TradingAPI")
@@ -151,17 +152,23 @@ def adjust_balance():
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400
 
     try:
-        # Fetch the positions balance for the strategy
+        # Fetch the latest positions balance for the strategy
         positions_balance_record = app.session.query(Balance).filter_by(
             strategy=strategy_name, broker=broker, type='positions'
-        ).first()
+        ).order_by(Balance.timestamp.desc()).first()
 
         if not positions_balance_record:
+            positions_balance = 0
             # Calculate positions balance if not found
             positions = app.session.query(Position).filter_by(
                 strategy=strategy_name, broker=broker
             ).all()
-            positions_balance = sum(p.quantity * p.latest_price for p in positions)
+            for position in positions:
+                if is_option(position.symbol):
+                    balance_contribution = position.quantity * position.latest_price * OPTION_MULTIPLIER
+                else:
+                    balance_contribution = position.quantity * position.latest_price
+                positions_balance += balance_contribution
         else:
             positions_balance = positions_balance_record.balance
 
