@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, text
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
 import numpy as np
@@ -212,73 +212,157 @@ def trades_per_strategy():
 @jwt_required()
 def historic_balance_per_strategy(methods=['GET']):
     try:
-        one_week_ago = datetime.now() - timedelta(days=7)
-
         if app.session.bind.dialect.name == 'postgresql':
-            interval_expr = func.to_char(Balance.timestamp, 'YYYY-MM-DD HH24:MI').label('interval')
+            query = """
+            WITH one_week_ago AS (
+                SELECT NOW() - INTERVAL '7 days' AS ts
+            ),
+            latest_cash_subquery AS (
+                SELECT
+                    broker,
+                    strategy,
+                    to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
+                    MAX(timestamp) AS latest_cash_timestamp
+                FROM balances
+                WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago)
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+            ),
+            latest_positions_subquery AS (
+                SELECT
+                    broker,
+                    strategy,
+                    to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
+                    MAX(timestamp) AS latest_positions_timestamp
+                FROM balances
+                WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago)
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+            ),
+            latest_cash_balances AS (
+                SELECT
+                    b.broker,
+                    b.strategy,
+                    to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
+                    b.balance AS cash_balance
+                FROM balances b
+                JOIN latest_cash_subquery lcs
+                    ON b.broker = lcs.broker
+                    AND b.strategy = lcs.strategy
+                    AND b.timestamp = lcs.latest_cash_timestamp
+                WHERE b.type = 'cash'
+            ),
+            latest_positions_balances AS (
+                SELECT
+                    b.broker,
+                    b.strategy,
+                    to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
+                    b.balance AS positions_balance
+                FROM balances b
+                JOIN latest_positions_subquery lps
+                    ON b.broker = lps.broker
+                    AND b.strategy = lps.strategy
+                    AND b.timestamp = lps.latest_positions_timestamp
+                WHERE b.type = 'positions'
+            )
+            SELECT
+                lcb.broker,
+                lcb.strategy,
+                lcb.interval,
+                COALESCE(lcb.cash_balance, 0) AS cash_balance,
+                COALESCE(lpb.positions_balance, 0) AS positions_balance,
+                (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance
+            FROM latest_cash_balances lcb
+            FULL OUTER JOIN latest_positions_balances lpb
+                ON lcb.broker = lpb.broker
+                AND lcb.strategy = lpb.strategy
+                AND lcb.interval = lpb.interval;
+            """
         elif app.session.bind.dialect.name == 'sqlite':
-            interval_expr = func.strftime('%Y-%m-%d %H:%M', Balance.timestamp).label('interval')
+            query = """
+            WITH one_week_ago AS (
+                SELECT datetime('now', '-7 days') AS ts
+            ),
+            latest_cash_subquery AS (
+                SELECT
+                    broker,
+                    strategy,
+                    strftime('%Y-%m-%d %H:%M', timestamp) AS interval,
+                    MAX(timestamp) AS latest_cash_timestamp
+                FROM balances
+                WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago)
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
+            ),
+            latest_positions_subquery AS (
+                SELECT
+                    broker,
+                    strategy,
+                    strftime('%Y-%m-%d %H:%M', timestamp) AS interval,
+                    MAX(timestamp) AS latest_positions_timestamp
+                FROM balances
+                WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago)
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
+            ),
+            latest_cash_balances AS (
+                SELECT
+                    b.broker,
+                    b.strategy,
+                    strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval,
+                    b.balance AS cash_balance
+                FROM balances b
+                JOIN latest_cash_subquery lcs
+                    ON b.broker = lcs.broker
+                    AND b.strategy = lcs.strategy
+                    AND b.timestamp = lcs.latest_cash_timestamp
+                WHERE b.type = 'cash'
+            ),
+            latest_positions_balances AS (
+                SELECT
+                    b.broker,
+                    b.strategy,
+                    strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval,
+                    b.balance AS positions_balance
+                FROM balances b
+                JOIN latest_positions_subquery lps
+                    ON b.broker = lps.broker
+                    AND b.strategy = lps.strategy
+                    AND b.timestamp = lps.latest_positions_timestamp
+                WHERE b.type = 'positions'
+            )
+            SELECT
+                lcb.broker,
+                lcb.strategy,
+                lcb.interval,
+                COALESCE(lcb.cash_balance, 0) AS cash_balance,
+                COALESCE(lpb.positions_balance, 0) AS positions_balance,
+                (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance
+            FROM latest_cash_balances lcb
+            LEFT JOIN latest_positions_balances lpb
+                ON lcb.broker = lpb.broker
+                AND lcb.strategy = lpb.strategy
+                AND lcb.interval = lpb.interval
+            UNION
+            SELECT
+                lpb.broker,
+                lpb.strategy,
+                lpb.interval,
+                COALESCE(lcb.cash_balance, 0) AS cash_balance,
+                COALESCE(lpb.positions_balance, 0) AS positions_balance,
+                (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance
+            FROM latest_positions_balances lpb
+            LEFT JOIN latest_cash_balances lcb
+                ON lpb.broker = lcb.broker
+                AND lpb.strategy = lcb.strategy
+                AND lpb.interval = lcb.interval;
+            """
+        else:
+            return jsonify({'status': 'error', 'message': 'Unsupported database type'}), 500
 
-        # Subquery to get the latest cash balance for each broker, strategy, and interval
-        latest_cash_subquery = app.session.query(
-            Balance.broker,
-            Balance.strategy,
-            interval_expr,
-            func.max(Balance.timestamp).label('latest_cash_timestamp')
-        ).filter(Balance.timestamp >= one_week_ago).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
-
-        # Subquery to get the latest positions balance for each broker, strategy, and interval
-        latest_positions_subquery = app.session.query(
-            Balance.broker,
-            Balance.strategy,
-            interval_expr,
-            func.max(Balance.timestamp).label('latest_positions_timestamp')
-        ).filter(Balance.timestamp >= one_week_ago).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, interval_expr).subquery()
-
-        # Query to get the latest cash balances
-        latest_cash_balances = app.session.query(
-            Balance.broker,
-            Balance.strategy,
-            interval_expr,
-            Balance.balance.label('cash_balance')
-        ).join(
-            latest_cash_subquery,
-            (Balance.broker == latest_cash_subquery.c.broker) &
-            (Balance.strategy == latest_cash_subquery.c.strategy) &
-            (Balance.timestamp == latest_cash_subquery.c.latest_cash_timestamp)
-        ).filter(Balance.type == 'cash').subquery()
-
-        # Query to get the latest positions balances
-        latest_positions_balances = app.session.query(
-            Balance.broker,
-            Balance.strategy,
-            interval_expr,
-            Balance.balance.label('positions_balance')
-        ).join(
-            latest_positions_subquery,
-            (Balance.broker == latest_positions_subquery.c.broker) &
-            (Balance.strategy == latest_positions_subquery.c.strategy) &
-            (Balance.timestamp == latest_positions_subquery.c.latest_positions_timestamp)
-        ).filter(Balance.type == 'positions').subquery()
-
-        # Combine the cash and positions balances
-        combined_balances = app.session.query(
-            latest_cash_balances.c.broker,
-            latest_cash_balances.c.strategy,
-            latest_cash_balances.c.interval,
-            func.coalesce(latest_cash_balances.c.cash_balance, 0).label('cash_balance'),
-            func.coalesce(latest_positions_balances.c.positions_balance, 0).label('positions_balance'),
-            (func.coalesce(latest_cash_balances.c.cash_balance, 0) + func.coalesce(latest_positions_balances.c.positions_balance, 0)).label('total_balance')
-        ).outerjoin(
-            latest_positions_balances,
-            (latest_cash_balances.c.broker == latest_positions_balances.c.broker) &
-            (latest_cash_balances.c.strategy == latest_positions_balances.c.strategy) &
-            (latest_cash_balances.c.interval == latest_positions_balances.c.interval)
-        ).all()
+        result = app.session.execute(text(query))
+        combined_balances = result.fetchall()
 
         # Prepare the response
         historical_balances_serializable = []
-        for broker, strategy, interval, cash_balance, positions_balance, total_balance in combined_balances:
+        for row in combined_balances:
+            broker, strategy, interval, cash_balance, positions_balance, total_balance = row
             historical_balances_serializable.append({
                 "strategy": strategy,
                 "broker": broker,
