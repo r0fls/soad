@@ -1,6 +1,7 @@
 replicaCount: 1
 
 api:
+  replicas: 3
   ingress:
     tls:
       secretPrefix: ""

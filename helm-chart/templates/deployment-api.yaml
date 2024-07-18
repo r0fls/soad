@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "trading-app.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.api.replicas }}
   selector:
     matchLabels:
       {{- include "trading-app.selectorLabels" . | nindent 6 }}
