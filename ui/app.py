@@ -147,6 +147,7 @@ def adjust_balance():
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
     new_total_balance = data.get('new_total_balance')
+    now = datetime.utcnow()
 
     if new_total_balance is None or new_total_balance <= 0:
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400
@@ -171,6 +172,14 @@ def adjust_balance():
                 positions_balance += balance_contribution
         else:
             positions_balance = positions_balance_record.balance
+        # Create an updated positions balance record
+        new_positions_balance_record = Balance(
+            strategy=strategy_name,
+            broker=broker,
+            type='positions',
+            balance=positions_balance,
+            timestamp=now
+        )
 
         # Calculate the current total balance and the adjustment
         cash_balance_record = app.session.query(Balance).filter_by(
@@ -191,7 +200,7 @@ def adjust_balance():
             broker=broker,
             type='cash',
             balance=new_cash_balance,
-            timestamp=datetime.utcnow()  # Assuming timestamp is a field in Balance
+            timestamp=now
         )
         app.session.add(new_cash_balance_record)
         app.session.commit()
