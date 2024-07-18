@@ -383,9 +383,9 @@ def historic_balance_per_strategy(methods=['GET']):
                 "strategy": strategy,
                 "broker": broker,
                 "interval": interval,
-                "cash_balance": cash_balance,
-                "positions_balance": positions_balance,
-                "total_balance": total_balance
+                "cash_balance": round(cash_balance, 2),
+                "positions_balance": round(positions_balance, 2),
+                "total_balance": round(total_balance, 2)
             })
 
         return jsonify({"historic_balance_per_strategy": historical_balances_serializable})
