@@ -81,6 +81,9 @@ async def sync_worker(engine, brokers):
             ).order_by(Balance.timestamp.desc()).first()
             uncategorized_position_balance = uncategorized_position_balance.balance if uncategorized_position_balance else 0.0
             uncategorized_balance -= uncategorized_position_balance
+            if uncategorized_balance < 0:
+                logger.error(f'Uncategorized balance for broker {broker[0]} is negative: {uncategorized_balance}. Setting to 0. Consider reducing strategy balances.')
+                uncategorized_balance = 0
             new_uncategorized_balance = Balance(
                 broker=broker[0],
                 strategy='uncategorized',
