@@ -56,6 +56,7 @@ class Position(Base):
     cost_basis = Column(Float, nullable=False)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
     underlying_volatility = Column(Float, nullable=True)
+    underlying_latest_price = Column(Float, nullable=True)
 
     balance = relationship("Balance", back_populates="positions", foreign_keys=[balance_id])
 

@@ -115,8 +115,12 @@ const Positions = () => {
       ) : (
         <>
           <div className="mb-3">
-            <strong>Total Delta:</strong> {totalDelta.toFixed(2)} &nbsp; | &nbsp;
-            <strong>Total Theta:</strong> {totalTheta.toFixed(2)}
+            <div className="info-box">
+              <strong>Total Delta:</strong> {totalDelta.toFixed(2)}
+            </div>
+            <div className="info-box">
+              <strong>Total Theta:</strong> {totalTheta.toFixed(2)}
+            </div>
           </div>
           <div className="table-responsive">
             <Table striped bordered hover className="positions-table">

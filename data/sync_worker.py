@@ -38,12 +38,15 @@ async def sync_worker(engine, brokers):
 
                 # Calculate historical volatility using yfinance
                 underlying_symbol = extract_option_details(position.symbol)[0] if is_option(position.symbol) else position.symbol
+                broker_instance = get_broker_instance(position.broker)
+                latest_underlying_price = await get_latest_price_by_symbol(position.broker, underlying_symbol)
                 volatility = await calculate_historical_volatility(underlying_symbol)
                 if volatility is None:
                     logger.error(f'Could not calculate volatility for {underlying_symbol}')
                     continue
                 logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
                 position.underlying_volatility = volatility
+                position.underlying_latest_price = latest_underlying_price
 
             except Exception as e:
                 logger.exception(f"Error processing position {position.symbol}")
@@ -62,6 +65,17 @@ async def sync_worker(engine, brokers):
         except Exception as e:
             logger.error(f'Error calculating volatility for {symbol}: {e}')
             return None
+
+    async def get_latest_price_by_symbol(broker, symbol):
+        logger.debug(f'Getting latest price for {symbol} from broker {broker}')
+        broker_instance = get_broker_instance(broker)
+        if asyncio.iscoroutinefunction(broker_instance.get_current_price):
+            latest_price = await broker_instance.get_current_price(symbol)
+        else:
+            latest_price = broker_instance.get_current_price(symbol)
+        logger.debug(f'Latest price for {symbol} is {latest_price}')
+        return latest_price
+
 
     async def get_latest_price(position):
         logger.debug(f'Getting latest price for {position.symbol} from broker {position.broker}')
