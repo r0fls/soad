@@ -2,8 +2,9 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import is_option, is_market_open, OPTION_MULTIPLIER
+from utils.utils import is_option, is_market_open, extract_option_details, OPTION_MULTIPLIER
 from database.models import Position, Balance
+import yfinance as yf
 
 
 # Hack for unit testing
@@ -19,22 +20,48 @@ async def sync_worker(engine, brokers):
         logger.debug(f'Getting broker instance for {broker_name}')
         return brokers[broker_name]
 
-    async def update_latest_prices(session, timestamp=None):
+    async def update_latest_prices_and_volatility(session, timestamp=None):
         if timestamp is None:
             timestamp = datetime.utcnow()
         now = timestamp
-        logger.info('Updating latest prices for positions')
+        logger.info('Updating latest prices and volatility for positions')
         positions = session.query(Position).all()
         for position in positions:
-            latest_price = await get_latest_price(position)
-            if latest_price is None:
-                logger.error(f'Could not get latest price for {position.symbol}')
-                continue
-            logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
-            position.latest_price = latest_price
-            position.last_updated = now
+            try:
+                latest_price = await get_latest_price(position)
+                if latest_price is None:
+                    logger.error(f'Could not get latest price for {position.symbol}')
+                    continue
+                logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
+                position.latest_price = latest_price
+                position.last_updated = now
+
+                # Calculate historical volatility using yfinance
+                underlying_symbol = extract_option_details(position.symbol)[0] if is_option(position.symbol) else position.symbol
+                volatility = await calculate_historical_volatility(underlying_symbol)
+                if volatility is None:
+                    logger.error(f'Could not calculate volatility for {underlying_symbol}')
+                    continue
+                logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
+                position.underlying_volatility = volatility
+
+            except Exception as e:
+                logger.exception(f"Error processing position {position.symbol}")
+        session.add_all(positions)
         session.commit()
-        logger.info('Completed updating latest prices')
+        logger.info('Completed updating latest prices and volatility')
+
+    async def calculate_historical_volatility(symbol):
+        logger.debug(f'Calculating historical volatility for {symbol}')
+        try:
+            stock = yf.Ticker(symbol)
+            hist = stock.history(period="1y")
+            hist['returns'] = hist['Close'].pct_change()
+            volatility = hist['returns'].std() * (252 ** 0.5)  # Annualized volatility
+            return volatility
+        except Exception as e:
+            logger.error(f'Error calculating volatility for {symbol}: {e}')
+            return None
 
     async def get_latest_price(position):
         logger.debug(f'Getting latest price for {position.symbol} from broker {position.broker}')
@@ -167,18 +194,22 @@ async def sync_worker(engine, brokers):
                 positions_total = 0.0
 
                 for position in positions:
-                    # check if we still have the position in the broker account
-                    if not position_exists(get_broker_instance(position.broker), position.symbol):
-                        logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, will be deleted from database')
-                        session.delete(position)
+                    try:
+                        # check if we still have the position in the broker account
+                        if not position_exists(get_broker_instance(position.broker), position.symbol):
+                            logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, will be deleted from database')
+                            session.delete(position)
+                            continue
+                        latest_price = await get_latest_price(position)
+                        multiplier = 1
+                        if is_option(position.symbol):
+                            multiplier = OPTION_MULTIPLIER
+                        position_balance = position.quantity * latest_price * multiplier
+                        positions_total += position_balance
+                        logger.debug(f'Updated position balance for {position.symbol}: {position_balance}')
+                    except Exception as e:
+                        logger.error(f'Error updating position balance for {position.symbol}: {e}')
                         continue
-                    latest_price = await get_latest_price(position)
-                    multiplier = 1
-                    if is_option(position.symbol):
-                        multiplier = OPTION_MULTIPLIER
-                    position_balance = position.quantity * latest_price * multiplier
-                    positions_total += position_balance
-                    logger.debug(f'Updated position balance for {position.symbol}: {position_balance}')
 
                 new_position_balance = Balance(
                     broker=broker_name,
@@ -199,7 +230,7 @@ async def sync_worker(engine, brokers):
         now = datetime.utcnow()
         await update_cash_and_position_balances(session, now)
         await update_uncategorized_balances(session, now)
-        await update_latest_prices(session, now)
+        await update_latest_prices_and_volatility(session, now)
         await add_uncategorized_positions(session, now)
         logger.info('Sync worker completed an iteration')
     except Exception as e:

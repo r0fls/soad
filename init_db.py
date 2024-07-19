@@ -13,7 +13,7 @@ session = Session()
 drop_then_init_db(engine)
 
 # Define brokers and strategies
-brokers = ['Tradier', 'Tastytrade']
+brokers = ['tradier', 'tastytrade']
 strategies = ['RSI', 'MACD']
 
 # Generate unique hourly timestamps for the past 5 days
@@ -53,6 +53,11 @@ print("Inserting fake trades into the database...")
 session.add_all(fake_trades)
 session.commit()
 print("Fake trades inserted into the database.")
+
+# Option symbols example
+option_symbols = [
+    'AAPL230721C00250000', 'GOOG230721P00150000', 'TSLA230721C01000000', 'MSFT230721P00200000'
+]
 
 # Generate and insert fake balance data and positions
 print("Generating and inserting fake balance data and positions...")
@@ -112,9 +117,27 @@ for broker in brokers:
             print(f"Inserted balance records for {broker}, {strategy} at {timestamp}. Cash balance: {cash_balance}, Position balance: {position_balance}")
 
         # Generate and insert fake positions for each balance record
-        for symbol in ['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']:
+        for symbol in ['AAPL', 'GOOG']:
             quantity = random.randint(1, 100)
             latest_price = round(random.uniform(100, 3000), 2)
+            cost_basis = quantity * latest_price
+            position_record = Position(
+                broker=broker,
+                strategy=strategy,
+                symbol=symbol,
+                quantity=quantity,
+                latest_price=latest_price,
+                cost_basis=cost_basis,
+                last_updated=timestamp
+            )
+            session.add(position_record)
+            session.commit()
+            print(f"Inserted position record for {broker}, {strategy}, {symbol} at {timestamp}. Quantity: {quantity}, Latest price: {latest_price}, Cost basis: {cost_basis}")
+
+        # Generate and insert fake positions for option symbols
+        for symbol in option_symbols:
+            quantity = random.randint(1, 100)
+            latest_price = round(random.uniform(1, 100), 2)  # Options prices are generally lower
             cost_basis = quantity * latest_price
             position_record = Position(
                 broker=broker,
