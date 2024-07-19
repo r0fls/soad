@@ -8,7 +8,8 @@ import numpy as np
 from scipy.stats import norm
 import os
 from datetime import timedelta, datetime
-from utils.utils import is_option, OPTION_MULTIPLIER
+from utils.utils import is_option, black_scholes_delta_theta, extract_option_details, OPTION_MULTIPLIER
+from utils.logger import logger
 
 
 app = Flask("TradingAPI")
@@ -424,33 +425,43 @@ def trade_success_rate():
 @jwt_required()
 def get_positions():
     try:
-        brokers = request.args.getlist('brokers[]')
-        strategies = request.args.getlist('strategies[]')
-
-        query = app.session.query(Position)
-
-        if brokers:
-            query = query.filter(Position.broker.in_(brokers))
-        if strategies:
-            query = query.filter(Position.strategy.in_(strategies))
-
-        positions = query.all()
+        positions = app.session.query(Position).all()
         positions_data = []
-        for position in positions:
-            # TODO: prune these
-            if position.quantity != 0:
-                positions_data.append({
-                    'broker': position.broker,
-                    'strategy': position.strategy,
-                    'symbol': position.symbol,
-                    'quantity': position.quantity,
-                    'cost_basis': position.cost_basis,
-                    'latest_price': position.latest_price,
-                    'timestamp': position.last_updated,
-                })
+        total_delta = 0
+        total_theta = 0
 
-        return jsonify({'positions': positions_data})
+        for position in positions:
+            delta, theta = (0, 0)
+            if is_option(position.symbol):
+                delta, theta = black_scholes_delta_theta(position)
+                if delta is not None and theta is not None:
+                    delta *= position.quantity * OPTION_MULTIPLIER
+                    theta *= position.quantity * OPTION_MULTIPLIER
+            else:
+                delta = position.quantity
+                theta = 0
+            total_delta += delta
+            total_theta += theta
+
+            positions_data.append({
+                'broker': position.broker,
+                'strategy': position.strategy,
+                'symbol': position.symbol,
+                'quantity': position.quantity,
+                'latest_price': position.latest_price,
+                'cost_basis': position.cost_basis,
+                'timestamp': position.last_updated,
+                'delta': delta,
+                'theta': theta,
+            })
+
+        return jsonify({
+            'positions': positions_data,
+            'total_delta': total_delta,
+            'total_theta': total_theta
+        })
     except Exception as e:
+        logger.error(f'Error fetching positions: {str(e)}')
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()

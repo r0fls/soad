@@ -11,6 +11,8 @@ const Positions = () => {
   const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [positions, setPositions] = useState([]);
   const [initialPositions, setInitialPositions] = useState([]);
+  const [totalDelta, setTotalDelta] = useState(0);
+  const [totalTheta, setTotalTheta] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const filterPositions = useCallback(() => {
@@ -19,6 +21,18 @@ const Positions = () => {
       (selectedStrategies.length === 0 || selectedStrategies.includes(position.strategy))
     );
     setPositions(filteredPositions);
+
+    // Calculate the total delta and theta
+    const totals = filteredPositions.reduce(
+      (acc, position) => {
+        acc.totalDelta += position.delta;
+        acc.totalTheta += position.theta;
+        return acc;
+      },
+      { totalDelta: 0, totalTheta: 0 }
+    );
+    setTotalDelta(totals.totalDelta);
+    setTotalTheta(totals.totalTheta);
   }, [initialPositions, selectedBrokers, selectedStrategies]);
 
   const fetchPositions = useCallback(async () => {
@@ -27,6 +41,18 @@ const Positions = () => {
       const response = await axiosInstance.get('/positions');
       setInitialPositions(response.data.positions);
       setPositions(response.data.positions);
+
+      // Calculate the total delta and theta
+      const totals = response.data.positions.reduce(
+        (acc, position) => {
+          acc.totalDelta += position.delta;
+          acc.totalTheta += position.theta;
+          return acc;
+        },
+        { totalDelta: 0, totalTheta: 0 }
+      );
+      setTotalDelta(totals.totalDelta);
+      setTotalTheta(totals.totalTheta);
     } catch (error) {
       console.error('Error fetching positions:', error);
     } finally {
@@ -87,34 +113,44 @@ const Positions = () => {
           </Spinner>
         </div>
       ) : (
-        <div className="table-responsive">
-          <Table striped bordered hover className="positions-table">
-            <thead>
-              <tr>
-                <th>Broker</th>
-                <th>Strategy</th>
-                <th>Symbol</th>
-                <th>Quantity</th>
-                <th>Latest Price</th>
-                <th>Cost Basis</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((position, index) => (
-                <tr key={index}>
-                  <td>{position.broker}</td>
-                  <td>{position.strategy}</td>
-                  <td>{position.symbol}</td>
-                  <td>{position.quantity}</td>
-                  <td>{position.latest_price}</td>
-                  <td>{(position.cost_basis / position.quantity).toFixed(2)}</td>
-                  <td>{position.timestamp}</td>
+        <>
+          <div className="mb-3">
+            <div className="info-box">
+              <strong>Total Delta:</strong> {totalDelta.toFixed(2)}
+            </div>
+            <div className="info-box">
+              <strong>Total Theta:</strong> {totalTheta.toFixed(2)}
+            </div>
+          </div>
+          <div className="table-responsive">
+            <Table striped bordered hover className="positions-table">
+              <thead>
+                <tr>
+                  <th>Broker</th>
+                  <th>Strategy</th>
+                  <th>Symbol</th>
+                  <th>Quantity</th>
+                  <th>Latest Price</th>
+                  <th>Cost Basis</th>
+                  <th>Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
+              </thead>
+              <tbody>
+                {positions.map((position, index) => (
+                  <tr key={index}>
+                    <td>{position.broker}</td>
+                    <td>{position.strategy}</td>
+                    <td>{position.symbol}</td>
+                    <td>{position.quantity}</td>
+                    <td>{position.latest_price}</td>
+                    <td>{(position.cost_basis / position.quantity).toFixed(2)}</td>
+                    <td>{position.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );
