@@ -45,8 +45,8 @@ async def sync_worker(engine, brokers):
                     logger.error(f'Could not calculate volatility for {underlying_symbol}')
                     continue
                 logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
-                position.underlying_volatility = volatility
-                position.underlying_latest_price = latest_underlying_price
+                position.underlying_volatility = float(volatility)
+                position.underlying_latest_price = float(latest_underlying_price)
 
             except Exception as e:
                 logger.exception(f"Error processing position {position.symbol}")
