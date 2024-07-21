@@ -6,7 +6,7 @@ Welcome to the SOAD project documentation.
 
 ## Overview
 
-SOAD (System Of A Dow, or Strategy-Oriented Algorithmic Trading, according to the coauthor, ChatGPT) is a Python package designed to simplify the process of developing and testing algorithmic trading strategies.
+SOAD (System Of A Dow) is a Python package designed to simplify the process of developing and testing algorithmic trading strategies.
 
 - **Author**: Raphael Deem
 - **Repository**: [GitHub](https://github.com/r0fls/soad)
