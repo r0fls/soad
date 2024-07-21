@@ -39,4 +39,4 @@ jobs:
           git commit -m "Deploy MkDocs site to docs folder"
           git push origin main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GHA_TOKEN }}
