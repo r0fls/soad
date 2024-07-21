@@ -1,0 +1,8 @@
+site_name: SOAD Documentation
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Contributing: contributing.md
+
+theme: readthedocs

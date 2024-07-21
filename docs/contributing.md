@@ -8,41 +8,42 @@ We welcome contributions to the SOAD project. Here are some ways you can help:
 - Improve documentation
 
 ## How to Contribute
+
 1. Setup a python virtual environment
 
-```bash
-python -m pyenv python3.12
-```
+    ```
+    python -m pyenv python3.12
+    ```
 
 2. Install the required packages:
 
-```bash
-pip install -r requirements.txt
-```
+    ```
+    pip install -r requirements.txt
+    ```
 
 3. Initialize the database with fake data:
 
-```bash
-python init_db.py
-```
+    ```
+    python init_db.py
+    ```
 
 4. Start the frontend (React) server
-NOTE: right now you will have to edit this line in `src/axiosInstance.js` file locally to point to `http://localhost:8000`:
-https://github.com/r0fls/soad/blob/main/trading-dashboard/src/axiosInstance.js#L4
 
-Then:
+    NOTE: right now you will have to edit this line in `src/axiosInstance.js` file locally to point to `http://localhost:8000`:
+    https://github.com/r0fls/soad/blob/main/trading-dashboard/src/axiosInstance.js#L4
 
-```bash
-cd trading-dashboard
-yarn start
-```
+    Then:
+
+    ```
+    cd trading-dashboard
+    yarn start
+    ```
 
 5. Start the python API (in a second terminal window)
 
-```bash
-python main.py --mode api
-
-```
+    ```
+    python main.py --mode api
+    ```
 
 ## Code of Conduct
 
