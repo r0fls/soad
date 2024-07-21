@@ -5,9 +5,9 @@ import re
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_underlying_symbol, is_ticker
+from utils.utils import extract_underlying_symbol, is_ticker, is_option
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity, NestedOptionChain, Option
+from tastytrade.instruments import Equity, NestedOptionChain, Option, Future
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
@@ -253,10 +253,8 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        if not is_ticker(symbol):
-            # Format option prices; should
-            # more explicitly look for options symbols
-            # in case we expand to futures etc
+        if is_option(symbol):
+            # Convert to streamer symbol
             if ' ' not in symbol:
                 symbol = self.format_option_symbol(symbol)
             if '.' not in symbol:
