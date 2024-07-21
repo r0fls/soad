@@ -1,15 +1,14 @@
 # SOAD: System Of A Dow
 
-> NOTE: This is still being developed.
-
 ![soad-logo](https://github.com/r0fls/soad/assets/1858004/7369c3af-b4e6-41d9-997c-eaa0b81b969d)
-
 
 ## Features
 
 - Execute multiple strategies simultaneously in isolation
 - Supports multiple brokers with a broker agnostic interface
 - Options are a first class citizen
+## Docs
+https://r0fls.github.io/soad/
 
 ## UI Screenshots
 ![Screen Shot 2024-06-06 at 7 56 38 PM](https://github.com/r0fls/soad/assets/1858004/0e214dd5-c157-47cc-a48f-2ec0f37a7b33)
