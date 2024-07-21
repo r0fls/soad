@@ -2,7 +2,7 @@ SOAD Documentation
 
 Welcome to the SOAD project documentation.
 
-![soad-mascot](https://github.com/r0fls/soad/assets/1858004/1ac6d1c7-5263-4b8a-a643-148ee54c12c1)
+<img src="https://github.com/r0fls/soad/assets/1858004/1ac6d1c7-5263-4b8a-a643-148ee54c12c1" alt="soad-mascot" width="300"/>
 
 ## Overview
 
