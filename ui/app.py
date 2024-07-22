@@ -441,7 +441,7 @@ def get_positions():
                 if delta is not None and theta is not None:
                     delta *= position.quantity * OPTION_MULTIPLIER
                     theta *= position.quantity * OPTION_MULTIPLIER
-                total_options_value += position.quantity * position.latest_price
+                total_options_value += position.quantity * position.latest_price * OPTION_MULTIPLIER
             else:
                 delta = position.quantity
                 theta = 0
