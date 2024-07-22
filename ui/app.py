@@ -425,11 +425,15 @@ def trade_success_rate():
 @jwt_required()
 def get_positions():
     try:
+        # Fetch positions
         positions = app.session.query(Position).all()
         positions_data = []
         total_delta = 0
         total_theta = 0
+        total_stocks_value = 0
+        total_options_value = 0
 
+        # Calculate positions values and total delta/theta
         for position in positions:
             delta, theta = (0, 0)
             if is_option(position.symbol):
@@ -437,9 +441,11 @@ def get_positions():
                 if delta is not None and theta is not None:
                     delta *= position.quantity * OPTION_MULTIPLIER
                     theta *= position.quantity * OPTION_MULTIPLIER
+                total_options_value += position.quantity * position.latest_price
             else:
                 delta = position.quantity
                 theta = 0
+                total_stocks_value += position.quantity * position.latest_price
             total_delta += delta
             total_theta += theta
 
@@ -453,12 +459,36 @@ def get_positions():
                 'timestamp': position.last_updated,
                 'delta': delta,
                 'theta': theta,
+                'is_option': is_option(position.symbol)
             })
+
+        # Fetch latest cash balance per strategy and broker
+        cash_subquery = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            func.max(Balance.timestamp).label('latest_cash_timestamp')
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy).subquery()
+
+        latest_cash_balances = app.session.query(
+            Balance.broker,
+            Balance.strategy,
+            Balance.balance
+        ).join(
+            cash_subquery,
+            (Balance.broker == cash_subquery.c.broker) &
+            (Balance.strategy == cash_subquery.c.strategy) &
+            (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
+        ).filter(Balance.type == 'cash').all()
+
+        cash_balances = {f"{balance.broker}_{balance.strategy}": balance.balance for balance in latest_cash_balances}
 
         return jsonify({
             'positions': positions_data,
             'total_delta': total_delta,
-            'total_theta': total_theta
+            'total_theta': total_theta,
+            'total_stocks_value': total_stocks_value,
+            'total_options_value': total_options_value,
+            'cash_balances': cash_balances
         })
     except Exception as e:
         logger.error(f'Error fetching positions: {str(e)}')
@@ -498,7 +528,6 @@ def get_trades():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
-
 
 @app.route('/trade_stats', methods=['GET'])
 @jwt_required()

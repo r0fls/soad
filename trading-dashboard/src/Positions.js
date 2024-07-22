@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import Select from 'react-select';
 import { Spinner, Table } from 'react-bootstrap';
+import { Pie } from 'react-chartjs-2';
 import './Positions.css'; // Assuming you have a CSS file for custom styles
 
 const Positions = () => {
@@ -14,6 +15,10 @@ const Positions = () => {
   const [totalDelta, setTotalDelta] = useState(0);
   const [totalTheta, setTotalTheta] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [totalStocksValue, setTotalStocksValue] = useState(0);
+  const [totalOptionsValue, setTotalOptionsValue] = useState(0);
+  const [totalCashValue, setTotalCashValue] = useState(0);
+  const [initialCashBalances, setInitialCashBalances] = useState({});
 
   const filterPositions = useCallback(() => {
     const filteredPositions = initialPositions.filter(position =>
@@ -22,37 +27,53 @@ const Positions = () => {
     );
     setPositions(filteredPositions);
 
-    // Calculate the total delta and theta
+    // Calculate the total delta, theta, and values
     const totals = filteredPositions.reduce(
       (acc, position) => {
         acc.totalDelta += position.delta;
         acc.totalTheta += position.theta;
+        if (position.is_option) {
+          acc.totalOptionsValue += position.quantity * position.latest_price;
+        } else {
+          acc.totalStocksValue += position.quantity * position.latest_price;
+        }
         return acc;
       },
-      { totalDelta: 0, totalTheta: 0 }
+      { totalDelta: 0, totalTheta: 0, totalStocksValue: 0, totalOptionsValue: 0 }
     );
     setTotalDelta(totals.totalDelta);
     setTotalTheta(totals.totalTheta);
-  }, [initialPositions, selectedBrokers, selectedStrategies]);
+    setTotalStocksValue(totals.totalStocksValue);
+    setTotalOptionsValue(totals.totalOptionsValue);
+
+    // Calculate total cash value based on the filtered brokers and strategies
+    const filteredCashValue = Object.keys(initialCashBalances).reduce((acc, key) => {
+      const [broker, strategy] = key.split('_');
+      if ((selectedBrokers.length === 0 || selectedBrokers.includes(broker)) &&
+          (selectedStrategies.length === 0 || selectedStrategies.includes(strategy))) {
+        acc += initialCashBalances[key];
+      }
+      return acc;
+    }, 0);
+    setTotalCashValue(filteredCashValue);
+  }, [initialPositions, initialCashBalances, selectedBrokers, selectedStrategies]);
 
   const fetchPositions = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axiosInstance.get('/positions');
-      setInitialPositions(response.data.positions);
-      setPositions(response.data.positions);
+      const { positions, total_delta, total_theta, total_stocks_value, total_options_value, cash_balances } = response.data;
+      setInitialPositions(positions);
+      setPositions(positions);
+      setTotalDelta(total_delta);
+      setTotalTheta(total_theta);
+      setTotalStocksValue(total_stocks_value);
+      setTotalOptionsValue(total_options_value);
+      setInitialCashBalances(cash_balances);
 
-      // Calculate the total delta and theta
-      const totals = response.data.positions.reduce(
-        (acc, position) => {
-          acc.totalDelta += position.delta;
-          acc.totalTheta += position.theta;
-          return acc;
-        },
-        { totalDelta: 0, totalTheta: 0 }
-      );
-      setTotalDelta(totals.totalDelta);
-      setTotalTheta(totals.totalTheta);
+      // Calculate initial total cash value
+      const initialTotalCashValue = Object.values(cash_balances).reduce((acc, balance) => acc + balance, 0);
+      setTotalCashValue(initialTotalCashValue);
     } catch (error) {
       console.error('Error fetching positions:', error);
     } finally {
@@ -80,6 +101,17 @@ const Positions = () => {
   useEffect(() => {
     filterPositions();
   }, [selectedBrokers, selectedStrategies, filterPositions]);
+
+  const data = {
+    labels: ['Stocks', 'Options', 'Cash'],
+    datasets: [
+      {
+        data: [totalStocksValue, totalOptionsValue, totalCashValue],
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+        hoverBackgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+      }
+    ]
+  };
 
   return (
     <div className="container-fluid">
@@ -114,12 +146,15 @@ const Positions = () => {
         </div>
       ) : (
         <>
-          <div className="mb-3">
+          <div className="info-box-container mb-3">
             <div className="info-box">
               <strong>Total Delta:</strong> {totalDelta.toFixed(2)}
             </div>
             <div className="info-box">
               <strong>Total Theta:</strong> {totalTheta.toFixed(2)}
+            </div>
+            <div className="pie-chart-container">
+              <Pie data={data} />
             </div>
           </div>
           <div className="table-responsive">
