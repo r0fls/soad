@@ -36,17 +36,15 @@
 
 .info-box-container {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: left;
+  align-items: flex-start;
   margin-bottom: 20px;
 }
 
 .balance-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-right: 20px;
+  flex: 1;
+  margin-bottom: 20px;
 }
 
 .info-box {
@@ -74,12 +72,30 @@
   flex-shrink: 0;
   max-width: 300px;
 }
+
 .info-box-row {
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .info-box {
-  margin: 5px; /* Add some spacing between delta and theta */
+  margin: 5px;
+}
+
+@media (max-width: 768px) {
+  .filtered-value-box {
+    font-size: 2em;
+  }
+  .balance-container {
+    /*center the content on mobile*/
+	display: flex;
+	justify-content: center;
+  }
+
+  .pie-chart-container {
+    max-width: 100%;
+    margin-top: 20px;
+  }
 }

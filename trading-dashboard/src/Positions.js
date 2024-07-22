@@ -28,7 +28,6 @@ const Positions = () => {
     );
     setPositions(filteredPositions);
 
-    // Calculate the total delta, theta, and values
     const totals = filteredPositions.reduce(
       (acc, position) => {
         acc.totalDelta += position.delta;
@@ -47,7 +46,6 @@ const Positions = () => {
     setTotalStocksValue(totals.totalStocksValue);
     setTotalOptionsValue(totals.totalOptionsValue);
 
-    // Calculate total cash value based on the filtered brokers and strategies
     const filteredCashValue = Object.keys(initialCashBalances).reduce((acc, key) => {
       const [broker, strategy] = key.split('_');
       if ((selectedBrokers.length === 0 || selectedBrokers.includes(broker)) &&
@@ -72,7 +70,6 @@ const Positions = () => {
       setTotalOptionsValue(total_options_value);
       setInitialCashBalances(cash_balances);
 
-      // Calculate initial total cash value
       const initialTotalCashValue = Object.values(cash_balances).reduce((acc, balance) => acc + balance, 0);
       setTotalCashValue(initialTotalCashValue);
     } catch (error) {
@@ -161,9 +158,9 @@ const Positions = () => {
                 </div>
               </div>
             </div>
-		    <div className="pie-chart-container">
-		      <Pie data={data} />
-			</div>
+            <div className="pie-chart-container">
+              <Pie data={data} />
+            </div>
           </div>
           <div className="table-responsive">
             <Table striped bordered hover className="positions-table">
@@ -181,13 +178,13 @@ const Positions = () => {
               <tbody>
                 {positions.map((position, index) => (
                   <tr key={index}>
-                    <td>{position.broker}</td>
-                    <td>{position.strategy}</td>
-                    <td>{position.symbol}</td>
-                    <td>{position.quantity}</td>
-                    <td>{position.latest_price}</td>
-                    <td>{(position.cost_basis / position.quantity).toFixed(2)}</td>
-                    <td>{position.timestamp}</td>
+                    <td data-label="Broker">{position.broker}</td>
+                    <td data-label="Strategy">{position.strategy}</td>
+                    <td data-label="Symbol">{position.symbol}</td>
+                    <td data-label="Quantity">{position.quantity}</td>
+                    <td data-label="Latest Price">{position.latest_price}</td>
+                    <td data-label="Cost Basis">{(position.cost_basis / position.quantity).toFixed(2)}</td>
+                    <td data-label="Timestamp">{position.timestamp}</td>
                   </tr>
                 ))}
               </tbody>
