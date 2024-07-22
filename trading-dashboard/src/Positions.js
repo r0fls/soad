@@ -19,6 +19,7 @@ const Positions = () => {
   const [totalOptionsValue, setTotalOptionsValue] = useState(0);
   const [totalCashValue, setTotalCashValue] = useState(0);
   const [initialCashBalances, setInitialCashBalances] = useState({});
+  const OPTION_MULTIPLIER = 100;
 
   const filterPositions = useCallback(() => {
     const filteredPositions = initialPositions.filter(position =>
@@ -33,7 +34,7 @@ const Positions = () => {
         acc.totalDelta += position.delta;
         acc.totalTheta += position.theta;
         if (position.is_option) {
-          acc.totalOptionsValue += position.quantity * position.latest_price;
+          acc.totalOptionsValue += position.quantity * position.latest_price * OPTION_MULTIPLIER;
         } else {
           acc.totalStocksValue += position.quantity * position.latest_price;
         }
