@@ -480,14 +480,14 @@ def get_positions():
             (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
         ).filter(Balance.type == 'cash').all()
 
-        cash_balances = {f"{balance.broker}_{balance.strategy}": balance.balance for balance in latest_cash_balances}
+        cash_balances = {f"{balance.broker}_{balance.strategy}": round(balance.balance, 2) for balance in latest_cash_balances}
 
         return jsonify({
             'positions': positions_data,
             'total_delta': total_delta,
             'total_theta': total_theta,
-            'total_stocks_value': total_stocks_value,
-            'total_options_value': total_options_value,
+            'total_stocks_value': round(total_stocks_value, 2),
+            'total_options_value': round(total_options_value, 2),
             'cash_balances': cash_balances
         })
     except Exception as e:

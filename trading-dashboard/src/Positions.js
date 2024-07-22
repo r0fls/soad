@@ -147,15 +147,22 @@ const Positions = () => {
       ) : (
         <>
           <div className="info-box-container mb-3">
-            <div className="info-box">
-              <strong>Total Delta:</strong> {totalDelta.toFixed(2)}
+            <div className="balance-container">
+              <div className="filtered-value-box">
+                ${((totalStocksValue + totalOptionsValue + totalCashValue).toFixed(2)).toLocaleString()}
+              </div>
+              <div className="info-box-row">
+                <div className="info-box">
+                  <strong>Delta:</strong> {totalDelta.toFixed(2)}
+                </div>
+                <div className="info-box">
+                  <strong>Theta:</strong> {totalTheta.toFixed(2)}
+                </div>
+              </div>
             </div>
-            <div className="info-box">
-              <strong>Total Theta:</strong> {totalTheta.toFixed(2)}
-            </div>
-            <div className="pie-chart-container">
-              <Pie data={data} />
-            </div>
+		    <div className="pie-chart-container">
+		      <Pie data={data} />
+			</div>
           </div>
           <div className="table-responsive">
             <Table striped bordered hover className="positions-table">

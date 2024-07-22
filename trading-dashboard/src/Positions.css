@@ -36,30 +36,50 @@
 
 .info-box-container {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: left;
+  margin-bottom: 20px;
+}
+
+.balance-container {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  margin-right: 20px;
 }
 
 .info-box {
-  flex: 1 1 200px;
+  display: inline-block;
   background-color: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
   padding: 0.75rem 1.25rem;
-  margin-right: 1rem;
-  margin-bottom: 1rem;
   text-align: center;
   font-size: 1.25rem;
   color: #212529;
+  margin: 5px 0;
 }
 
-.info-box strong {
-  display: block;
-  font-weight: 700;
+.filtered-value-box {
+  display: inline-block;
+  background-color: white;
+  font-size: 2.5em;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
 }
 
 .pie-chart-container {
-  flex: 1 1 200px;
-  max-width: 300px; /* Set a max width for the chart */
-  margin: 0 auto;
+  flex-shrink: 0;
+  max-width: 300px;
+}
+.info-box-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.info-box {
+  margin: 5px; /* Add some spacing between delta and theta */
 }
