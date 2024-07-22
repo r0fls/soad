@@ -22,6 +22,10 @@ spec:
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           env:
+            - name: APP_USERNAME
+              value: "{{ .Values.api.username }}"
+            - name: APP_PASSWORD
+              value: "{{ .Values.api.password }}"
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
             - name: TRADIER_API_KEY
