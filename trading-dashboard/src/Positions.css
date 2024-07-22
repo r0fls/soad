@@ -34,8 +34,14 @@
   }
 }
 
+.info-box-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .info-box {
-  display: inline-block;
+  flex: 1 1 200px;
   background-color: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
@@ -50,4 +56,10 @@
 .info-box strong {
   display: block;
   font-weight: 700;
+}
+
+.pie-chart-container {
+  flex: 1 1 200px;
+  max-width: 300px; /* Set a max width for the chart */
+  margin: 0 auto;
 }

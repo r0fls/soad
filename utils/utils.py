@@ -4,6 +4,7 @@ import pytz
 from decimal import Decimal
 import math
 from scipy.stats import norm
+from utils.logger import logger
 
 OPTION_MULTIPLIER = 100
 
@@ -12,14 +13,14 @@ def is_ticker(symbol):
     Check if the input symbol is a valid stock ticker.
     '''
     pattern = re.compile(r'^[A-Z]{1,5}(\.[A-Z]{1,2})?$')
-    return pattern.match(symbol)
+    return bool(pattern.match(symbol))
 
 def is_option(symbol):
     '''
     Check if the input symbol is a valid option symbol.
     '''
     pattern = re.compile(r'^[A-Z]{1,5}\d{6}[CP]\d{8}$')
-    return pattern.match(symbol)
+    return bool(pattern.match(symbol))
 
 def extract_option_details(option_symbol):
     # Example pattern: AAPL230721C00250000 (AAPL, 2023-07-21, Call, 250.00)
@@ -67,34 +68,34 @@ def black_scholes_delta_theta(position):
     """
     Calculate Black-Scholes delta and theta for an option based on a Position object.
     """
-    option_fields = extract_option_details(position.symbol)
-    if not option_fields:
-        return None, None  # Unable to parse option symbol
-
-    S = float(position.underlying_latest_price)
-    underlying, expiration_date, option_type, K = option_fields
-    T = (expiration_date - datetime.now().date()).days / 365.0
-    r = 0.04
-    sigma = float(position.underlying_volatility)
-
     try:
+        option_fields = extract_option_details(position.symbol)
+        if not option_fields:
+            return 0, 0
+
+        S = float(position.underlying_latest_price)
+        underlying, expiration_date, option_type, K = option_fields
+        T = (expiration_date - datetime.now().date()).days / 365.0
+        r = 0.04
+        sigma = float(position.underlying_volatility)
+
         d1 = (math.log(S / float(K)) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
         d2 = d1 - sigma * math.sqrt(T)
-    except ValueError as e:
-        print(f"Error in calculating d1 or d2: {e}")
-        return None, None
 
-    print(f"S: {S}, K: {float(K)}, T: {T}, r: {r}, sigma: {sigma}, d1: {d1}, d2: {d2}")
+        print(f"S: {S}, K: {float(K)}, T: {T}, r: {r}, sigma: {sigma}, d1: {d1}, d2: {d2}")
 
-    delta = 0.0
-    theta = 0.0
-    if option_type == 'C':
-        delta = norm.cdf(d1)
-        theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) - r * float(K) * math.exp(-r * T) * norm.cdf(d2)) / 365.0
-    elif option_type == 'P':
-        delta = -norm.cdf(-d1)
-        theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) + r * float(K) * math.exp(-r * T) * norm.cdf(-d2)) / 365.0
+        delta = 0.0
+        theta = 0.0
+        if option_type == 'C':
+            delta = norm.cdf(d1)
+            theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) - r * float(K) * math.exp(-r * T) * norm.cdf(d2)) / 365.0
+        elif option_type == 'P':
+            delta = -norm.cdf(-d1)
+            theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) + r * float(K) * math.exp(-r * T) * norm.cdf(-d2)) / 365.0
 
-    print(f"delta: {delta}, theta: {theta}")
+        print(f"delta: {delta}, theta: {theta}")
 
-    return delta, theta
+        return delta, theta
+    except Exception as e:
+        logger.error(f"Error calculating Black-Scholes delta and theta: {e}")
+        return 0, 0
