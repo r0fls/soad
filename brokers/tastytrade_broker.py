@@ -143,6 +143,30 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
+    async def _place_future_option_order(self, symbol, quantity, order_type, price=None, dry_run=False):
+        ticker = extract_underlying_symbol(symbol)
+        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        if price is None:
+            price = await self.get_current_price(symbol)
+        if order_type == 'buy':
+            action = OrderAction.BUY_TO_OPEN
+            effect = PriceEffect.DEBIT
+        elif order_type == 'sell':
+            action = OrderAction.SELL_TO_CLOSE
+            effect = PriceEffect.CREDIT
+        account = Account.get_account(self.session, self.account_id)
+        option = FutureOption.get_future(self.session, symbol)
+        leg = option.build_leg(quantity, action)
+        order = NewOrder(
+            time_in_force=OrderTimeInForce.DAY,
+            order_type=OrderType.LIMIT,
+            legs=[leg],
+            price=Decimal(price),
+            price_effect=effect
+        )
+        response = account.place_order(self.session, order, dry_run=dry_run)
+        return response
+
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
@@ -166,7 +190,7 @@ class TastytradeBroker(BaseBroker):
             price=Decimal(price),
             price_effect=effect
         )
-        response = account.place_order(self.session, order, dry_run=False)
+        response = account.place_order(self.session, order, dry_run=dry_run)
         return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):

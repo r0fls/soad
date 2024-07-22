@@ -156,7 +156,7 @@ class BaseBroker(ABC):
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
         try:
-            if asyncio.iscoroutinefunction(self._place_order):
+            if asyncio.iscoroutinefunction(self._place_future_option_order):
                 response = await self._place_future_option_order(symbol, quantity, order_type, price)
             else:
                 response = self._place_future_option_order(
@@ -199,12 +199,12 @@ class BaseBroker(ABC):
                     # TODO: determine correct OPTIONS_CONTRACT_SIZE which can be dynamic for different
                     # future options
                     # TODO: fix
-                    if symbol == 'ES':
+                    if symbol.split()[0] == './ESU4':
                         order_cost = trade.executed_price * quantity * 50
-                    elif symbol == 'NQ':
+                    elif symbol.split()[0] == './NQU4':
                         order_cost = trade.executed_price * quantity * 20
                     else:
-                        logger.error('Invalid symbol for future option', extra={'symbol': symbol})
+                        logger.error('Not presently supported. Invalid symbol for future option.', extra={'symbol': symbol})
                         order_cost = trade.executed_price * quantity * DEFAULT_OPTIONS_CONTRACT_SIZE
 
                     # Subtract the order cost from the cash balance
@@ -218,6 +218,16 @@ class BaseBroker(ABC):
                         broker=self.broker_name,
                         strategy=strategy,
                         type='cash',
+                        balance=new_balance_amount,
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_balance)
+                    session.commit()
+            return response
+        except Exception as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
+            return None
+
 
     async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for an option'''

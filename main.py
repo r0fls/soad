@@ -188,7 +188,7 @@ async def buy_put_option(broker, symbol='/NQ'):
         logger.error(f"Broker {broker.broker_name} is not supported for this strategy.")
     futures_options = get_future_option_chain(broker.session, symbol)
     today = datetime.date.today()
-    tomorrow = today + datetime.timedelta(days=7)
+    tomorrow = today + datetime.timedelta(days=1)
     # Filter options for the specific underlying symbol `/NQU4` expiring tomorrow
     specific_options = []
     for date in futures_options.keys():
@@ -211,7 +211,9 @@ async def buy_put_option(broker, symbol='/NQ'):
     # TODO: sell put option after 2 hours
     #return put_option
     # TODO: implement the place_future_option_order method
-    return broker.place_future_option_order(put_option.symbol, 'buy', 1, 'gay_bear')
+    import pdb; pdb.set_trace()
+    result = await broker.place_future_option_order(put_option.symbol, 'buy', 1, 'gay_bear')
+    return result
 
 async def main():
     parser = argparse.ArgumentParser(description="Run trading strategies, start API server, or start sync worker based on YAML configuration.")
@@ -222,7 +224,7 @@ async def main():
     # TODO: remove from testing
     config = parse_config(args.config)
     brokers, strategies = await initialize_system_components(config)
-    option = get_put_option(brokers['tastytrade'])
+    option = await buy_put_option(brokers['tastytrade'])
 
     if args.mode == 'trade':
         if not args.config:
