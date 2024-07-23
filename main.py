@@ -40,8 +40,8 @@ async def initialize_system_components(config):
         logger.error('Failed to initialize system components', extra={'error': str(e)})
         raise
 
-async def initialize_brokers_and_strategies(config, local_testing=False):
-    engine = create_database_engine(config, local_testing=False)
+async def initialize_brokers_and_strategies(config):
+    engine = create_database_engine(config)
     if config.get('rename_strategies'):
         for strategy in config['rename_strategies']:
             try:
@@ -140,7 +140,7 @@ def start_api_server(config_path=None, local_testing=False):
     except Exception as e:
         logger.error('Failed to start API server', extra={'error': str(e)})
 
-async def start_sync_worker(config_path, local_testing=False):
+async def start_sync_worker(config_path):
     logger.info('Starting sync worker', extra={'config_path': config_path})
 
     # Parse the configuration file
@@ -152,7 +152,7 @@ async def start_sync_worker(config_path, local_testing=False):
         return
 
     # Setup the database engine
-    engine = create_database_engine(config, local_testing)
+    engine = create_database_engine(config)
     logger.info('Database engine created for sync worker', extra={'db_url': engine.url})
 
     # Initialize the database
@@ -180,51 +180,12 @@ async def start_sync_worker(config_path, local_testing=False):
             logger.error('Failed to start sync worker, trying to initialize brokers again', extra={'error': str(e)})
             brokers = initialize_brokers(config)
 
-async def buy_put_option(broker, symbol='/NQ'):
-    from tastytrade.instruments import get_future_option_chain
-    import datetime
-    # Get the ATM put option with the shortest expiration
-    if broker.broker_name != 'tastytrade':
-        logger.error(f"Broker {broker.broker_name} is not supported for this strategy.")
-    futures_options = get_future_option_chain(broker.session, symbol)
-    today = datetime.date.today()
-    tomorrow = today + datetime.timedelta(days=1)
-    # Filter options for the specific underlying symbol `/NQU4` expiring tomorrow
-    specific_options = []
-    for date in futures_options.keys():
-        options = futures_options[date]
-        filtered_options = [option for option in options if option.underlying_symbol == '/NQU4' and option.expiration_date == tomorrow]
-        specific_options.extend(filtered_options)
-    # Get the ATM put option
-    put_options = [option for option in specific_options if option.option_type == 'P']
-    put_options.sort(key=lambda x: x.strike_price)
-    # Get underlying streamer symbol e.g.
-    # symbol = 'NQU24'
-    # response = requests.get(
-    # f'{session.base_url}/instruments/futures/{symbol}',
-    # headers=session.headers)
-    streamer_symbol = '/NQU24:XCME'
-    current_price = await broker.get_current_price(streamer_symbol)
-    # Find the one closest to the current price
-    put_option = min(put_options, key=lambda x: abs(float(x.strike_price) - float(current_price)))
-    # TODO: place the buy order!!! :D
-    # TODO: sell put option after 2 hours
-    #return put_option
-    # TODO: implement the place_future_option_order method
-    import pdb; pdb.set_trace()
-    result = await broker.place_future_option_order(put_option.symbol, 'buy', 1, 'gay_bear')
-    return result
-
 async def main():
     parser = argparse.ArgumentParser(description="Run trading strategies, start API server, or start sync worker based on YAML configuration.")
     parser.add_argument('--mode', choices=['trade', 'api', 'sync'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
     args = parser.parse_args()
-    # TODO: remove from testing
-    config = parse_config(args.config)
-    brokers, strategies = await initialize_system_components(config)
-    option = await buy_put_option(brokers['tastytrade'])
 
     if args.mode == 'trade':
         if not args.config:
@@ -241,7 +202,7 @@ async def main():
     elif args.mode == 'sync':
         if not args.config:
             parser.error('--config is required when mode is "sync"')
-        await start_sync_worker(args.config, local_testing=args.local_testing)
+        await start_sync_worker(args.config)
 
 if __name__ == "__main__":
     asyncio.run(main())

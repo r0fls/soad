@@ -7,7 +7,7 @@ from brokers.base_broker import BaseBroker
 from utils.logger import logger
 from utils.utils import extract_underlying_symbol, is_ticker, is_option
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity, NestedOptionChain, Option, Future
+from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
@@ -146,8 +146,10 @@ class TastytradeBroker(BaseBroker):
     async def _place_future_option_order(self, symbol, quantity, order_type, price=None, dry_run=False):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        option = FutureOption.get_future_option(self.session, symbol)
         if price is None:
-            price = await self.get_current_price(symbol)
+            # Convert to streamer symbol
+            price = await self.get_current_price(option.streamer_symbol)
         if order_type == 'buy':
             action = OrderAction.BUY_TO_OPEN
             effect = PriceEffect.DEBIT
@@ -155,7 +157,6 @@ class TastytradeBroker(BaseBroker):
             action = OrderAction.SELL_TO_CLOSE
             effect = PriceEffect.CREDIT
         account = Account.get_account(self.session, self.account_id)
-        option = FutureOption.get_future(self.session, symbol)
         leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
