@@ -143,7 +143,7 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    async def _place_future_option_order(self, symbol, quantity, order_type, price=None, dry_run=False):
+    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
         logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         option = FutureOption.get_future_option(self.session, symbol)
@@ -165,7 +165,7 @@ class TastytradeBroker(BaseBroker):
             price=Decimal(price),
             price_effect=effect
         )
-        response = account.place_order(self.session, order, dry_run=dry_run)
+        response = account.place_order(self.session, order, dry_run=False)
         return response
 
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
@@ -191,7 +191,7 @@ class TastytradeBroker(BaseBroker):
             price=Decimal(price),
             price_effect=effect
         )
-        response = account.place_order(self.session, order, dry_run=dry_run)
+        response = account.place_order(self.session, order, dry_run=False)
         return response
 
     async def _place_order(self, symbol, quantity, order_type, price=None):
