@@ -20,6 +20,9 @@ class MockBroker(BaseBroker):
     def _place_option_order(self, symbol, quantity, order_type, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
+    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
+
     def _place_order(self, symbol, quantity, order_type, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
