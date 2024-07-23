@@ -164,8 +164,12 @@ class BaseBroker(ABC):
             logger.info('Order placed successfully',
                         extra={'response': response})
             if not price:
-                # If price is not provided, use the filled price from the response
-                price = response.get('filled_price', None)
+                # If price is not provided, use the price from the response
+                price = getattr(response, 'price', None)
+
+            if price is None:
+                # TODO: Handle this better
+                logger.error('Price not found in response, tracking this trade anyway', extra={'response': response})
 
             trade = Trade(
                 symbol=symbol,
