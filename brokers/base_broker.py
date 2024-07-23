@@ -36,6 +36,10 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
+    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+        pass
+
+    @abstractmethod
     def _place_option_order(self, symbol, quantity, order_type, price=None):
         pass
 
@@ -146,6 +150,88 @@ class BaseBroker(ABC):
             logger.info('Position updated', extra={'position': position})
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
+
+    async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
+        '''Place an order for a future option'''
+        logger.info('Placing order', extra={
+                    'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
+        try:
+            if asyncio.iscoroutinefunction(self._place_future_option_order):
+                response = await self._place_future_option_order(symbol, quantity, order_type, price)
+            else:
+                response = self._place_future_option_order(
+                    symbol, quantity, order_type, price)
+            logger.info('Order placed successfully',
+                        extra={'response': response})
+            if not price:
+                # If price is not provided, use the price from the response
+                price = getattr(response, 'price', None)
+
+            if price is None:
+                # TODO: Handle this better
+                logger.error('Price not found in response, tracking this trade anyway', extra={'response': response})
+
+            trade = Trade(
+                symbol=symbol,
+                quantity=quantity,
+                price=price,
+                executed_price=price,
+                order_type=order_type,
+                status='filled',
+                timestamp=datetime.now(),
+                broker=self.broker_name,
+                strategy=strategy,
+                profit_loss=0,
+                success='yes'
+            )
+            if order_type == 'sell':
+                profit_loss = self.db_manager.calculate_profit_loss(trade)
+                logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
+                trade.profit_loss = profit_loss
+
+            with self.Session() as session:
+                session.add(trade)
+                session.commit()
+                self.update_positions(session, trade)
+
+                # Fetch the latest cash balance for the strategy
+                latest_balance = session.query(Balance).filter_by(
+                    broker=self.broker_name, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).first()
+                DEFAULT_OPTIONS_CONTRACT_SIZE = 100
+                if latest_balance:
+                    # Calculate the order cost
+                    # TODO: determine correct OPTIONS_CONTRACT_SIZE which can be dynamic for different
+                    # future options
+                    # TODO: fix
+                    if symbol.split()[0] == './ESU4':
+                        order_cost = trade.executed_price * quantity * 50
+                    elif symbol.split()[0] == './NQU4':
+                        order_cost = trade.executed_price * quantity * 20
+                    else:
+                        logger.error('Not presently supported. Invalid symbol for future option.', extra={'symbol': symbol})
+                        order_cost = trade.executed_price * quantity * DEFAULT_OPTIONS_CONTRACT_SIZE
+
+                    # Subtract the order cost from the cash balance
+                    if order_type == 'buy':
+                        new_balance_amount = latest_balance.balance - order_cost
+                    else:  # order_type == 'sell'
+                        new_balance_amount = latest_balance.balance + order_cost
+
+                    # Create a new balance record with the updated cash balance
+                    new_balance = Balance(
+                        broker=self.broker_name,
+                        strategy=strategy,
+                        type='cash',
+                        balance=new_balance_amount,
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_balance)
+                    session.commit()
+            return response
+        except Exception as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
+            return None
+
 
     async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for an option'''

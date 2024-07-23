@@ -5,9 +5,9 @@ import re
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_underlying_symbol, is_ticker
+from utils.utils import extract_underlying_symbol, is_ticker, is_option, is_futures_option
 from tastytrade import ProductionSession, DXLinkStreamer, Account
-from tastytrade.instruments import Equity, NestedOptionChain, Option
+from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
@@ -119,8 +119,7 @@ class TastytradeBroker(BaseBroker):
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             positions_data = response.json()['data']['items']
-            # Tastytrade API returns positions with spaces in the symbol
-            positions = {p['symbol'].replace(' ', ''): p for p in positions_data}
+            positions = {self.process_symbol(p['symbol']): p for p in positions_data}
             logger.info('Positions retrieved', extra={'positions': positions})
             return positions
         except requests.RequestException as e:
@@ -129,6 +128,16 @@ class TastytradeBroker(BaseBroker):
                 logger.info('Trying to authenticate again')
                 self.connect()
                 return self.get_positions(retry=False)
+
+    @staticmethod
+    def process_symbol(symbol):
+        # NOTE: Tastytrade API returns options positions with spaces in the symbol.
+        # Standardize them here. However this is not worth doing for futures options,
+        # since they're the only current broker that supports them.
+        if is_futures_option(symbol):
+            return symbol
+        else:
+            return symbol.replace(' ', '')  # Remove spaces from the symbol
 
     @staticmethod
     def is_order_filled(order_response):
@@ -142,6 +151,32 @@ class TastytradeBroker(BaseBroker):
                 return False
 
         return True
+
+    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+        ticker = extract_underlying_symbol(symbol)
+        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        option = FutureOption.get_future_option(self.session, symbol)
+        if price is None:
+            price = await self.get_current_price(option.streamer_symbol)
+            price = round(price * 4) / 4
+            logger.info('Price not provided, using mid from current bid/ask', extra={'price': price})
+        if order_type == 'buy':
+            action = OrderAction.BUY_TO_OPEN
+            effect = PriceEffect.DEBIT
+        elif order_type == 'sell':
+            action = OrderAction.SELL_TO_CLOSE
+            effect = PriceEffect.CREDIT
+        account = Account.get_account(self.session, self.account_id)
+        leg = option.build_leg(quantity, action)
+        order = NewOrder(
+            time_in_force=OrderTimeInForce.DAY,
+            order_type=OrderType.LIMIT,
+            legs=[leg],
+            price=Decimal(price),
+            price_effect=effect
+        )
+        response = account.place_order(self.session, order, dry_run=False)
+        return response
 
     async def _place_option_order(self, symbol, quantity, order_type, price=None):
         ticker = extract_underlying_symbol(symbol)
@@ -253,10 +288,11 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        if not is_ticker(symbol):
-            # Format option prices; should
-            # more explicitly look for options symbols
-            # in case we expand to futures etc
+        if is_futures_option(symbol):
+            option = FutureOption.get_future_option(self.session, symbol)
+            streamer_symbol = option.streamer_symbol
+        if is_option(symbol):
+            # Convert to streamer symbol
             if ' ' not in symbol:
                 symbol = self.format_option_symbol(symbol)
             if '.' not in symbol:

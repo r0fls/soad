@@ -8,6 +8,13 @@ from utils.logger import logger
 
 OPTION_MULTIPLIER = 100
 
+def is_futures_option(symbol):
+    """
+    Check if the input symbol is a valid futures option symbol.
+    """
+    pattern = r'^\./[a-zA-Z0-9]+$'
+    return bool(re.match(pattern, symbol))
+
 def is_ticker(symbol):
     '''
     Check if the input symbol is a valid stock ticker.

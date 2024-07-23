@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
-from utils.utils import is_market_open
+from utils.utils import is_market_open, is_futures_option
 from datetime import datetime
 import asyncio
 
@@ -111,6 +111,9 @@ class BaseStrategy(ABC):
 
         with self.broker.Session() as session:
             for symbol, data in broker_positions.items():
+                if is_futures_option(symbol):
+                    logger.info(f"Skipping syncing positions for futures option {symbol}")
+                    continue
                 if asyncio.iscoroutinefunction(self.broker.get_current_price):
                     current_price = await self.broker.get_current_price(symbol)
                 else:
