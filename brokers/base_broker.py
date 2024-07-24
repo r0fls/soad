@@ -205,17 +205,11 @@ class BaseBroker(ABC):
                     # TODO: fix
                     # TODO: determine correct contract size for each symbol dynamically
                     # future options
-                    if symbol.split()[0] == './ESU4':
-                        order_cost = trade.executed_price * quantity * 50
-                    elif symbol.split()[0] == './NQU4':
-                        order_cost = trade.executed_price * quantity * 20
-                    elif symbol.split()[0] == './MESU4':
-                        order_cost = trade.executed_price * quantity * 5
-                    elif symbol.split()[0] == './MNQU4':
-                        order_cost = trade.executed_price * quantity * 2
-                    else:
-                        logger.error('Not presently supported. Invalid symbol for future option.', extra={'symbol': symbol})
+                    multiplier = get_future_contract_size(symbol)
+                    if multiplier == 1:
+                        logger.error(f'Contract {symbol} not currently supported. Invalid symbol for future option.', extra={'symbol': symbol})
                         return None
+                    order_cost = trade.executed_price * quantity * multiplier
 
                     # Subtract the order cost from the cash balance
                     if order_type == 'buy':

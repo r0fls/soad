@@ -8,6 +8,20 @@ from utils.logger import logger
 
 OPTION_MULTIPLIER = 100
 
+def futures_contract_size(symbol):
+    # TODO: get these dynamically
+    if symbol.split()[0] == './ESU4':
+        return 50
+    elif symbol.split()[0] == './NQU4':
+        return 20
+    elif symbol.split()[0] == './MESU4':
+        return 5
+    elif symbol.split()[0] == './MNQU4':
+        return 2
+    else:
+        logger.error(f"Unknown future symbol: {symbol}")
+        return 1
+
 def is_futures_option(symbol):
     """
     Check if the input symbol is a valid futures option symbol.
