@@ -165,11 +165,13 @@ class BaseBroker(ABC):
                         extra={'response': response})
             if not price:
                 # If price is not provided, use the price from the response
-                price = getattr(response, 'price', None)
+                # TODO: standardize this accross brokers if we ever
+                # add a second broker with a futures API
+                price = getattr(getattr(response, 'order', None), 'price', None)
 
             if price is None:
                 # TODO: Handle this better
-                logger.error('Price not found in response, tracking this trade anyway', extra={'response': response})
+                logger.error('Price not found in response, not tracking this trade', extra={'response': response})
 
             trade = Trade(
                 symbol=symbol,
@@ -200,16 +202,20 @@ class BaseBroker(ABC):
                 DEFAULT_OPTIONS_CONTRACT_SIZE = 100
                 if latest_balance:
                     # Calculate the order cost
-                    # TODO: determine correct OPTIONS_CONTRACT_SIZE which can be dynamic for different
-                    # future options
                     # TODO: fix
+                    # TODO: determine correct contract size for each symbol dynamically
+                    # future options
                     if symbol.split()[0] == './ESU4':
                         order_cost = trade.executed_price * quantity * 50
                     elif symbol.split()[0] == './NQU4':
                         order_cost = trade.executed_price * quantity * 20
+                    elif symbol.split()[0] == './MESU4':
+                        order_cost = trade.executed_price * quantity * 5
+                    elif symbol.split()[0] == './MNQU4':
+                        order_cost = trade.executed_price * quantity * 2
                     else:
                         logger.error('Not presently supported. Invalid symbol for future option.', extra={'symbol': symbol})
-                        order_cost = trade.executed_price * quantity * DEFAULT_OPTIONS_CONTRACT_SIZE
+                        return None
 
                     # Subtract the order cost from the cash balance
                     if order_type == 'buy':
