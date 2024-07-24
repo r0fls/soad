@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 from database.models import Trade, Balance, Position, Base
 from database.db_manager import DBManager
@@ -175,6 +175,70 @@ class TestTrading(unittest.TestCase):
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         self.assertIsNone(profit_loss, "Profit/Loss for a buy trade should be None")
 
+    def test_pl_calculation_option_full_sell_trade(self):
+        position = Position(
+            symbol="QQQ240726P00470000",
+            broker="dummy_broker",
+            quantity=10,
+            latest_price=150.0,
+            cost_basis=1500.0,
+            last_updated=datetime.now(),
+            strategy="test_strategy"
+        )
+        self.session.add(position)
+        self.session.commit()
+
+        trade = Trade(
+            symbol="QQQ240726P00470000",
+            quantity=10,
+            price=155.0,
+            executed_price=155.0,
+            order_type="sell",
+            status="executed",
+            timestamp=datetime.now(),
+            broker="dummy_broker",
+            strategy="test_strategy",
+            profit_loss=None,
+            success="yes"
+        )
+        self.session.add(trade)
+        self.session.commit()
+
+        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        self.assertEqual(profit_loss, 5000.0, "Profit/Loss calculation for sell trade is incorrect")
+
+    def test_pl_calculation_full_sell_trade(self):
+        position = Position(
+            symbol="AAPL",
+            broker="dummy_broker",
+            quantity=10,
+            latest_price=150.0,
+            cost_basis=1500.0,
+            last_updated=datetime.now(),
+            strategy="test_strategy"
+        )
+        self.session.add(position)
+        self.session.commit()
+
+        trade = Trade(
+            symbol="AAPL",
+            quantity=10,
+            price=155.0,
+            executed_price=155.0,
+            order_type="sell",
+            status="executed",
+            timestamp=datetime.now(),
+            broker="dummy_broker",
+            strategy="test_strategy",
+            profit_loss=None,
+            success="yes"
+        )
+        self.session.add(trade)
+        self.session.commit()
+
+        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        self.assertEqual(profit_loss, 50.0, "Profit/Loss calculation for sell trade is incorrect")
+
     def test_pl_calculation_sell_trade(self):
         position = Position(
             symbol="AAPL",
@@ -226,6 +290,16 @@ class TestTrading(unittest.TestCase):
 
         profit_loss = self.db_manager.calculate_profit_loss(trade)
         self.assertIsNone(profit_loss, "Profit/Loss calculation should return None when no position exists")
+
+    def test_calculate_profit_loss_futures_option(self):
+        # Example test for a futures option (NOTE: the symbol is fake/incorrect but that's fine)
+        trade = Trade(order_type='sell', executed_price=105.0, broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2)
+        position = Position(broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2, cost_basis=100.0)
+
+        with patch.object(DBManager, 'get_position', return_value=position):
+            profit_loss = self.db_manager.calculate_profit_loss(trade)
+        expected_profit_loss = (105.0 * 2 - 100.0) * 50  # futures contract size for './ESU4' is 50
+        self.assertEqual(profit_loss, expected_profit_loss)
 
 class TestBaseBroker(unittest.TestCase):
     @classmethod

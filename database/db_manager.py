@@ -86,11 +86,11 @@ class DBManager:
             elif trade.order_type.lower() == 'sell':
                 position = self.get_position(trade.broker, trade.symbol, trade.strategy)
                 if position.quantity == trade.quantity:
-                    profit_loss = trade.executed_price - position.cost_basis
+                    profit_loss = (trade.executed_price * trade.quantity - position.cost_basis)
                 else:
                     profit_loss = self.calculate_partial_profit_loss(trade, position)
                 if is_futures_option(trade.symbol):
-                    profit_loss *= get_future_option_multiplier(trade.symbol)
+                    profit_loss *= futures_contract_size(trade.symbol)
                 if is_option(trade.symbol):
                     profit_loss *= OPTION_MULTIPLIER
             logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})

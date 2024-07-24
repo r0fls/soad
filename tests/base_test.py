@@ -4,7 +4,7 @@ from database.models import Trade, AccountInfo, Balance, init_db
 import unittest
 
 class BaseTest(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
         cls.engine = create_engine('sqlite:///:memory:')
@@ -19,7 +19,7 @@ class BaseTest(unittest.TestCase):
 
     def setUp(self):
         self.session = self.Session()
-    
+
     def tearDown(self):
         self.session.rollback()
         self.session.close()
