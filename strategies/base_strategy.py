@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
-from utils.utils import is_market_open, is_futures_option
+from utils.utils import is_market_open, is_futures_option, is_futures_market_open
 from datetime import datetime
 import asyncio
 
