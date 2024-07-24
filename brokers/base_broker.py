@@ -6,6 +6,7 @@ from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
 from utils.logger import logger  # Import the logger
+from utils.utils import futures_contract_size
 
 
 # The contract size for options is 100 shares
@@ -205,7 +206,7 @@ class BaseBroker(ABC):
                     # TODO: fix
                     # TODO: determine correct contract size for each symbol dynamically
                     # future options
-                    multiplier = get_future_contract_size(symbol)
+                    multiplier = futures_contract_size(symbol)
                     if multiplier == 1:
                         logger.error(f'Contract {symbol} not currently supported. Invalid symbol for future option.', extra={'symbol': symbol})
                         return None
