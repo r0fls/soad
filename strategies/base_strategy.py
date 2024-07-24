@@ -18,14 +18,14 @@ class BaseStrategy(ABC):
         pass
 
     def initialize_starting_balance(self):
-        logger.debug("Initializing starting balance")
+        logger.debug("Initializing starting balance", extra={'strategy_name': self.strategy_name})
 
         account_info = self.broker.get_account_info()
         buying_power = account_info.get('buying_power')
-        logger.debug(f"Account info: {account_info}")
+        logger.debug(f"Account info: {account_info}", extra={'strategy_name': self.strategy_name})
 
         if buying_power < self.starting_capital:
-            logger.error(f"Not enough cash available. Required: {self.starting_capital}, Available: {buying_power}")
+            logger.error(f"Not enough cash available. Required: {self.starting_capital}, Available: {buying_power}", extra={'strategy_name': self.strategy_name})
             raise ValueError("Not enough cash available to initialize the strategy with the desired starting capital.")
 
         with self.broker.Session() as session:
@@ -44,14 +44,12 @@ class BaseStrategy(ABC):
                 )
                 session.add(strategy_balance)
                 session.commit()
-                logger.info(f"Initialized starting balance for {self.strategy_name} strategy with {self.starting_capital}")
+                logger.info(f"Initialized starting balance for {self.strategy_name} strategy with {self.starting_capital}", extra={'strategy_name': self.strategy_name})
             else:
-                logger.info(f"Existing balance found for {self.strategy_name} strategy: {strategy_balance.balance}")
-
+                logger.info(f"Existing balance found for {self.strategy_name} strategy: {strategy_balance.balance}", extra={'strategy_name': self.strategy_name})
 
     @property
     def current_positions(self):
-        # Get the current positions
         with self.broker.Session() as session:
             current_positions = session.query(Position).filter_by(
                 strategy=self.strategy_name,
@@ -62,14 +60,12 @@ class BaseStrategy(ABC):
     @property
     def current_balance(self):
         with self.broker.Session() as session:
-            # Get the latest balance
             balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name,
                 type='cash'
             ).order_by(Balance.timestamp.desc()).first()
             total_balance = balance.balance
-            # Add the position values to the balance
             positions = session.query(Position).filter_by(
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name
@@ -80,7 +76,6 @@ class BaseStrategy(ABC):
 
     @property
     def cash(self):
-        # Get the latest cash balance
         with self.broker.Session() as session:
             balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
@@ -91,7 +86,6 @@ class BaseStrategy(ABC):
 
     @property
     def investment_value(self):
-        # Get the current position value
         with self.broker.Session() as session:
             position_balance = 0
             positions = session.query(Position).filter_by(
@@ -102,17 +96,16 @@ class BaseStrategy(ABC):
                 position_balance += position.quantity * position.latest_price
         return position_balance
 
-
     async def sync_positions_with_broker(self):
-        logger.debug("Syncing positions with broker")
+        logger.debug("Syncing positions with broker", extra={'strategy_name': self.strategy_name})
 
         broker_positions = self.broker.get_positions()
-        logger.debug(f"Broker positions: {broker_positions}")
+        logger.debug(f"Broker positions: {broker_positions}", extra={'strategy_name': self.strategy_name})
 
         with self.broker.Session() as session:
             for symbol, data in broker_positions.items():
                 if is_futures_option(symbol):
-                    logger.info(f"Skipping syncing positions for futures option {symbol}")
+                    logger.info(f"Skipping syncing positions for futures option {symbol}", extra={'strategy_name': self.strategy_name})
                     continue
                 if asyncio.iscoroutinefunction(self.broker.get_current_price):
                     current_price = await self.broker.get_current_price(symbol)
@@ -137,7 +130,8 @@ class BaseStrategy(ABC):
                         position.latest_price = current_price
                         position.last_updated = datetime.utcnow()
                         logger.info(
-                            f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}")
+                            f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}",
+                            extra={'strategy_name': self.strategy_name})
                     else:
                         position = Position(
                             broker=self.broker.broker_name,
@@ -149,7 +143,8 @@ class BaseStrategy(ABC):
                         )
                         session.add(position)
                         logger.info(
-                            f"Created new position for {symbol} with quantity {data['quantity']} and price {current_price}")
+                            f"Created new position for {symbol} with quantity {data['quantity']} and price {current_price}",
+                            extra={'strategy_name': self.strategy_name})
 
             db_positions = session.query(Position).filter_by(
                 broker=self.broker.broker_name,
@@ -160,11 +155,11 @@ class BaseStrategy(ABC):
 
             for position in db_positions:
                 if position.symbol not in broker_symbols:
-                    logger.info(f"Removing position for {position.symbol} as it's not in broker's positions")
+                    logger.info(f"Removing position for {position.symbol} as it's not in broker's positions", extra={'strategy_name': self.strategy_name})
                     session.delete(position)
 
             session.commit()
-            logger.debug("Positions synced with broker")
+            logger.debug("Positions synced with broker", extra={'strategy_name': self.strategy_name})
 
     def should_own(self, symbol, current_price):
         pass
@@ -173,22 +168,23 @@ class BaseStrategy(ABC):
         positions = self.broker.get_positions()
         positions_dict = {
             position: positions[position]['quantity'] for position in positions}
-        logger.debug(f"Retrieved current positions: {positions_dict}")
+        logger.debug(f"Retrieved current positions: {positions_dict}", extra={'strategy_name': self.strategy_name})
         return positions_dict
 
     def get_account_info(self):
         account_info = self.broker.get_account_info()
         if not account_info:
-            logger.error("Failed to fetch account information")
+            logger.error("Failed to fetch account information", extra={'strategy_name': self.strategy_name})
             raise ValueError("Failed to fetch account information")
-        logger.debug(f"Account info: {account_info}")
+        logger.debug(f"Account info: {account_info}", extra={'strategy_name': self.strategy_name})
         return account_info
 
     def calculate_target_balances(self, total_balance, cash_percentage):
         target_cash_balance = total_balance * cash_percentage
         target_investment_balance = total_balance - target_cash_balance
         logger.debug(
-            f"Target cash balance: {target_cash_balance}, Target investment balance: {target_investment_balance}")
+            f"Target cash balance: {target_cash_balance}, Target investment balance: {target_investment_balance}",
+            extra={'strategy_name': self.strategy_name})
         return target_cash_balance, target_investment_balance
 
     def fetch_current_db_positions(self, session):
@@ -198,7 +194,7 @@ class BaseStrategy(ABC):
         ).all()
         current_db_positions_dict = {
             pos.symbol: pos.quantity for pos in current_db_positions if pos.quantity > 0}
-        logger.debug(f"Current DB positions: {current_db_positions_dict}")
+        logger.debug(f"Current DB positions: {current_db_positions_dict}", extra={'strategy_name': self.strategy_name})
         return current_db_positions_dict
 
     async def place_option_order(self, symbol, quantity, order_type, price, wait_till_open=True):
@@ -208,10 +204,12 @@ class BaseStrategy(ABC):
             else:
                 self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price)
             logger.info(
-                f"Placed {order_type} order for {symbol}: {quantity} shares")
+                f"Placed {order_type} order for {symbol}: {quantity} shares",
+                extra={'strategy_name': self.strategy_name})
         else:
             logger.info(
-                f"Market is closed, not placing {order_type} order for {symbol}: {quantity} shares")
+                f"Market is closed, not placing {order_type} order for {symbol}: {quantity} shares",
+                extra={'strategy_name': self.strategy_name})
 
     async def place_order(self, stock, quantity, order_type, price, wait_till_open=True):
         if is_market_open() or not wait_till_open:
@@ -220,7 +218,10 @@ class BaseStrategy(ABC):
             else:
                 self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)
             logger.info(
-                f"Placed {order_type} order for {stock}: {quantity} shares")
+                f"Placed {order_type} order for {stock}: {quantity} shares",
+                extra={'strategy_name': self.strategy_name})
         else:
             logger.info(
-                f"Market is closed, not placing {order_type} order for {stock}: {quantity} shares")
+                f"Market is closed, not placing {order_type} order for {stock}: {quantity} shares",
+                extra={'strategy_name': self.strategy_name})
+
