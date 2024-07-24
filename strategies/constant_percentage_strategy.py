@@ -31,7 +31,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name,
                 type='cash'
-            ).first()
+            ).order_by(Balance.timestamp.desc()).first()
             if balance is None:
                 logger.error(
                     f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker.broker_name}.")
