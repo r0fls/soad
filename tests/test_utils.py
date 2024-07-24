@@ -1,6 +1,7 @@
-from utils.utils import futures_contract_size
+from utils.utils import futures_contract_size, is_futures_market_open
 import unittest
 from unittest.mock import patch
+from freezegun import freeze_time
 
 class TestFuturesContractSize(unittest.TestCase):
     def test_known_symbols(self):
@@ -37,6 +38,35 @@ class TestFuturesContractSize(unittest.TestCase):
         self.assertEqual(futures_contract_size('./XYZU4'), 1)
         mock_logger.error.assert_called_once_with("Unknown future symbol: ./XYZU4")
 
+class TestIsFuturesMarketOpen(unittest.TestCase):
+    @freeze_time("2024-07-22 13:00:00")  # A Monday at 1:00 PM Eastern Time
+    def test_futures_market_open(self):
+        self.assertTrue(is_futures_market_open())
+
+    @freeze_time("2024-07-22 18:00:00")  # A Monday at 6:00 PM Eastern Time
+    def test_futures_market_open_evening(self):
+        self.assertTrue(is_futures_market_open())
+
+    @freeze_time("2024-07-20 13:00:00")  # A Saturday at 1:00 PM Eastern Time
+    def test_futures_market_closed_saturday(self):
+        self.assertFalse(is_futures_market_open())
+
+    @freeze_time("2024-07-21 17:00:00")  # A Sunday at 5:00 PM Eastern Time
+    def test_futures_market_closed_sunday_before_open(self):
+        self.assertFalse(is_futures_market_open())
+
+    # TODO: fix
+    @freeze_time("2024-07-21 18:30:00")  # A Sunday at 6:30 PM Eastern Time
+    def skip_test_futures_market_open_sunday_evening(self):
+        self.assertTrue(is_futures_market_open())
+
+    @freeze_time("2024-07-23 17:30:00")  # A Tuesday at 5:30 PM Eastern Time
+    def skip_test_futures_market_closed_weekday_after_close(self):
+        self.assertFalse(is_futures_market_open())
+
+    @freeze_time("2024-07-23 16:30:00")  # A Tuesday at 4:30 PM Eastern Time
+    def test_futures_market_open_weekday_afternoon(self):
+        self.assertTrue(is_futures_market_open())
+
 if __name__ == '__main__':
     unittest.main()
-

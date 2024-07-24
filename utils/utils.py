@@ -113,6 +113,36 @@ def extract_underlying_symbol(option_symbol):
     else:
         return None  # Return None if no match is found
 
+# TODO: enhance/fix
+def is_futures_market_open():
+    # Futures market open and close times (6:00 PM to 5:00 PM Eastern Time, Sunday to Friday)
+    market_open_time = time(18, 0)  # 6:00 PM
+    market_close_time = time(17, 0)  # 5:00 PM
+
+    # Get current time in Eastern Time
+    eastern = pytz.timezone('US/Eastern')
+    current_time = datetime.now(eastern)
+
+    # Check if today is Saturday
+    if current_time.weekday() == 5:  # 5 = Saturday
+        return False
+
+    # Check if today is Sunday
+    if current_time.weekday() == 6:  # 6 = Sunday
+        if current_time.time() < market_open_time:
+            return False
+        return True
+
+    # For other days, check if the time is within the market open and close times
+    if current_time.weekday() in [0, 1, 2, 3, 4]:  # Monday to Friday
+        if current_time.time() < market_close_time:
+            return True
+        if current_time.time() >= market_open_time:
+            return True
+        return False
+
+    return False
+
 def is_market_open():
     # Define market open and close times (e.g., 9:30 AM to 4:00 PM Eastern Time)
     market_open = time(9, 30)
