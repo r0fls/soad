@@ -2,6 +2,7 @@ name: Deploy MkDocs to GitHub Pages
 
 permissions:
   contents: write
+
 on:
   push:
     branches:
@@ -30,15 +31,16 @@ jobs:
 
       - name: Deploy to GitHub Pages
         run: |
-          rm -rf docs
-          mv site docs
-
-      - name: Commit and push changes
-        run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add docs
-          git commit -m "Deploy MkDocs site to docs folder"
-          git push origin main
+          git checkout --orphan gh-pages
+          git reset --hard
+          cp -r site/* .
+          git add .
+          git commit -m "Deploy MkDocs site to GitHub Pages"
+          git push -f origin gh-pages
+
+      - name: Cleanup
+        run: git checkout main
         env:
           GITHUB_TOKEN: ${{ secrets.GHA_TOKEN }}

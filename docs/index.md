@@ -1,0 +1,18 @@
+SOAD Documentation
+
+Welcome to the SOAD project documentation.
+
+<img src="https://github.com/r0fls/soad/assets/1858004/1ac6d1c7-5263-4b8a-a643-148ee54c12c1" alt="soad-mascot" width="300"/>
+
+## Overview
+
+SOAD (System Of A Dow) is a Python package designed to simplify the process of developing and testing algorithmic trading strategies.
+
+- **Author**: Raphael Deem
+- **Repository**: [GitHub](https://github.com/r0fls/soad)
+
+## Table of Contents
+
+- [Installation](installation.md)
+- [Usage](usage.md)
+- [Contributing](contributing.md)

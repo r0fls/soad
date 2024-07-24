@@ -6,3 +6,5 @@ nav:
   - Contributing: contributing.md
 
 theme: readthedocs
+site_dir: site
+docs_dir: docs
