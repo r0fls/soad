@@ -10,14 +10,62 @@ OPTION_MULTIPLIER = 100
 
 def futures_contract_size(symbol):
     # TODO: get these dynamically
-    if symbol.split()[0] == './ESU4':
+    # Check if the symbol starts with a valid futures symbol
+    if symbol.startswith('./ESU4'):
         return 50
-    elif symbol.split()[0] == './NQU4':
+    elif symbol.startswith('./NQU4'):
         return 20
-    elif symbol.split()[0] == './MESU4':
+    elif symbol.startswith('./MESU4'):
         return 5
-    elif symbol.split()[0] == './MNQU4':
+    elif symbol.startswith('./MNQU4'):
         return 2
+    elif symbol.startswith('./RTYU4'):
+        return 50
+    elif symbol.startswith('./M2KU4'):
+        return 10
+    elif symbol.startswith('./YMU4'):
+        return 5
+    elif symbol.startswith('./MYMU4'):
+        return 2
+    elif symbol.startswith('./ZBU4'):
+        return 1000
+    elif symbol.startswith('./ZNU4'):
+        return 1000
+    elif symbol.startswith('./ZTU4'):
+        return 2000
+    elif symbol.startswith('./ZFU4'):
+        return 1000
+    elif symbol.startswith('./ZCU4'):
+        return 50
+    elif symbol.startswith('./ZSU4'):
+        return 50
+    elif symbol.startswith('./ZWU4'):
+        return 50
+    elif symbol.startswith('./ZLU4'):
+        return 50
+    elif symbol.startswith('./ZMU4'):
+        return 50
+    elif symbol.startswith('./ZRU4'):
+        return 50
+    elif symbol.startswith('./ZKU4'):
+        return 50
+    elif symbol.startswith('./ZOU4'):
+        return 50
+    elif symbol.startswith('./ZVU4'):
+        return 1000
+    # Why not lol 🤷
+    elif symbol.startswith('./HEU4'):  # Lean Hogs 🐖
+        return 40000
+    elif symbol.startswith('./LEU4'):  # Live Cattle 🐄
+        return 40000
+    elif symbol.startswith('./CLU4'):  # Crude Oil 🛢️
+        return 1000
+    elif symbol.startswith('./GCU4'):  # Gold
+        return 100
+    elif symbol.startswith('./SIU4'):  # Silver
+        return 5000
+    elif symbol.startswith('./6EU4'):  # Euro FX
+        return 125000
     else:
         logger.error(f"Unknown future symbol: {symbol}")
         return 1
