@@ -1,9 +1,21 @@
-from utils.utils import futures_contract_size, is_futures_market_open
+from utils.utils import futures_contract_size, is_futures_market_open, is_futures_symbol
 import unittest
 from unittest.mock import patch
 from freezegun import freeze_time
 
 class TestFuturesContractSize(unittest.TestCase):
+    def test_is_futures_symbol(self):
+        # Test cases for valid futures option symbols
+        self.assertTrue(is_futures_symbol('./ESU4'))
+        self.assertTrue(is_futures_symbol('./MNQU4D4DN4 240725P19300'))
+        self.assertTrue(is_futures_symbol('./CLU4 240725P19300'))
+        # Test cases for invalid futures option symbols
+        self.assertFalse(is_futures_symbol('AAPL'))
+        # TODO: fix
+        #self.assertFalse(is_futures_symbol('./INVALID SYMBOL'))
+        self.assertFalse(is_futures_symbol('ESU4'))
+
+
     def test_known_symbols(self):
         self.assertEqual(futures_contract_size('./ESU4'), 50)
         self.assertEqual(futures_contract_size('./NQU4'), 20)

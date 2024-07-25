@@ -5,7 +5,7 @@ import re
 from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
-from utils.utils import extract_underlying_symbol, is_ticker, is_option, is_futures_option
+from utils.utils import extract_underlying_symbol, is_ticker, is_option, is_futures_symbol
 from tastytrade import ProductionSession, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
 from tastytrade.dxfeed import EventType
@@ -134,7 +134,7 @@ class TastytradeBroker(BaseBroker):
         # NOTE: Tastytrade API returns options positions with spaces in the symbol.
         # Standardize them here. However this is not worth doing for futures options,
         # since they're the only current broker that supports them.
-        if is_futures_option(symbol):
+        if is_futures_symbol(symbol):
             return symbol
         else:
             return symbol.replace(' ', '')  # Remove spaces from the symbol
@@ -288,7 +288,7 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        if is_futures_option(symbol):
+        if is_futures_symbol(symbol):
             option = FutureOption.get_future_option(self.session, symbol)
             streamer_symbol = option.streamer_symbol
         if is_option(symbol):

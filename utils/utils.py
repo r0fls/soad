@@ -70,11 +70,14 @@ def futures_contract_size(symbol):
         logger.error(f"Unknown future symbol: {symbol}")
         return 1
 
-def is_futures_option(symbol):
+# TODO: review this
+def is_futures_symbol(symbol):
     """
     Check if the input symbol is a valid futures option symbol.
+    A valid futures option symbol starts with './' followed by letters and numbers,
+    and can include spaces and additional alphanumeric characters.
     """
-    pattern = r'^\./[a-zA-Z0-9]+$'
+    pattern = r'^\./[A-Z0-9]+(\s+[A-Z0-9]+)*$'
     return bool(re.match(pattern, symbol))
 
 def is_ticker(symbol):
