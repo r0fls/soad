@@ -8,7 +8,7 @@ import numpy as np
 from scipy.stats import norm
 import os
 from datetime import timedelta, datetime
-from utils.utils import is_option, black_scholes_delta_theta, extract_option_details, OPTION_MULTIPLIER, is_futures_option, futures_contract_size
+from utils.utils import is_option, black_scholes_delta_theta, extract_option_details, OPTION_MULTIPLIER, is_futures_symbol, futures_contract_size
 from utils.logger import logger
 
 
@@ -168,7 +168,7 @@ def adjust_balance():
             for position in positions:
                 if is_option(position.symbol):
                     balance_contribution = position.quantity * position.latest_price * OPTION_MULTIPLIER
-                elif is_futures_option(position.symbol):
+                elif is_futures_symbol(position.symbol):
                     contract_size = futures_contract_size(position.symbol)
                     balance_contribution = position.quantity * position.latest_price * contract_size
                 else:
