@@ -157,7 +157,7 @@ class TastytradeBroker(BaseBroker):
         logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
         option = FutureOption.get_future_option(self.session, symbol)
         if price is None:
-            price = await self.get_current_price(option.streamer_symbol)
+            price = await self.get_current_price(symbol)
             price = round(price * 4) / 4
             logger.info('Price not provided, using mid from current bid/ask', extra={'price': price})
         if order_type == 'buy':
@@ -288,10 +288,14 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to retrieve options chain', extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
-        if is_futures_symbol(symbol):
+        if ':' in symbol:
+            # Looks like this is already a streamer symbol
+            pass
+        elif is_futures_symbol(symbol):
+            logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
             option = FutureOption.get_future_option(self.session, symbol)
-            streamer_symbol = option.streamer_symbol
-        if is_option(symbol):
+            symbol = option.streamer_symbol
+        elif is_option(symbol):
             # Convert to streamer symbol
             if ' ' not in symbol:
                 symbol = self.format_option_symbol(symbol)
