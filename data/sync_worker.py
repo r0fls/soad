@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import is_option, is_market_open, extract_option_details, OPTION_MULTIPLIER
+from utils.utils import is_option, is_market_open, extract_option_details, OPTION_MULTIPLIER, futures_contract_size, is_futures_symbol
 from database.models import Position, Balance
 import yfinance as yf
 
@@ -160,12 +160,13 @@ async def sync_worker(engine, brokers):
                     uncategorized_quantity = uncategorized_quantity - total_quantity
                 if uncategorized_quantity <= 0:
                     continue
+                latest_price = await get_latest_price(position)
                 new_position = Position(
                     broker=broker[0],
                     symbol=position,
                     strategy='uncategorized',
                     quantity=uncategorized_quantity,
-                    latest_price=positions[position].get('latest_price', 0),
+                    latest_price=latest_price,
                     cost_basis=positions[position].get('cost_basis', 0),
                     last_updated=now
                 )
@@ -216,6 +217,8 @@ async def sync_worker(engine, brokers):
                             continue
                         latest_price = await get_latest_price(position)
                         multiplier = 1
+                        if is_futures_symbol(position.symbol):
+                            multiplier = futures_contract_size(position.symbol)
                         if is_option(position.symbol):
                             multiplier = OPTION_MULTIPLIER
                         position_balance = position.quantity * latest_price * multiplier
