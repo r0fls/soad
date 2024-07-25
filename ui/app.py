@@ -203,6 +203,22 @@ def adjust_balance():
             balance=new_cash_balance,
             timestamp=now
         )
+        # Subtract from the uncatagorized cash balance for this broker
+        uncatagorized_cash_balance_record = app.session.query(Balance).filter_by(
+            strategy='uncategorized', broker=broker, type='cash'
+        ).order_by(Balance.timestamp.desc()).first()
+        if uncatagorized_cash_balance_record:
+            uncatagorized_cash_balance_record.balance -= adjustment
+        else:
+            uncatagorized_cash_balance_record = Balance(
+                strategy='uncategorized',
+                broker=broker,
+                type='uncatagorized_cash',
+                balance=-adjustment,
+                timestamp=now
+            )
+
+        app.session.add(uncatagorized_cash_balance_record)
         app.session.add(new_cash_balance_record)
         app.session.commit()
 
