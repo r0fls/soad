@@ -14,6 +14,7 @@ def position_exists(broker, symbol):
 
 async def sync_worker(engine, brokers):
     Session = sessionmaker(bind=engine)
+    session = Session()
 
     def get_broker_instance(broker_name):
         logger.debug(f'Getting broker instance for {broker_name}')
@@ -75,6 +76,7 @@ async def sync_worker(engine, brokers):
         logger.debug(f'Latest price for {symbol} is {latest_price}')
         return latest_price
 
+
     async def get_latest_price(position):
         logger.debug(f'Getting latest price for {position.symbol} from broker {position.broker}')
         broker_instance = get_broker_instance(position.broker)
@@ -86,6 +88,9 @@ async def sync_worker(engine, brokers):
         return latest_price
 
     async def update_uncategorized_balances(session, timestamp=None):
+        """
+        Update uncategorized balances for each strategy of each broker
+        """
         if timestamp is None:
             timestamp = datetime.utcnow()
         now = timestamp
@@ -97,6 +102,7 @@ async def sync_worker(engine, brokers):
             logger.debug(f'Processing uncategorized balances for broker {broker[0]}')
             total_value = account_info['value']
             uncategorized_balance = total_value
+            # Filter for all strategies of the broker except 'uncategorized'
             strategies = session.query(Balance.strategy).filter_by(broker=broker[0]).where(Balance.strategy != 'uncategorized').distinct().all()
             for strategy in strategies:
                 strategy_name = strategy.strategy
@@ -110,6 +116,7 @@ async def sync_worker(engine, brokers):
                 ).order_by(Balance.timestamp.desc()).first()
                 position_balance = position_balance.balance if position_balance else 0.0
                 uncategorized_balance = uncategorized_balance - cash_balance - position_balance
+            # Subtract any uncategorized position balances
             uncategorized_position_balance = session.query(Balance).filter_by(
                 broker=broker[0], strategy='uncategorized', type='positions'
             ).order_by(Balance.timestamp.desc()).first()
@@ -131,6 +138,9 @@ async def sync_worker(engine, brokers):
         logger.info('Completed updating uncategorized balances')
 
     async def add_uncategorized_positions(session, timestamp=None):
+        """
+        Add uncategorized positions to the database
+        """
         if timestamp is None:
             timestamp = datetime.utcnow()
         now = timestamp
@@ -143,6 +153,7 @@ async def sync_worker(engine, brokers):
             positions = broker_instance.get_positions()
             for position in positions:
                 uncategorized_quantity = positions[position]['quantity']
+                # Get the current total quantity we have of this position in the database across all strategies
                 total_quantity = session.query(Position).filter_by(broker=broker[0], symbol=position).all()
                 total_quantity = sum([p.quantity for p in total_quantity if p.quantity > 0])
                 if total_quantity > 0:
@@ -173,6 +184,7 @@ async def sync_worker(engine, brokers):
         for broker in brokers:
             broker_name = broker[0]
             logger.debug(f'Processing balances for broker {broker_name}')
+            # Look in balances for strategies for now since we don't have a strategy table
             strategies = session.query(Balance.strategy).filter_by(broker=broker_name).distinct().all()
             for strategy in strategies:
                 strategy_name = strategy[0]
@@ -198,6 +210,7 @@ async def sync_worker(engine, brokers):
 
                 for position in positions:
                     try:
+                        # check if we still have the position in the broker account
                         if not position_exists(get_broker_instance(position.broker), position.symbol):
                             logger.debug(f'Position {position.symbol} does not exist in broker {position.broker}, will be deleted from database')
                             session.delete(position)
@@ -229,20 +242,15 @@ async def sync_worker(engine, brokers):
         session.commit()
         logger.info('Completed updating cash and position balances')
 
-    async def main():
-        async with engine.begin() as connection:
-            session = Session(bind=connection)
-            try:
-                logger.info('Starting sync worker iteration')
-                now = datetime.utcnow()
-                await update_cash_and_position_balances(session, now)
-                await update_uncategorized_balances(session, now)
-                await update_latest_prices_and_volatility(session, now)
-                await add_uncategorized_positions(session, now)
-                logger.info('Sync worker completed an iteration')
-            except Exception as e:
-                logger.error('Error in sync worker iteration', extra={'error': str(e)})
-            finally:
-                session.close()
-
-    await main()
+    try:
+        logger.info('Starting sync worker iteration')
+        now = datetime.utcnow()
+        await update_cash_and_position_balances(session, now)
+        await update_uncategorized_balances(session, now)
+        await update_latest_prices_and_volatility(session, now)
+        await add_uncategorized_positions(session, now)
+        logger.info('Sync worker completed an iteration')
+    except Exception as e:
+        logger.error('Error in sync worker iteration', extra={'error': str(e)})
+    finally:
+        session.close()
