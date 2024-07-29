@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import Select from 'react-select';
-import { Spinner, Table } from 'react-bootstrap';
+import { Spinner, Table, Form } from 'react-bootstrap';
 import { Pie } from 'react-chartjs-2';
 import './Positions.css'; // Assuming you have a CSS file for custom styles
 
@@ -19,12 +19,14 @@ const Positions = () => {
   const [totalOptionsValue, setTotalOptionsValue] = useState(0);
   const [totalCashValue, setTotalCashValue] = useState(0);
   const [initialCashBalances, setInitialCashBalances] = useState({});
+  const [showPaperTrades, setShowPaperTrades] = useState(false); // Default to false (unchecked)
   const OPTION_MULTIPLIER = 100;
 
   const filterPositions = useCallback(() => {
     const filteredPositions = initialPositions.filter(position =>
       (selectedBrokers.length === 0 || selectedBrokers.includes(position.broker)) &&
-      (selectedStrategies.length === 0 || selectedStrategies.includes(position.strategy))
+      (selectedStrategies.length === 0 || selectedStrategies.includes(position.strategy)) &&
+      (showPaperTrades || !position.paper_trade)
     );
     setPositions(filteredPositions);
 
@@ -55,7 +57,7 @@ const Positions = () => {
       return acc;
     }, 0);
     setTotalCashValue(filteredCashValue);
-  }, [initialPositions, initialCashBalances, selectedBrokers, selectedStrategies]);
+  }, [initialPositions, initialCashBalances, selectedBrokers, selectedStrategies, showPaperTrades]);
 
   const fetchPositions = useCallback(async () => {
     setLoading(true);
@@ -98,7 +100,7 @@ const Positions = () => {
 
   useEffect(() => {
     filterPositions();
-  }, [selectedBrokers, selectedStrategies, filterPositions]);
+  }, [selectedBrokers, selectedStrategies, showPaperTrades, filterPositions]);
 
   const data = {
     labels: ['Stocks', 'Options', 'Cash'],
@@ -133,6 +135,16 @@ const Positions = () => {
             placeholder="Select Strategies"
             className="basic-multi-select"
             classNamePrefix="select"
+          />
+        </div>
+      </div>
+      <div className="row mb-3">
+        <div className="col-md-12 d-flex align-items-center">
+          <Form.Check
+            type="checkbox"
+            label="Show Paper Trades"
+            checked={showPaperTrades}
+            onChange={(e) => setShowPaperTrades(e.target.checked)}
           />
         </div>
       </div>

@@ -16,6 +16,12 @@ drop_then_init_db(engine)
 brokers = ['tradier', 'tastytrade']
 strategies = ['RSI', 'MACD']
 
+# Define paper trade settings for strategies
+strategy_settings = {
+    'RSI': {'paper_trade': True},
+    'MACD': {'paper_trade': False}
+}
+
 # Generate unique hourly timestamps for the past 5 days
 start_date = datetime.utcnow() - timedelta(days=5)
 end_date = datetime.utcnow()
@@ -28,6 +34,8 @@ fake_trades = []
 print("Generating fake trade data...")
 for timestamp in timestamps:
     for _ in range(num_trades_per_hour):
+        strategy = random.choice(strategies)
+        paper_trade = strategy_settings[strategy]['paper_trade']
         order_type = random.choice(['buy', 'sell'])
         quantity = random.randint(1, 20)
         price = random.uniform(100, 3000)
@@ -42,9 +50,10 @@ for timestamp in timestamps:
             status='executed',
             timestamp=timestamp,
             broker=random.choice(brokers),
-            strategy=random.choice(strategies),
+            strategy=strategy,
             profit_loss=profit_loss,
-            success=random.choice(['yes', 'no'])
+            success=random.choice(['yes', 'no']),
+            paper_trade=paper_trade
         ))
 print("Fake trade data generation completed.")
 
@@ -90,6 +99,7 @@ for broker in brokers:
         print(f"Inserted uncategorized balance records for {broker} at {timestamp}. Cash balance: {cash_balance_uncategorized}, Position balance: {position_balance_uncategorized}")
 
     for strategy in strategies:
+        paper_trade = strategy_settings[strategy]['paper_trade']
         initial_cash_balance = round(random.uniform(5000, 20000), 2)
         initial_position_balance = round(random.uniform(5000, 20000), 2)
         for timestamp in timestamps:
@@ -100,14 +110,16 @@ for broker in brokers:
                 strategy=strategy,
                 type='cash',
                 balance=cash_balance,
-                timestamp=timestamp
+                timestamp=timestamp,
+                paper_trade=paper_trade
             )
             position_balance_record = Balance(
                 broker=broker,
                 strategy=strategy,
                 type='positions',
                 balance=position_balance,
-                timestamp=timestamp
+                timestamp=timestamp,
+                paper_trade=paper_trade
             )
             session.add(cash_balance_record)
             session.add(position_balance_record)
@@ -128,7 +140,8 @@ for broker in brokers:
                 quantity=quantity,
                 latest_price=latest_price,
                 cost_basis=cost_basis,
-                last_updated=timestamp
+                last_updated=timestamp,
+                paper_trade=paper_trade
             )
             session.add(position_record)
             session.commit()
@@ -146,7 +159,8 @@ for broker in brokers:
                 quantity=quantity,
                 latest_price=latest_price,
                 cost_basis=cost_basis,
-                last_updated=timestamp
+                last_updated=timestamp,
+                paper_trade=paper_trade
             )
             session.add(position_record)
             session.commit()

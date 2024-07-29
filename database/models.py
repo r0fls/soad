@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint, Index, Boolean
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from datetime import datetime
 
@@ -19,6 +19,7 @@ class Trade(Base):
     strategy = Column(String, nullable=True)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
+    paper_trade = Column(Boolean, nullable=True, default=False)
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
@@ -34,6 +35,7 @@ class Balance(Base):
     type = Column(String, nullable=False)  # 'cash' or 'positions'
     balance = Column(Float, default=0.0)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    paper_trade = Column(Boolean, nullable=True, default=False)
 
     positions = relationship("Position", back_populates="balance", foreign_keys="[Position.balance_id]", primaryjoin="and_(Balance.id==Position.balance_id, Balance.type=='positions')")
 
@@ -57,6 +59,7 @@ class Position(Base):
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
     underlying_volatility = Column(Float, nullable=True)
     underlying_latest_price = Column(Float, nullable=True)
+    paper_trade = Column(Boolean, nullable=True, default=False)
 
     balance = relationship("Balance", back_populates="positions", foreign_keys=[balance_id])
 

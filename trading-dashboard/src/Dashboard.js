@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
-import { Spinner } from 'react-bootstrap';
+import { Spinner, Form } from 'react-bootstrap';
 import Select from 'react-select';
 import { Line } from 'react-chartjs-2';
 import {
@@ -53,6 +53,7 @@ const Dashboard = () => {
   const [initialData, setInitialData] = useState([]);
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
   const [endDate, setEndDate] = useState(moment().add(1, 'days').toDate());
+  const [showPaperTrades, setShowPaperTrades] = useState(false); // Default to false (unchecked)
 
   const getColorForKey = (key, colors) => {
     if (!colors[key]) {
@@ -141,10 +142,11 @@ const Dashboard = () => {
       (selectedBrokers.length === 0 || selectedBrokers.includes(item.broker)) &&
       (selectedStrategies.length === 0 || selectedStrategies.includes(item.strategy)) &&
       (!startDate || new Date(item.interval) >= startDate) &&
-      (!endDate || new Date(item.interval) <= endDate)
+      (!endDate || new Date(item.interval) <= endDate) &&
+      (showPaperTrades || !item.paper_trade)
     );
     setHistoricalValueData(processHistoricalValues(filteredData));
-  }, [initialData, selectedBrokers, selectedStrategies, startDate, endDate, processHistoricalValues]);
+  }, [initialData, selectedBrokers, selectedStrategies, startDate, endDate, showPaperTrades, processHistoricalValues]);
 
   const fetchHistoricalValues = useCallback(async () => {
     setLoading(true);
@@ -186,7 +188,7 @@ const Dashboard = () => {
     if (initialData.length > 0) {
       filterData();
     }
-  }, [initialData, selectedStrategies, selectedBrokers, startDate, endDate, filterData]);
+  }, [initialData, selectedStrategies, selectedBrokers, startDate, endDate, showPaperTrades, filterData]);
 
   return (
     <div className="container-fluid dashboard">
@@ -239,6 +241,16 @@ const Dashboard = () => {
               endDate={endDate}
               placeholderText="End Date"
               className="form-control"
+            />
+          </div>
+        </div>
+        <div className="row mb-3">
+          <div className="col-md-12 d-flex align-items-center">
+            <Form.Check
+              type="checkbox"
+              label="Show Paper Trades"
+              checked={showPaperTrades}
+              onChange={(e) => setShowPaperTrades(e.target.checked)}
             />
           </div>
         </div>
