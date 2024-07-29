@@ -8,8 +8,8 @@ import asyncio
 import yfinance as yf
 
 class RandomYoloHedge(BaseStrategy):
-    def __init__(self, broker, strategy_name, rebalance_interval_minutes, starting_capital, max_spread_percentage=0.25, bet_percentage=0.2, index='NDX'):
-        self.index = index
+    # Randomly selects a stock from the NASDAQ 100 index and buys an ATM call and put option
+    def __init__(self, broker, strategy_name, rebalance_interval_minutes, starting_capital, max_spread_percentage=0.25, bet_percentage=0.2):
         self.rebalance_interval_minutes = rebalance_interval_minutes
         self.rebalance_interval = timedelta(minutes=rebalance_interval_minutes)
         self.max_spread_percentage = max_spread_percentage
@@ -80,11 +80,15 @@ class RandomYoloHedge(BaseStrategy):
 
     def get_index_stocks(self):
         try:
-            index_ticker = yf.Ticker(f"^{self.index}")
-            index_components = index_ticker.history(period="1d")
-            return index_components.index.tolist()
+            # Scrape the NASDAQ 100 index components
+            import requests
+            headers={"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36"}
+            res = requests.get("https://api.nasdaq.com/api/quote/list-type/nasdaq100", headers=headers)
+            main_data = res.json()['data']['data']['rows']
+            symbols = [data['symbol'] for data in main_data]
+            return symbols
         except Exception as e:
-            logger.error(f"Error fetching {self.index} components: {e}")
+            logger.error(f"Error fetching NASDAQ components: {e}")
             return []
 
     async def find_valid_option(self, stocks, option_type, total_balance):
@@ -94,7 +98,7 @@ class RandomYoloHedge(BaseStrategy):
             stock = random.choice(stocks)
             stocks.remove(stock)
             option = await self.get_atm_option(stock, exp_date, option_type)
-            if option and self.is_order_valid(option, total_balance * self.bet_percentage * 0.1):
+            if option and self.is_order_valid(option, total_balance * self.bet_percentage * 0.5):
                 return option
             else:
                 logger.info(f"Invalid {option_type} option for {stock}, trying another stock.")
