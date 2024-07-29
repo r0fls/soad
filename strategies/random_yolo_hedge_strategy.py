@@ -1,6 +1,6 @@
 import random
 from datetime import timedelta, datetime
-from database.models import Balance
+from database.models import Balance, Trade
 from utils.utils import is_market_open
 from utils.logger import logger
 from strategies.base_strategy import BaseStrategy
