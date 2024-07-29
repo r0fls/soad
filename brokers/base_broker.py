@@ -126,7 +126,7 @@ class BaseBroker(ABC):
                         quantity=trade.quantity,
                         latest_price=trade.executed_price,
                         cost_basis=trade.executed_price * trade.quantity,
-                        paper_trade=self.paper_trade
+                        paper_trade=trade.paper_trade
                     )
                     session.add(position)
             elif trade.order_type == 'sell':
