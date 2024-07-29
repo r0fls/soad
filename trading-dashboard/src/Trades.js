@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import Select from 'react-select';
-import { Spinner, Table, Card, Row, Col } from 'react-bootstrap';
+import { Spinner, Table, Card, Row, Col, Form } from 'react-bootstrap';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './Trades.css'; // Assuming you have a CSS file for custom styles
@@ -18,6 +18,7 @@ const Trades = () => {
   const [initialTrades, setInitialTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPaperTrades, setShowPaperTrades] = useState(false);
 
   const filterTrades = useCallback(() => {
     const filteredTrades = initialTrades.filter(trade =>
@@ -25,14 +26,15 @@ const Trades = () => {
       (selectedStrategies.length === 0 || selectedStrategies.includes(trade.strategy)) &&
       (selectedOrderTypes.length === 0 || selectedOrderTypes.includes(trade.order_type)) &&
       (!startDate || new Date(trade.timestamp) >= startDate) &&
-      (!endDate || new Date(trade.timestamp) <= endDate)
+      (!endDate || new Date(trade.timestamp) <= endDate) &&
+      (showPaperTrades || !trade.paper_trade)
     );
     setTrades(filteredTrades);
-  }, [initialTrades, selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate]);
+  }, [initialTrades, selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, showPaperTrades]);
 
   const calculateStats = useCallback((filteredTrades) => {
     if (filteredTrades.length === 0) return null;
-	const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
+    const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
     const average_profit_loss = filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0) / filteredSellTrades.length;
     const win_loss_rate = filteredSellTrades.filter(trade => trade.profit_loss > 0).length / filteredSellTrades.length;
     const total_profit_loss = filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0);
@@ -79,7 +81,7 @@ const Trades = () => {
 
   useEffect(() => {
     filterTrades();
-  }, [selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, filterTrades]);
+  }, [selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, showPaperTrades, filterTrades]);
 
   useEffect(() => {
     setStats(calculateStats(trades));
@@ -121,7 +123,7 @@ const Trades = () => {
         </div>
       </div>
       <div className="row mb-3">
-        <div className="col-md-6">
+        <div className="col-md-4">
           <DatePicker
             selected={startDate}
             onChange={(date) => setStartDate(date)}
@@ -132,7 +134,7 @@ const Trades = () => {
             className="form-control"
           />
         </div>
-        <div className="col-md-6">
+        <div className="col-md-4">
           <DatePicker
             selected={endDate}
             onChange={(date) => setEndDate(date)}
@@ -141,6 +143,14 @@ const Trades = () => {
             endDate={endDate}
             placeholderText="End Date"
             className="form-control"
+          />
+        </div>
+        <div className="col-md-4 d-flex align-items-center">
+          <Form.Check
+            type="checkbox"
+            label="Show Paper Trades"
+            checked={showPaperTrades}
+            onChange={(e) => setShowPaperTrades(e.target.checked)}
           />
         </div>
       </div>
@@ -159,7 +169,7 @@ const Trades = () => {
                   <Card.Body>
                     <Card.Title>Average P/L</Card.Title>
                     <Card.Text>
-						{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.average_profit_loss)}
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.average_profit_loss)}
                     </Card.Text>
                   </Card.Body>
                 </Card>
@@ -177,7 +187,7 @@ const Trades = () => {
                   <Card.Body>
                     <Card.Title>Total Profit/Loss</Card.Title>
                     <Card.Text>
-						{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.total_profit_loss)}
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.total_profit_loss)}
                     </Card.Text>
                   </Card.Body>
                 </Card>
@@ -195,7 +205,7 @@ const Trades = () => {
                   <Card.Body>
                     <Card.Title>Trades per Day</Card.Title>
                     <Card.Text>{Object.keys(stats.trades_per_day).map(day => (
-                      <span key={day}>{day}: {stats.trades_per_day[day]}<br/></span>
+                      <span key={day}>{day}: {stats.trades_per_day[day]}<br /></span>
                     ))}</Card.Text>
                   </Card.Body>
                 </Card>
@@ -220,20 +230,20 @@ const Trades = () => {
                 {trades.map((trade, index) => (
                   <tr key={index} className={
                     trade.profit_loss < 0 ? 'text-danger' :
-                    trade.profit_loss > 0 ? 'text-success' :
-                    trade.order_type === 'buy' ? 'text-secondary' : ''
+                      trade.profit_loss > 0 ? 'text-success' :
+                        trade.order_type === 'buy' ? 'text-secondary' : ''
                   }>
                     <td data-label="Broker">{trade.broker}</td>
                     <td data-label="Strategy">{trade.strategy}</td>
                     <td data-label="Symbol">{trade.symbol}</td>
                     <td data-label="Quantity">{trade.quantity}</td>
                     <td data-label="Price">
-					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.price)}
-					</td>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.price)}
+                    </td>
                     <td data-label="Type">{trade.order_type}</td>
                     <td data-label="Profit/Loss">
-					  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.profit_loss)}
-					</td>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.profit_loss)}
+                    </td>
                     <td data-label="Timestamp">{new Date(trade.timestamp).toLocaleString()}</td>
                   </tr>
                 ))}
