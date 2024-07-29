@@ -71,8 +71,9 @@ class RandomYoloHedge(BaseStrategy):
             logger.info(f"Selected ATM call option: {valid_call_option}")
             logger.info(f"Selected ATM put option: {valid_put_option}")
 
-            call_bet_size = total_balance * self.bet_percentage * 0.1
-            put_bet_size = total_balance * self.bet_percentage * 0.1
+            # 50/50 split between call and put
+            call_bet_size = total_balance * self.bet_percentage * 0.5
+            put_bet_size = total_balance * self.bet_percentage * 0.5
 
             await self.place_option_order(valid_call_option['symbol'], call_bet_size // valid_call_option['lastPrice'], 'buy', valid_call_option)
             await self.place_option_order(valid_put_option['symbol'], put_bet_size // valid_put_option['lastPrice'], 'buy', valid_put_option)
