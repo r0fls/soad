@@ -35,7 +35,6 @@ STRATEGY_MAP = {
         starting_capital=config['starting_capital'],
         max_spread_percentage=config.get('max_spread_percentage', 0.25),
         bet_percentage=config.get('bet_percentage', 0.2),
-        index=config.get('index', 'NDX')
     ),
     'custom': lambda broker, strategy_name, config: load_custom_strategy(broker, strategy_name, config)
 }
