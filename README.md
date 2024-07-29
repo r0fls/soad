@@ -11,6 +11,8 @@
 https://r0fls.github.io/soad/
 
 ## UI Screenshots
-![Screen Shot 2024-06-06 at 7 56 38 PM](https://github.com/r0fls/soad/assets/1858004/0e214dd5-c157-47cc-a48f-2ec0f37a7b33)
-![Screen Shot 2024-06-06 at 7 55 54 PM](https://github.com/r0fls/soad/assets/1858004/65c4774d-fb49-4452-936c-f5148f958d26)
-![Screen Shot 2024-06-06 at 7 56 07 PM](https://github.com/r0fls/soad/assets/1858004/24401792-b0b0-4d2e-b2db-15827cb71b0a)
+![Screenshot 2024-07-28 at 11 35 52 PM](https://github.com/user-attachments/assets/ac8c7f34-6659-4aef-b789-7a772ea40e36)
+![Screenshot 2024-07-28 at 11 35 44 PM](https://github.com/user-attachments/assets/f2e5d167-362c-430f-a1ce-cdbe71488eee)
+![Screenshot 2024-07-28 at 11 35 33 PM](https://github.com/user-attachments/assets/f128560f-bad8-4c57-9ce4-ce13cbc63dd0)
+![Screenshot 2024-07-28 at 11 36 15 PM](https://github.com/user-attachments/assets/69ab20b3-480e-4286-b94f-828157da721f)
+![Screenshot 2024-07-28 at 11 36 03 PM](https://github.com/user-attachments/assets/ce805621-6feb-497c-b4a5-2295a1cfe275)
