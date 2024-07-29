@@ -18,6 +18,10 @@ class RandomYoloHedge(BaseStrategy):
         logger.info(
             f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
 
+    async def initialize(self):
+        # TODO: why is this needed?
+        pass
+
     async def rebalance(self):
         logger.debug("Starting rebalance process")
 
