@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from './axiosInstance';
 import Select from 'react-select';
-import { Spinner, Table, Card, Row, Col, Form } from 'react-bootstrap';
+import { Spinner, Table, Card, Row, Col } from 'react-bootstrap';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './Trades.css'; // Assuming you have a CSS file for custom styles
@@ -18,7 +18,6 @@ const Trades = () => {
   const [initialTrades, setInitialTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showPaperTrades, setShowPaperTrades] = useState(false);
 
   const filterTrades = useCallback(() => {
     const filteredTrades = initialTrades.filter(trade =>
@@ -26,11 +25,10 @@ const Trades = () => {
       (selectedStrategies.length === 0 || selectedStrategies.includes(trade.strategy)) &&
       (selectedOrderTypes.length === 0 || selectedOrderTypes.includes(trade.order_type)) &&
       (!startDate || new Date(trade.timestamp) >= startDate) &&
-      (!endDate || new Date(trade.timestamp) <= endDate) &&
-      (showPaperTrades || !trade.paper_trade)
+      (!endDate || new Date(trade.timestamp) <= endDate)
     );
     setTrades(filteredTrades);
-  }, [initialTrades, selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, showPaperTrades]);
+  }, [initialTrades, selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate]);
 
   const calculateStats = useCallback((filteredTrades) => {
     if (filteredTrades.length === 0) return null;
@@ -89,7 +87,7 @@ const Trades = () => {
 
   useEffect(() => {
     filterTrades();
-  }, [selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, showPaperTrades, filterTrades]);
+  }, [selectedBrokers, selectedStrategies, selectedOrderTypes, startDate, endDate, filterTrades]);
 
   useEffect(() => {
     setStats(calculateStats(trades));
@@ -131,7 +129,7 @@ const Trades = () => {
         </div>
       </div>
       <div className="row mb-3">
-        <div className="col-md-4">
+        <div className="col-md-6">
           <DatePicker
             selected={startDate}
             onChange={(date) => setStartDate(date)}
@@ -142,7 +140,7 @@ const Trades = () => {
             className="form-control"
           />
         </div>
-        <div className="col-md-4">
+        <div className="col-md-6">
           <DatePicker
             selected={endDate}
             onChange={(date) => setEndDate(date)}
@@ -151,14 +149,6 @@ const Trades = () => {
             endDate={endDate}
             placeholderText="End Date"
             className="form-control"
-          />
-        </div>
-        <div className="col-md-4 d-flex align-items-center">
-          <Form.Check
-            type="checkbox"
-            label="Show Paper Trades"
-            checked={showPaperTrades}
-            onChange={(e) => setShowPaperTrades(e.target.checked)}
           />
         </div>
       </div>
@@ -219,7 +209,7 @@ const Trades = () => {
                   <Card.Body>
                     <Card.Title>Trades per Day</Card.Title>
                     <Card.Text>{Object.keys(stats.trades_per_day).map(day => (
-                      <span key={day}>{day}: {stats.trades_per_day[day]}<br /></span>
+                      <span key={day}>{day}: {stats.trades_per_day[day]}<br/></span>
                     ))}</Card.Text>
                   </Card.Body>
                 </Card>
@@ -244,8 +234,8 @@ const Trades = () => {
                 {trades.map((trade, index) => (
                   <tr key={index} className={
                     trade.profit_loss < 0 ? 'text-danger' :
-                      trade.profit_loss > 0 ? 'text-success' :
-                        trade.order_type === 'buy' ? 'text-secondary' : ''
+                    trade.profit_loss > 0 ? 'text-success' :
+                    trade.order_type === 'buy' ? 'text-secondary' : ''
                   }>
                     <td data-label="Broker">{trade.broker}</td>
                     <td data-label="Strategy">{trade.strategy}</td>

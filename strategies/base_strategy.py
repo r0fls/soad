@@ -6,13 +6,12 @@ from datetime import datetime
 import asyncio
 
 class BaseStrategy(ABC):
-    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=5, paper_trade=False):
+    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=5):
         self.broker = broker
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
         self.initialize_starting_balance()
         self.rebalance_interval_minutes = rebalance_interval_minutes
-        self.paper_trade = paper_trade
 
     @abstractmethod
     async def rebalance(self):
@@ -199,10 +198,6 @@ class BaseStrategy(ABC):
         return current_db_positions_dict
 
     async def place_future_option_order(self, symbol, quantity, order_type, price, wait_till_open=True):
-        if self.paper_trade:
-            logger.info(f"Paper trading: Placed {order_type} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
-            self.broker.place_future_option_order(symbol, quantity, order_type, self.strategy_name, price, paper_trade=True)
-            return
         if is_futures_market_open() or not wait_till_open:
             if asyncio.iscoroutinefunction(self.broker.place_future_option_order):
                 await self.broker.place_future_option_order(symbol, quantity, order_type, self.strategy_name, price)
@@ -217,10 +212,6 @@ class BaseStrategy(ABC):
                 extra={'strategy_name': self.strategy_name})
 
     async def place_option_order(self, symbol, quantity, order_type, price, wait_till_open=True):
-        if self.paper_trade:
-            logger.info(f"Paper trading: Placed {order_type} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
-            self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price, paper_trade=True)
-            return
         if is_market_open() or not wait_till_open:
             if asyncio.iscoroutinefunction(self.broker.place_option_order):
                 await self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price)
@@ -235,10 +226,6 @@ class BaseStrategy(ABC):
                 extra={'strategy_name': self.strategy_name})
 
     async def place_order(self, stock, quantity, order_type, price, wait_till_open=True):
-        if self.paper_trade:
-            logger.info(f"Paper trading: Placed {order_type} order for {stock}: {quantity} shares", extra={'strategy_name': self.strategy_name})
-            self.broker.place_order(stock, quantity, order_type, self.strategy_name, price, paper_trade=True)
-            return
         if is_market_open() or not wait_till_open:
             if asyncio.iscoroutinefunction(self.broker.place_order):
                 await self.broker.place_order(stock, quantity, order_type, self.strategy_name, price)

@@ -3,12 +3,8 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage: usage.md
-  - Deploying Infrastructure: deploying-infrastructure.md
   - Contributing: contributing.md
 
-theme: 
-  name: 'readthedocs'
+theme: readthedocs
 site_dir: site
 docs_dir: docs
-extra_css:
-  - css/custom.css
