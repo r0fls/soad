@@ -7,6 +7,7 @@ from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
+from strategies.black_swan_strategy import BlackSwanStrategy  # Importing the new strategy
 from sqlalchemy import create_engine
 from .logger import logger
 
@@ -35,6 +36,18 @@ STRATEGY_MAP = {
         starting_capital=config['starting_capital'],
         max_spread_percentage=config.get('max_spread_percentage', 0.25),
         bet_percentage=config.get('bet_percentage', 0.2),
+    ),
+    'black_swan': lambda broker, strategy_name, config: BlackSwanStrategy(
+        broker=broker,
+        strategy_name=strategy_name,
+        rebalance_interval_minutes=config['rebalance_interval_minutes'],
+        starting_capital=config['starting_capital'],
+        symbol=config['symbol'],
+        otm_percentage=config.get('otm_percentage', 0.05),
+        expiry_days=config.get('expiry_days', 30),
+        bet_percentage=config.get('bet_percentage', 0.1),
+        holding_period_days=config.get('holding_period_days', 14),
+        spike_percentage=config.get('spike_percentage', 500)
     ),
     'custom': lambda broker, strategy_name, config: load_custom_strategy(broker, strategy_name, config)
 }
@@ -81,7 +94,6 @@ def initialize_brokers(config):
 
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-
         # Initialize the broker with the shared engine
         brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
 
