@@ -309,3 +309,26 @@ class TastytradeBroker(BaseBroker):
                 return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
             finally:
                 await streamer.close()
+
+    async def get_current_spread(self, symbol):
+        if ':' in symbol:
+            # Looks like this is already a streamer symbol
+            pass
+        elif is_futures_symbol(symbol):
+            logger.info('Getting current price for futures symbol', extra={'symbol': symbol})
+            option = FutureOption.get_future_option(self.session, symbol)
+            symbol = option.streamer_symbol
+        elif is_option(symbol):
+            # Convert to streamer symbol
+            if ' ' not in symbol:
+                symbol = self.format_option_symbol(symbol)
+            if '.' not in symbol:
+                symbol = Option.occ_to_streamer_symbol(symbol)
+        async with DXLinkStreamer(self.session) as streamer:
+            try:
+                subs_list = [symbol]
+                await streamer.subscribe(EventType.QUOTE, subs_list)
+                quote = await streamer.get_event(EventType.QUOTE)
+                return { "bid": quote.bidPrice, "ask": quote.askPrice }
+            finally:
+                await streamer.close()
