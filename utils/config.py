@@ -91,9 +91,7 @@ async def initialize_strategy(strategy_name, strategy_type, broker, config):
     constructor = STRATEGY_MAP.get(strategy_type)
     if constructor is None:
         raise ValueError(f"Unknown strategy type: {strategy_type}")
-    # Extract paper_trade attribute and pass it to the strategy constructor
-    paper_trade = config.get('paper_trade', False)
-    strategy = constructor(broker, strategy_name, {**config, 'paper_trade': paper_trade})
+    strategy = constructor(broker, strategy_name, config)
     if asyncio.iscoroutinefunction(strategy.initialize):
         await strategy.initialize()
         return strategy
@@ -111,7 +109,7 @@ async def initialize_strategies(brokers, config):
             broker = brokers[broker_name]
             if strategy_type in STRATEGY_MAP:
                 strategy = await initialize_strategy(strategy_name, strategy_type, broker, strategy_config)
-                strategies[strategy_name] = strategy
+                strategies[strategy_name]= strategy
             else:
                 logger.error(f"Unknown strategy type: {strategy_type}")
         except Exception as e:

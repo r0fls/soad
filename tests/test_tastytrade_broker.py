@@ -24,7 +24,7 @@ class TestTastytradeBroker(BaseTest):
         mock_post.return_value = mock_response
         self.broker = TastytradeBroker('myusername', 'mypassword', engine=self.engine)
 
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_connect(self, mock_post, mock_get, mock_prod_sesh):
@@ -34,7 +34,7 @@ class TestTastytradeBroker(BaseTest):
         mock_prod_sesh.assert_called_with('myusername', 'mypassword')
 
 
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_account_info(self, mock_post, mock_get, mock_prod_sesh):
@@ -73,7 +73,7 @@ class TestTastytradeBroker(BaseTest):
         self.assertEqual(account_info.get('cash'), 2000.0)
 
     @patch('brokers.tastytrade_broker.DXLinkStreamer', new_callable=AsyncMock)
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.post')
     @patch('brokers.tastytrade_broker.requests.get')
     async def test_place_order(self, mock_get, mock_post, mock_prod_sesh, mock_dx_streamer):
@@ -124,7 +124,7 @@ class TestTastytradeBroker(BaseTest):
         self.assertIsNotNone(balance)
         self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
 
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_order_status(self, mock_post_connect, mock_get, mock_prod_sesh):
@@ -137,7 +137,7 @@ class TestTastytradeBroker(BaseTest):
         order_status = self.broker._get_order_status('order_id')
         self.assertEqual(order_status, {'data': {'status': 'completed'}})
 
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.put')
     @patch('brokers.tastytrade_broker.requests.post')
@@ -151,7 +151,7 @@ class TestTastytradeBroker(BaseTest):
         cancel_status = self.broker._cancel_order('order_id')
         self.assertEqual(cancel_status, {'data': {'status': 'cancelled'}})
 
-    @patch('brokers.tastytrade_broker.ProductionSession', autospec=True)
+    @patch('brokers.tastytrade_broker.Session', autospec=True)
     @patch('brokers.tastytrade_broker.requests.get')
     @patch('brokers.tastytrade_broker.requests.post')
     def test_get_options_chain(self, mock_post_connect, mock_get, mock_prod_sesh):

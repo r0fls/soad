@@ -62,28 +62,25 @@ def get_brokers_strategies():
         cash_subquery = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             func.max(Balance.timestamp).label('latest_cash_timestamp')
-        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, Balance.paper_trade).subquery()
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy).subquery()
 
         # Fetch the latest cash balances
         latest_cash_balances = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             Balance.balance
         ).join(
             cash_subquery,
             (Balance.broker == cash_subquery.c.broker) &
             (Balance.strategy == cash_subquery.c.strategy) &
-            (Balance.paper_trade == cash_subquery.c.paper_trade) &
             (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
         ).filter(Balance.type == 'cash').all()
 
         # Create a dictionary to store the results
         broker_strategy_balances = {}
-        for broker, strategy, paper_trade, cash_balance in latest_cash_balances:
-            broker_strategy_balances[(broker, strategy, paper_trade)] = {
+        for broker, strategy, cash_balance in latest_cash_balances:
+            broker_strategy_balances[(broker, strategy)] = {
                 'cash_balance': cash_balance,
                 'positions_balance': 0
             }
@@ -92,38 +89,35 @@ def get_brokers_strategies():
         positions_subquery = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             func.max(Balance.timestamp).label('latest_positions_timestamp')
-        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy, Balance.paper_trade).subquery()
+        ).filter_by(type='positions').group_by(Balance.broker, Balance.strategy).subquery()
 
         latest_positions_balances = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             Balance.balance
         ).join(
             positions_subquery,
             (Balance.broker == positions_subquery.c.broker) &
             (Balance.strategy == positions_subquery.c.strategy) &
-            (Balance.paper_trade == positions_subquery.c.paper_trade) &
             (Balance.timestamp == positions_subquery.c.latest_positions_timestamp)
         ).filter(Balance.type == 'positions').all()
 
         # Update the dictionary with the positions balances
-        for broker, strategy, paper_trade, positions_balance in latest_positions_balances:
-            if (broker, strategy, paper_trade) in broker_strategy_balances:
-                broker_strategy_balances[(broker, strategy, paper_trade)]['positions_balance'] = positions_balance
+        for broker, strategy, positions_balance in latest_positions_balances:
+            if (broker, strategy) in broker_strategy_balances:
+                broker_strategy_balances[(broker, strategy)]['positions_balance'] = positions_balance
             else:
-                broker_strategy_balances[(broker, strategy, paper_trade)] = {
+                broker_strategy_balances[(broker, strategy)] = {
                     'cash_balance': 0,
                     'positions_balance': positions_balance
                 }
 
         # Calculate total balance for each broker and strategy
-        for (broker, strategy, paper_trade), balances in broker_strategy_balances.items():
+        for (broker, strategy), balances in broker_strategy_balances.items():
             if balances['positions_balance'] == 0:
                 positions = app.session.query(Position).filter_by(
-                    strategy=strategy, broker=broker, paper_trade=paper_trade
+                    strategy=strategy, broker=broker
                 ).all()
                 positions_balance = sum(p.quantity * p.latest_price for p in positions)
                 balances['positions_balance'] = positions_balance
@@ -135,10 +129,9 @@ def get_brokers_strategies():
             {
                 'broker': broker,
                 'strategy': strategy,
-                'paper_trade': paper_trade,
                 'total_balance': balances['total_balance']
             }
-            for (broker, strategy, paper_trade), balances in broker_strategy_balances.items()
+            for (broker, strategy), balances in broker_strategy_balances.items()
         ]
 
         return jsonify(response), 200
@@ -147,13 +140,13 @@ def get_brokers_strategies():
     finally:
         app.session.remove()
 
+
 @app.route('/adjust_balance', methods=['POST'])
 @jwt_required()
 def adjust_balance():
     data = request.get_json()
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
-    paper_trade = data.get('paper_trade', False)
     new_total_balance = data.get('new_total_balance')
     now = datetime.utcnow()
 
@@ -163,14 +156,14 @@ def adjust_balance():
     try:
         # Fetch the latest positions balance for the strategy
         positions_balance_record = app.session.query(Balance).filter_by(
-            strategy=strategy_name, broker=broker, type='positions', paper_trade=paper_trade
+            strategy=strategy_name, broker=broker, type='positions'
         ).order_by(Balance.timestamp.desc()).first()
 
         if not positions_balance_record:
             positions_balance = 0
             # Calculate positions balance if not found
             positions = app.session.query(Position).filter_by(
-                strategy=strategy_name, broker=broker, paper_trade=paper_trade
+                strategy=strategy_name, broker=broker
             ).all()
             for position in positions:
                 if is_option(position.symbol):
@@ -183,20 +176,18 @@ def adjust_balance():
                 positions_balance += balance_contribution
         else:
             positions_balance = positions_balance_record.balance
-
         # Create an updated positions balance record
         new_positions_balance_record = Balance(
             strategy=strategy_name,
             broker=broker,
             type='positions',
             balance=positions_balance,
-            timestamp=now,
-            paper_trade=paper_trade
+            timestamp=now
         )
 
         # Calculate the current total balance and the adjustment
         cash_balance_record = app.session.query(Balance).filter_by(
-            strategy=strategy_name, broker=broker, type='cash', paper_trade=paper_trade
+            strategy=strategy_name, broker=broker, type='cash'
         ).order_by(Balance.timestamp.desc()).first()
 
         if cash_balance_record:
@@ -213,26 +204,24 @@ def adjust_balance():
             broker=broker,
             type='cash',
             balance=new_cash_balance,
-            timestamp=now,
-            paper_trade=paper_trade
+            timestamp=now
         )
-
-        # Subtract from the uncategorized cash balance for this broker
-        uncategorized_cash_balance_record = app.session.query(Balance).filter_by(
+        # Subtract from the uncatagorized cash balance for this broker
+        uncatagorized_cash_balance_record = app.session.query(Balance).filter_by(
             strategy='uncategorized', broker=broker, type='cash'
         ).order_by(Balance.timestamp.desc()).first()
-        if uncategorized_cash_balance_record:
-            uncategorized_cash_balance_record.balance -= adjustment
+        if uncatagorized_cash_balance_record:
+            uncatagorized_cash_balance_record.balance -= adjustment
         else:
-            uncategorized_cash_balance_record = Balance(
+            uncatagorized_cash_balance_record = Balance(
                 strategy='uncategorized',
                 broker=broker,
-                type='cash',
+                type='uncatagorized_cash',
                 balance=-adjustment,
                 timestamp=now
             )
 
-        app.session.add(uncategorized_cash_balance_record)
+        app.session.add(uncatagorized_cash_balance_record)
         app.session.add(new_cash_balance_record)
         app.session.commit()
 
@@ -245,10 +234,10 @@ def adjust_balance():
 
 @app.route('/trades_per_strategy')
 @jwt_required()
-def trades_per_strategy():
+def trades_per_strategy(methods=['GET']):
     try:
-        trades_count = app.session.query(Trade.strategy, Trade.broker, Trade.paper_trade, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker, Trade.paper_trade).all()
-        trades_count_serializable = [{"strategy": strategy, "broker": broker, "paper_trade": paper_trade, "count": count} for strategy, broker, paper_trade, count in trades_count]
+        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+        trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
         return jsonify({"trades_per_strategy": trades_count_serializable})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -257,7 +246,7 @@ def trades_per_strategy():
 
 @app.route('/historic_balance_per_strategy')
 @jwt_required()
-def historic_balance_per_strategy():
+def historic_balance_per_strategy(methods=['GET']):
     try:
         if app.session.bind.dialect.name == 'postgresql':
             query = """
@@ -268,36 +257,32 @@ def historic_balance_per_strategy():
                 SELECT
                     broker,
                     strategy,
-                    paper_trade,
                     to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
                     MAX(timestamp) AS latest_cash_timestamp
                 FROM balances
                 WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago)
-                GROUP BY broker, strategy, paper_trade, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
             ),
             latest_positions_subquery AS (
                 SELECT
                     broker,
                     strategy,
-                    paper_trade,
                     to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
                     MAX(timestamp) AS latest_positions_timestamp
                 FROM balances
                 WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago)
-                GROUP BY broker, strategy, paper_trade, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
             ),
             latest_cash_balances AS (
                 SELECT
                     b.broker,
                     b.strategy,
-                    b.paper_trade,
                     to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
                     b.balance AS cash_balance
                 FROM balances b
                 JOIN latest_cash_subquery lcs
                     ON b.broker = lcs.broker
                     AND b.strategy = lcs.strategy
-                    AND b.paper_trade = lcs.paper_trade
                     AND b.timestamp = lcs.latest_cash_timestamp
                 WHERE b.type = 'cash'
             ),
@@ -305,21 +290,18 @@ def historic_balance_per_strategy():
                 SELECT
                     b.broker,
                     b.strategy,
-                    b.paper_trade,
                     to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval,
                     b.balance AS positions_balance
                 FROM balances b
                 JOIN latest_positions_subquery lps
                     ON b.broker = lps.broker
                     AND b.strategy = lps.strategy
-                    AND b.paper_trade = lps.paper_trade
                     AND b.timestamp = lps.latest_positions_timestamp
                 WHERE b.type = 'positions'
             )
             SELECT
                 lcb.broker,
                 lcb.strategy,
-                lcb.paper_trade,
                 lcb.interval,
                 COALESCE(lcb.cash_balance, 0) AS cash_balance,
                 COALESCE(lpb.positions_balance, 0) AS positions_balance,
@@ -328,7 +310,6 @@ def historic_balance_per_strategy():
             FULL OUTER JOIN latest_positions_balances lpb
                 ON lcb.broker = lpb.broker
                 AND lcb.strategy = lpb.strategy
-                AND lcb.paper_trade = lpb.paper_trade
                 AND lcb.interval = lpb.interval;
             """
         elif app.session.bind.dialect.name == 'sqlite':
@@ -340,36 +321,32 @@ def historic_balance_per_strategy():
                 SELECT
                     broker,
                     strategy,
-                    paper_trade,
                     strftime('%Y-%m-%d %H:%M', timestamp) AS interval,
                     MAX(timestamp) AS latest_cash_timestamp
                 FROM balances
                 WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago)
-                GROUP BY broker, strategy, paper_trade, strftime('%Y-%m-%d %H:%M', timestamp)
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
             ),
             latest_positions_subquery AS (
                 SELECT
                     broker,
                     strategy,
-                    paper_trade,
                     strftime('%Y-%m-%d %H:%M', timestamp) AS interval,
                     MAX(timestamp) AS latest_positions_timestamp
                 FROM balances
                 WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago)
-                GROUP BY broker, strategy, paper_trade, strftime('%Y-%m-%d %H:%M', timestamp)
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
             ),
             latest_cash_balances AS (
                 SELECT
                     b.broker,
                     b.strategy,
-                    b.paper_trade,
                     strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval,
                     b.balance AS cash_balance
                 FROM balances b
                 JOIN latest_cash_subquery lcs
                     ON b.broker = lcs.broker
                     AND b.strategy = lcs.strategy
-                    AND b.paper_trade = lcs.paper_trade
                     AND b.timestamp = lcs.latest_cash_timestamp
                 WHERE b.type = 'cash'
             ),
@@ -377,21 +354,18 @@ def historic_balance_per_strategy():
                 SELECT
                     b.broker,
                     b.strategy,
-                    b.paper_trade,
                     strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval,
                     b.balance AS positions_balance
                 FROM balances b
                 JOIN latest_positions_subquery lps
                     ON b.broker = lps.broker
                     AND b.strategy = lps.strategy
-                    AND b.paper_trade = lps.paper_trade
                     AND b.timestamp = lps.latest_positions_timestamp
                 WHERE b.type = 'positions'
             )
             SELECT
                 lcb.broker,
                 lcb.strategy,
-                lcb.paper_trade,
                 lcb.interval,
                 COALESCE(lcb.cash_balance, 0) AS cash_balance,
                 COALESCE(lpb.positions_balance, 0) AS positions_balance,
@@ -400,13 +374,11 @@ def historic_balance_per_strategy():
             LEFT JOIN latest_positions_balances lpb
                 ON lcb.broker = lpb.broker
                 AND lcb.strategy = lpb.strategy
-                AND lcb.paper_trade = lpb.paper_trade
                 AND lcb.interval = lpb.interval
             UNION
             SELECT
                 lpb.broker,
                 lpb.strategy,
-                lpb.paper_trade,
                 lpb.interval,
                 COALESCE(lcb.cash_balance, 0) AS cash_balance,
                 COALESCE(lpb.positions_balance, 0) AS positions_balance,
@@ -415,7 +387,6 @@ def historic_balance_per_strategy():
             LEFT JOIN latest_cash_balances lcb
                 ON lpb.broker = lcb.broker
                 AND lpb.strategy = lcb.strategy
-                AND lpb.paper_trade = lcb.paper_trade
                 AND lpb.interval = lcb.interval;
             """
         else:
@@ -427,11 +398,10 @@ def historic_balance_per_strategy():
         # Prepare the response
         historical_balances_serializable = []
         for row in combined_balances:
-            broker, strategy, paper_trade, interval, cash_balance, positions_balance, total_balance = row
+            broker, strategy, interval, cash_balance, positions_balance, total_balance = row
             historical_balances_serializable.append({
                 "strategy": strategy,
                 "broker": broker,
-                "paper_trade": paper_trade,
                 "interval": interval,
                 "cash_balance": round(cash_balance, 2),
                 "positions_balance": round(positions_balance, 2),
@@ -448,18 +418,17 @@ def historic_balance_per_strategy():
 @jwt_required()
 def trade_success_rate():
     try:
-        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker, Trade.paper_trade).distinct().all()
+        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
         success_rate_by_strategy_and_broker = []
 
-        for strategy, broker, paper_trade in strategies_and_brokers:
-            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.paper_trade == paper_trade, Trade.order_type == "buy").scalar()
-            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.paper_trade == paper_trade, Trade.profit_loss > 0).scalar()
+        for strategy, broker in strategies_and_brokers:
+            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
+            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
             failed_trades = total_trades - successful_trades
 
             success_rate_by_strategy_and_broker.append({
                 "strategy": strategy,
                 "broker": broker,
-                "paper_trade": paper_trade,
                 "total_trades": total_trades,
                 "successful_trades": successful_trades,
                 "failed_trades": failed_trades
@@ -502,7 +471,6 @@ def get_positions():
             positions_data.append({
                 'broker': position.broker,
                 'strategy': position.strategy,
-                'paper_trade': position.paper_trade,
                 'symbol': position.symbol,
                 'quantity': position.quantity,
                 'latest_price': position.latest_price,
@@ -517,24 +485,21 @@ def get_positions():
         cash_subquery = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             func.max(Balance.timestamp).label('latest_cash_timestamp')
-        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy, Balance.paper_trade).subquery()
+        ).filter_by(type='cash').group_by(Balance.broker, Balance.strategy).subquery()
 
         latest_cash_balances = app.session.query(
             Balance.broker,
             Balance.strategy,
-            Balance.paper_trade,
             Balance.balance
         ).join(
             cash_subquery,
             (Balance.broker == cash_subquery.c.broker) &
             (Balance.strategy == cash_subquery.c.strategy) &
-            (Balance.paper_trade == cash_subquery.c.paper_trade) &
             (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
         ).filter(Balance.type == 'cash').all()
 
-        cash_balances = {f"{balance.broker}_{balance.strategy}_{balance.paper_trade}": round(balance.balance, 2) for balance in latest_cash_balances}
+        cash_balances = {f"{balance.broker}_{balance.strategy}": round(balance.balance, 2) for balance in latest_cash_balances}
 
         return jsonify({
             'positions': positions_data,
@@ -554,12 +519,21 @@ def get_positions():
 @jwt_required()
 def get_trades():
     try:
-        trades = app.session.query(Trade).all()
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
+        query = app.session.query(Trade)
+
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
+
+        trades = query.all()
         trades_data = [{
             'id': trade.id,
             'broker': trade.broker,
             'strategy': trade.strategy,
-            'paper_trade': trade.paper_trade,
             'symbol': trade.symbol,
             'quantity': trade.quantity,
             'order_type': trade.order_type,
@@ -578,7 +552,17 @@ def get_trades():
 @jwt_required()
 def get_trade_stats():
     try:
-        trades = app.session.query(Trade).all()
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
+        query = app.session.query(Trade)
+
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
+
+        trades = query.all()
 
         if not trades:
             return jsonify({
@@ -618,7 +602,17 @@ def get_trade_stats():
 @jwt_required()
 def get_var():
     try:
-        trades = app.session.query(Trade).all()
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
+        query = app.session.query(Trade)
+
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
+
+        trades = query.all()
 
         if not trades:
             return jsonify({'var': 0})
@@ -638,7 +632,17 @@ def get_var():
 @jwt_required()
 def get_max_drawdown():
     try:
-        trades = app.session.query(Trade).all()
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
+        query = app.session.query(Trade)
+
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
+
+        trades = query.all()
 
         if not trades:
             return jsonify({'max_drawdown': 0})
@@ -658,7 +662,17 @@ def get_max_drawdown():
 @jwt_required()
 def get_sharpe_ratio():
     try:
-        trades = app.session.query(Trade).all()
+        brokers = request.args.getlist('brokers[]')
+        strategies = request.args.getlist('strategies[]')
+
+        query = app.session.query(Trade)
+
+        if brokers:
+            query = query.filter(Trade.broker.in_(brokers))
+        if strategies:
+            query = query.filter(Trade.strategy.in_(strategies))
+
+        trades = query.all()
 
         if not trades:
             return jsonify({'sharpe_ratio': 0})
