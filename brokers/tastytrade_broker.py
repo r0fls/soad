@@ -310,7 +310,7 @@ class TastytradeBroker(BaseBroker):
             finally:
                 await streamer.close()
 
-    async def get_current_spread(self, symbol):
+    async def get_bid_ask(self, symbol):
         if ':' in symbol:
             # Looks like this is already a streamer symbol
             pass
