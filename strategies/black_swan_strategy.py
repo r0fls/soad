@@ -6,6 +6,7 @@ from utils.logger import logger
 from strategies.base_strategy import BaseStrategy
 import asyncio
 import yfinance as yf
+import pandas as pd
 
 class BlackSwanStrategy(BaseStrategy):
     def __init__(self, broker, strategy_name, rebalance_interval_minutes, starting_capital, symbol="SPY", otm_percentage=0.05, expiry_days=30, bet_percentage=0.1, holding_period_days=7, spike_percentage=500):
