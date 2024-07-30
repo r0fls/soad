@@ -7,7 +7,7 @@ from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
-from strategies.black_swan_strategy import BlackSwanStrategy  # Importing the new strategy
+from strategies.black_swan_strategy import BlackSwanStrategy
 from sqlalchemy import create_engine
 from .logger import logger
 
