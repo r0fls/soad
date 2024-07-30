@@ -251,4 +251,4 @@ class TradierBroker(BaseBroker):
             logger.info('Bid/ask retrieved', extra={'symbol': symbol, 'bid': bid, 'ask': ask})
             return { 'bid': bid, 'ask': ask }
         except requests.RequestException as e:
-            logger.error('Failed to retrieve bid/ask', extra={'error': str(e})
+            logger.error('Failed to retrieve bid/ask', extra={'error': str(e)})
