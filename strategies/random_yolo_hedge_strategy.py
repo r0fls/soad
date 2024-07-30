@@ -79,17 +79,21 @@ class RandomYoloHedge(BaseStrategy):
             await self.place_option_order(valid_put_option['symbol'], put_bet_size // valid_put_option['lastPrice'], 'buy', valid_put_option)
 
     def get_index_stocks(self):
-        try:
-            # Scrape the NASDAQ 100 index components
-            import requests
-            headers={"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36"}
-            res = requests.get("https://api.nasdaq.com/api/quote/list-type/nasdaq100", headers=headers)
-            main_data = res.json()['data']['data']['rows']
-            symbols = [data['symbol'] for data in main_data]
-            return symbols
-        except Exception as e:
-            logger.error(f"Error fetching NASDAQ components: {e}")
-            return []
+        # NASDAQ 100 index
+        # TODO: fetch from somewhere
+        nasdaq_100_tickers = [
+            "AAPL", "MSFT", "AMZN", "TSLA", "GOOGL", "GOOG", "FB", "NVDA", "PYPL", "ADBE",
+            "NFLX", "CMCSA", "PEP", "INTC", "CSCO", "AVGO", "TXN", "QCOM", "AMGN", "CHTR",
+            "AMD", "SBUX", "MDLZ", "ISRG", "INTU", "AMAT", "BKNG", "MU", "ADP", "ZM",
+            "GILD", "VRTX", "ILMN", "REGN", "JD", "LRCX", "MRVL", "FISV", "CSX", "ATVI",
+            "BIIB", "ADSK", "ADI", "ROST", "CTSH", "EA", "MNST", "KDP", "XEL", "SPLK",
+            "EBAY", "EXC", "DLTR", "MELI", "SGEN", "FAST", "WDAY", "VRSK", "KLAC", "PAYX",
+            "CDNS", "ALXN", "IDXX", "SNPS", "PCAR", "CTAS", "MXIM", "CERN", "CHKP", "SWKS",
+            "ANSS", "XLNX", "INCY", "MCHP", "CDW", "SIRI", "NTES", "LULU", "TTWO", "TCOM",
+            "CPRT", "BMRN", "PTON", "TEAM", "DLTR", "VRSN", "NTAP", "OKTA", "WDC", "MAR",
+            "EXPE", "ULTA", "ORLY", "CTXS", "CSGP", "CDNS", "DXCM", "ASML", "JD", "KLAC"
+        ]
+        return nasdaq_100_tickers
 
     async def find_valid_option(self, stocks, option_type, total_balance):
         current_date = datetime.utcnow()
