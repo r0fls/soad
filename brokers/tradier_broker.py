@@ -239,3 +239,16 @@ class TradierBroker(BaseBroker):
             return last_price
         except requests.RequestException as e:
             logger.error('Failed to retrieve current price', extra={'error': str(e)})
+
+    def get_bid_ask(self, symbol):
+        logger.info('Retrieving bid/ask', extra={'symbol': symbol})
+        try:
+            response = requests.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers)
+            response.raise_for_status()
+            quote = response.json().get('quotes').get('quote')
+            bid = quote.get('bid')
+            ask = quote.get('ask')
+            logger.info('Bid/ask retrieved', extra={'symbol': symbol, 'bid': bid, 'ask': ask})
+            return { 'bid': bid, 'ask': ask }
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve bid/ask', extra={'error': str(e})

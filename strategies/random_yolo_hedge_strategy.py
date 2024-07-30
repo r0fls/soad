@@ -61,7 +61,12 @@ class RandomYoloHedge(BaseStrategy):
                     timestamp=datetime.now().date(),
                     order_type='buy'
                 ).all()
-                await self.broker.close_position(position, current_db_positions_dict[position]['quantity'], self.strategy_name)
+                quantity = position['quantity']
+                bid_ask = self.broker.get_bid_ask(position)
+                if (bid_ask['ask'] - bid_ask['bid']) / bid_ask['ask'] > self.max_spread_percentage:
+                    logger.error(f"Spread too high for {position}, skipping close.")
+                    continue
+                await self.broker.place_option_order(position, quantity, 'sell', bid_ask['bid'])
                 logger.info(f"Closed position for {position}")
 
         valid_call_option = await self.find_valid_option(index, 'call', total_balance)
@@ -111,7 +116,7 @@ class RandomYoloHedge(BaseStrategy):
         return None
 
     async def get_atm_option(self, stock, exp_date, option_type):
-        options_chain = await yf.Ticker(stock).option_chain(exp_date)
+        options_chain = yf.Ticker(stock).option_chain(exp_date)
         current_price = await self.broker.get_current_price(stock) if asyncio.iscoroutinefunction(self.broker.get_current_price) else self.broker.get_current_price(stock)
 
         if option_type == 'call':
