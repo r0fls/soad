@@ -126,7 +126,6 @@ class BaseBroker(ABC):
                         quantity=trade.quantity,
                         latest_price=trade.executed_price,
                         cost_basis=trade.executed_price * trade.quantity,
-                        paper_trade=trade.paper_trade
                     )
                     session.add(position)
             elif trade.order_type == 'sell':
@@ -158,12 +157,7 @@ class BaseBroker(ABC):
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
         try:
-            if self.paper_trade:
-                logger.info('Paper trading enabled', extra={'symbol': symbol})
-                if price is None:
-                    logger.error('Price must be provided for paper trading', extra={'symbol': symbol})
-                    return None
-            elif asyncio.iscoroutinefunction(self._place_future_option_order):
+            if asyncio.iscoroutinefunction(self._place_future_option_order):
                 response = await self._place_future_option_order(symbol, quantity, order_type, price)
             else:
                 response = self._place_future_option_order(
@@ -191,8 +185,7 @@ class BaseBroker(ABC):
                 broker=self.broker_name,
                 strategy=strategy,
                 profit_loss=0,
-                success='yes',
-                paper_trade=self.paper_trade
+                success='yes'
             )
             if order_type == 'sell':
                 profit_loss = self.db_manager.calculate_profit_loss(trade)
@@ -231,8 +224,7 @@ class BaseBroker(ABC):
                         strategy=strategy,
                         type='cash',
                         balance=new_balance_amount,
-                        timestamp=datetime.now(),
-                        paper_trade=self.paper_trade
+                        timestamp=datetime.now()
                     )
                     session.add(new_balance)
                     session.commit()
@@ -242,7 +234,7 @@ class BaseBroker(ABC):
             return None
 
 
-    async def place_option_order(self, symbol, quantity, order_type, strategy, price=None, paper_trade=False):
+    async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for an option'''
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
@@ -254,12 +246,7 @@ class BaseBroker(ABC):
                 return None
 
         try:
-            if self.paper_trade:
-                logger.info('Paper trading enabled', extra={'symbol': symbol})
-                if price is None:
-                    logger.error('Price must be provided for paper trading', extra={'symbol': symbol})
-                    return None
-            elif asyncio.iscoroutinefunction(self._place_order):
+            if asyncio.iscoroutinefunction(self._place_order):
                 response = await self._place_option_order(symbol, quantity, order_type, price)
             else:
                 response = self._place_option_order(
@@ -281,8 +268,7 @@ class BaseBroker(ABC):
                 broker=self.broker_name,
                 strategy=strategy,
                 profit_loss=0,
-                success='yes',
-                paper_trade=paper_trade
+                success='yes'
             )
             if order_type == 'sell':
                 profit_loss = self.db_manager.calculate_profit_loss(trade)
@@ -313,8 +299,7 @@ class BaseBroker(ABC):
                         strategy=strategy,
                         type='cash',
                         balance=new_balance_amount,
-                        timestamp=datetime.now(),
-                        paper_trade=paper_trade
+                        timestamp=datetime.now()
                     )
                     session.add(new_balance)
                     session.commit()
@@ -342,12 +327,7 @@ class BaseBroker(ABC):
                 return None
 
         try:
-            if self.paper_trade:
-                logger.info('Paper trading enabled', extra={'symbol': symbol})
-                if price is None:
-                    logger.error('Price must be provided for paper trading', extra={'symbol': symbol})
-                    return None
-            elif asyncio.iscoroutinefunction(self._place_order):
+            if asyncio.iscoroutinefunction(self._place_order):
                 response = await self._place_order(symbol, quantity, order_type, price)
             else:
                 response = self._place_order(
@@ -366,8 +346,7 @@ class BaseBroker(ABC):
                 broker=self.broker_name,
                 strategy=strategy,
                 profit_loss=0,
-                success='yes',
-                paper_trade=self.paper_trade
+                success='yes'
             )
 
             with self.Session() as session:
@@ -394,8 +373,7 @@ class BaseBroker(ABC):
                         strategy=strategy,
                         type='cash',
                         balance=new_balance_amount,
-                        timestamp=datetime.now(),
-                        paper_trade=self.paper_trade
+                        timestamp=datetime.now()
                     )
                     session.add(new_balance)
                     session.commit()

@@ -20,7 +20,7 @@ const AdjustBalance = () => {
       // Initialize new_total_balance with total_balance for each item
       const dataWithNewBalance = response.data.map(item => ({
         ...item,
-        new_total_balance: Math.floor(item.total_balance * 100) / 100
+        new_total_balance: item.total_balance
       }));
       setBrokersStrategies(dataWithNewBalance);
     } catch (error) {
@@ -57,7 +57,6 @@ const AdjustBalance = () => {
           <tr>
             <th>Broker</th>
             <th>Strategy</th>
-            <th>Type</th>
             <th>Balance</th>
             <th>Action</th>
           </tr>
@@ -67,7 +66,6 @@ const AdjustBalance = () => {
             <tr key={index}>
               <td>{item.broker}</td>
               <td>{item.strategy}</td>
-              <td>{item.paper_trade ? 'Paper' : 'Real'}</td>
               <td>
                 <input
                   type="number"
