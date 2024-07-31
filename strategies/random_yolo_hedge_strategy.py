@@ -5,7 +5,6 @@ from utils.utils import is_market_open
 from utils.logger import logger
 from strategies.base_strategy import BaseStrategy
 import asyncio
-import yfinance as yf
 
 class RandomYoloHedge(BaseStrategy):
     # Randomly selects a stock from the NASDAQ 100 index and buys an ATM call and put option
@@ -19,7 +18,7 @@ class RandomYoloHedge(BaseStrategy):
             f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
 
     async def initialize(self):
-        # TODO: why is this needed?
+        # Initialization if needed
         pass
 
     async def rebalance(self):
@@ -61,7 +60,7 @@ class RandomYoloHedge(BaseStrategy):
                     timestamp=datetime.now().date(),
                     order_type='buy'
                 ).all()
-                quantity = position['quantity']
+                quantity = current_db_positions_dict[position]['quantity']
                 bid_ask = self.broker.get_bid_ask(position)
                 if (bid_ask['ask'] - bid_ask['bid']) / bid_ask['ask'] > self.max_spread_percentage:
                     logger.error(f"Spread too high for {position}, skipping close.")
@@ -85,9 +84,8 @@ class RandomYoloHedge(BaseStrategy):
 
     def get_index_stocks(self):
         # NASDAQ 100 index
-        # TODO: fetch from somewhere
         nasdaq_100_tickers = [
-            "AAPL", "MSFT", "AMZN", "TSLA", "GOOGL", "GOOG", "FB", "NVDA", "PYPL", "ADBE",
+            "AAPL", "MSFT", "AMZN", "TSLA", "GOOGL", "GOOG", "META", "NVDA", "PYPL", "ADBE",
             "NFLX", "CMCSA", "PEP", "INTC", "CSCO", "AVGO", "TXN", "QCOM", "AMGN", "CHTR",
             "AMD", "SBUX", "MDLZ", "ISRG", "INTU", "AMAT", "BKNG", "MU", "ADP", "ZM",
             "GILD", "VRTX", "ILMN", "REGN", "JD", "LRCX", "MRVL", "FISV", "CSX", "ATVI",
@@ -116,20 +114,20 @@ class RandomYoloHedge(BaseStrategy):
         return None
 
     async def get_atm_option(self, stock, exp_date, option_type):
-        options_chain = yf.Ticker(stock).option_chain(exp_date)
-        current_price = await self.broker.get_current_price(stock) if asyncio.iscoroutinefunction(self.broker.get_current_price) else self.broker.get_current_price(stock)
+        options_chain = await self.broker.get_options_chain(stock, exp_date)
+        current_price = await self.broker.get_current_price(stock)
 
         if option_type == 'call':
-            options = options_chain.calls
+            options = options_chain['calls']
         else:
-            options = options_chain.puts
+            options = options_chain['puts']
 
-        atm_options = options[abs(options['strike'] - current_price) < 1]
+        atm_options = [opt for opt in options if abs(opt['strike'] - current_price) < 1]
         if len(atm_options) == 0:
             logger.error(f"No ATM {option_type} options found for {stock}")
             return None
 
-        return atm_options.iloc[0].to_dict()
+        return atm_options[0]
 
     def is_order_valid(self, option, bet_size):
         bid = option['bid']

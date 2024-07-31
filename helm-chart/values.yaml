@@ -3,6 +3,7 @@ replicaCount: 1
 api:
   replicas: 3
   ingress:
+    host: ""
     tls:
       secretPrefix: ""
       enabled: false
@@ -25,6 +26,7 @@ sync:
     pullPolicy: Always
 dashboard:
   ingress:
+    host: ""
     tls:
       secretPrefix: ""
       enabled: false
