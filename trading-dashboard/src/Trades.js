@@ -32,6 +32,7 @@ const Trades = () => {
 
   const calculateStats = useCallback((filteredTrades) => {
     if (filteredTrades.length === 0) return null;
+
     const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
     const hasSellTrades = filteredSellTrades.length > 0;
 
@@ -45,12 +46,32 @@ const Trades = () => {
       ? filteredSellTrades.reduce((acc, trade) => acc + trade.profit_loss, 0)
       : 0;
     const number_of_trades = filteredTrades.length;
-    const trades_per_day = filteredTrades.reduce((acc, trade) => {
-      const day = new Date(trade.timestamp).toLocaleDateString();
-      acc[day] = (acc[day] || 0) + 1;
+
+    const now = new Date();
+    const last7Days = new Date();
+    last7Days.setDate(now.getDate() - 7);
+    const last30Days = new Date();
+    last30Days.setDate(now.getDate() - 30);
+
+    const trades_per_day_last7Days = filteredTrades.reduce((acc, trade) => {
+      const tradeDate = new Date(trade.timestamp);
+      if (tradeDate >= last7Days) {
+        const day = tradeDate.toLocaleDateString();
+        acc[day] = (acc[day] || 0) + 1;
+      }
       return acc;
     }, {});
-    return { average_profit_loss, win_loss_rate, total_profit_loss, number_of_trades, trades_per_day };
+
+    const trades_last30Days = filteredTrades.filter(trade => new Date(trade.timestamp) >= last30Days).length;
+
+    return {
+      average_profit_loss,
+      win_loss_rate,
+      total_profit_loss,
+      number_of_trades,
+      trades_per_day_last7Days,
+      trades_last30Days
+    };
   }, []);
 
   const fetchTrades = useCallback(async () => {
@@ -207,10 +228,18 @@ const Trades = () => {
               <Col md={3}>
                 <Card>
                   <Card.Body>
-                    <Card.Title>Trades per Day</Card.Title>
-                    <Card.Text>{Object.keys(stats.trades_per_day).map(day => (
-                      <span key={day}>{day}: {stats.trades_per_day[day]}<br/></span>
+                    <Card.Title>Trades per Day (Last 7 Days)</Card.Title>
+                    <Card.Text>{Object.keys(stats.trades_per_day_last7Days).map(day => (
+                      <span key={day}>{day}: {stats.trades_per_day_last7Days[day]}<br/></span>
                     ))}</Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={3}>
+                <Card>
+                  <Card.Body>
+                    <Card.Title>Trades in Last 30 Days</Card.Title>
+                    <Card.Text>{stats.trades_last30Days}</Card.Text>
                   </Card.Body>
                 </Card>
               </Col>
@@ -232,11 +261,7 @@ const Trades = () => {
               </thead>
               <tbody>
                 {trades.map((trade, index) => (
-                  <tr key={index} className={
-                    trade.profit_loss < 0 ? 'text-danger' :
-                    trade.profit_loss > 0 ? 'text-success' :
-                    trade.order_type === 'buy' ? 'text-secondary' : ''
-                  }>
+                  <tr key={index}>
                     <td data-label="Broker">{trade.broker}</td>
                     <td data-label="Strategy">{trade.strategy}</td>
                     <td data-label="Symbol">{trade.symbol}</td>
@@ -245,7 +270,10 @@ const Trades = () => {
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.price)}
                     </td>
                     <td data-label="Type">{trade.order_type}</td>
-                    <td data-label="Profit/Loss">
+                    <td data-label="Profit/Loss" className={
+                      trade.profit_loss < 0 ? 'text-danger' :
+                      trade.profit_loss > 0 ? 'text-success' : ''
+                    }>
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.profit_loss)}
                     </td>
                     <td data-label="Timestamp">{new Date(trade.timestamp).toLocaleString()}</td>
