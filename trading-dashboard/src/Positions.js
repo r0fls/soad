@@ -47,7 +47,11 @@ const Positions = () => {
     setTotalOptionsValue(totals.totalOptionsValue);
 
     const filteredCashValue = Object.keys(initialCashBalances).reduce((acc, key) => {
-      const [broker, strategy] = key.split('_');
+      // Split by the last underscore
+      const lastUnderscoreIndex = key.lastIndexOf('_');
+      const broker = key.substring(0, lastUnderscoreIndex);
+      const strategy = key.substring(lastUnderscoreIndex + 1);
+
       if ((selectedBrokers.length === 0 || selectedBrokers.includes(broker)) &&
           (selectedStrategies.length === 0 || selectedStrategies.includes(strategy))) {
         acc += initialCashBalances[key];
