@@ -51,14 +51,14 @@ async def initialize_brokers_and_strategies(config, strategy_name=None):
                 raise
     # Initialize the brokers and strategies
     try:
-        brokers, strategies = await initialize_system_components(config)
+        brokers, strategies = await initialize_system_components(config, strategy_name)
     except Exception as e:
         logger.error('Failed to initialize brokers', extra={'error': str(e)})
         return
 
     # Initialize the strategies
     try:
-        strategies = await initialize_strategies(brokers, config)
+        strategies = await initialize_strategies(brokers, config, strategy_name)
         logger.info('Strategies initialized successfully')
     except Exception as e:
         logger.error('Failed to initialize strategies', extra={'error': str(e)})
@@ -187,7 +187,7 @@ async def main():
     parser.add_argument('--mode', choices=['trade', 'api', 'sync'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
-    parser.add_argument('--strategy', action='store_true', help='Run a single strategy.')
+    parser.add_argument('--strategy', type=str, help='Run a single strategy.')
     args = parser.parse_args()
 
     if args.mode == 'trade':
