@@ -15,7 +15,6 @@ from data.sync_worker import sync_worker  # Import the sync worker
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 
 def create_database_engine(config, local_testing=False):
-    return create_engine('postgresql://tradinguser:tradingpass@localhost:5432/tradingdb')
     if local_testing:
         return create_engine('sqlite:///trading.db')
     if 'database' in config and 'url' in config['database']:
