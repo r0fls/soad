@@ -51,6 +51,7 @@ class TradierBroker(BaseBroker):
             if account_info.get('pdt'):
                 self.account_type = 'pdt'
                 buying_power = account_info['pdt']['stock_buying_power']
+                account_value = account_info['total_equity']
             cash = account_info['total_cash']
 
             logger.info('Account balances retrieved', extra={'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
