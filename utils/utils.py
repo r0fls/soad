@@ -184,6 +184,8 @@ def black_scholes_delta_theta(position):
         d1 = (math.log(S / float(K)) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
         d2 = d1 - sigma * math.sqrt(T)
 
+        print(f"S: {S}, K: {float(K)}, T: {T}, r: {r}, sigma: {sigma}, d1: {d1}, d2: {d2}")
+
         delta = 0.0
         theta = 0.0
         if option_type == 'C':
@@ -192,6 +194,8 @@ def black_scholes_delta_theta(position):
         elif option_type == 'P':
             delta = -norm.cdf(-d1)
             theta = (-S * norm.pdf(d1) * sigma / (2 * math.sqrt(T)) + r * float(K) * math.exp(-r * T) * norm.cdf(-d2)) / 365.0
+
+        print(f"delta: {delta}, theta: {theta}")
 
         return delta, theta
     except Exception as e:
