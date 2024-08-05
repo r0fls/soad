@@ -110,13 +110,10 @@ async def initialize_strategy(strategy_name, strategy_type, broker, config):
     else:
         return strategy
 
-async def initialize_strategies(brokers, config, name=None):
+async def initialize_strategies(brokers, config):
     strategies_config = config['strategies']
     strategies = {}
     for strategy_name in strategies_config:
-        if name and strategy_name != name:
-            logger.info(f"Skipping strategy '{strategy_name}'")
-            continue
         try:
             strategy_config = strategies_config[strategy_name]
             strategy_type = strategy_config['type']

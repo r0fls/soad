@@ -29,18 +29,18 @@ def initialize_database(engine):
         logger.error('Failed to initialize database', extra={'error': str(e)})
         raise
 
-async def initialize_system_components(config, strategy_name=None):
+async def initialize_system_components(config):
     try:
         brokers = initialize_brokers(config)
         logger.info('Brokers initialized successfully')
-        strategies = await initialize_strategies(brokers, config, strategy_name)
+        strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
         return brokers, strategies
     except Exception as e:
         logger.error('Failed to initialize system components', extra={'error': str(e)})
         raise
 
-async def initialize_brokers_and_strategies(config, strategy_name=None):
+async def initialize_brokers_and_strategies(config):
     engine = create_database_engine(config)
     if config.get('rename_strategies'):
         for strategy in config['rename_strategies']:
@@ -51,14 +51,14 @@ async def initialize_brokers_and_strategies(config, strategy_name=None):
                 raise
     # Initialize the brokers and strategies
     try:
-        brokers, strategies = await initialize_system_components(config, strategy_name)
+        brokers, strategies = await initialize_system_components(config)
     except Exception as e:
         logger.error('Failed to initialize brokers', extra={'error': str(e)})
         return
 
     # Initialize the strategies
     try:
-        strategies = await initialize_strategies(brokers, config, strategy_name)
+        strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
     except Exception as e:
         logger.error('Failed to initialize strategies', extra={'error': str(e)})
@@ -66,7 +66,7 @@ async def initialize_brokers_and_strategies(config, strategy_name=None):
     return brokers, strategies
 
 # TODO: fix the need to restart to refresh the tastytrade token
-async def start_trading_system(config_path, strategy_name=None):
+async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
 
     # Parse the configuration file
@@ -85,7 +85,7 @@ async def start_trading_system(config_path, strategy_name=None):
     initialize_database(engine)
 
     # Initialize the brokers and strategies
-    brokers, strategies = await initialize_brokers_and_strategies(config, strategy_name)
+    brokers, strategies = await initialize_brokers_and_strategies(config)
 
     # Execute the strategies loop
     rebalance_intervals = { s: timedelta(minutes=strategies[s].rebalance_interval_minutes) for s in strategies }
@@ -108,7 +108,7 @@ async def start_trading_system(config_path, strategy_name=None):
                 except Exception as e:
                     # Try to reinitalize the brokers and strategies
                     logger.error(f'Error during rebalancing strategy {strategy_name}', extra={'error': str(e)})
-                    brokers, strategies = await initialize_brokers_and_strategies(config, strategy_name)
+                    brokers, strategies = await initialize_brokers_and_strategies(config)
         await asyncio.sleep(60)  # Check every minute
     logger.info('Trading system finished 24 hours of trading')
 
@@ -187,7 +187,6 @@ async def main():
     parser.add_argument('--mode', choices=['trade', 'api', 'sync'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
-    parser.add_argument('--strategy', type=str, help='Run a single strategy.')
     args = parser.parse_args()
 
     if args.mode == 'trade':
@@ -195,7 +194,7 @@ async def main():
             parser.error('--config is required when mode is "trade"')
         while True:
             try:
-                await start_trading_system(args.config, args.strategy)
+                await start_trading_system(args.config)
             except Exception as e:
                 logger.error('Error in trading system', extra={'error': str(e)})
                 logger.info('Restarting the trading system')
