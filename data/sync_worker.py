@@ -135,11 +135,17 @@ class BalanceService:
 async def sync_worker(engine, brokers):
     # Check if engine is a string or an Engine object
     if isinstance(engine, str):
+        # Create an async engine if the connection URL is provided
         async_engine = create_async_engine(engine)
     elif isinstance(engine, sqlalchemy.engine.Engine):
+        # Error handling to ensure we don't pass a synchronous engine where async is required
+        raise ValueError("AsyncEngine expected, but got a synchronous Engine.")
+    elif isinstance(engine, sqlalchemy.ext.asyncio.AsyncEngine):
+        # If it's already an AsyncEngine, use it directly
         async_engine = engine
     else:
-        raise ValueError("Invalid engine type. Expected a connection string or an Engine object.")
+        raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
+    # Use the async engine to create sessionmaker
     Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
 
     broker_service = BrokerService(brokers)
@@ -158,4 +164,3 @@ async def sync_worker(engine, brokers):
         logger.info('Sync worker completed an iteration')
     except Exception as e:
         logger.error('Error in sync worker iteration', extra={'error': str(e)})
-
