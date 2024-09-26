@@ -58,104 +58,104 @@ class TestTrading(unittest.TestCase):
     def tearDown(self):
         self.session.close()
 
-    def test_has_bought_today(self):
+    async def test_has_bought_today(self):
         today = datetime.now().date()
-        self.session.add(Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker'))
-        self.session.commit()
+        await self.session.add(Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker'))
+        await self.session.commit()
 
         result = self.broker.has_bought_today("AAPL")
         self.assertTrue(result)
 
-        self.session.query(Trade).delete()
+        await self.session.query(Trade).delete()
         self.session.commit()
 
         result = self.broker.has_bought_today("AAPL")
         self.assertFalse(result)
 
-    def test_update_positions_buy(self):
+    async def test_update_positions_buy(self):
         trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade)
+        await self.broker.update_positions(self.session, trade)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertIsNotNone(position)
         self.assertEqual(position.symbol, "AAPL")
         self.assertEqual(position.quantity, 10)
         self.assertEqual(position.latest_price, 150.0)
         self.assertEqual(position.cost_basis, 1500.0)
 
-    def test_update_positions_sell(self):
+    async def test_update_positions_sell(self):
         position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
-        self.session.add(position)
-        self.session.commit()
+        await self.session.add(position)
+        await self.session.commit()
 
         trade = Trade(symbol="AAPL", quantity=5, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade)
+        await self.broker.update_positions(self.session, trade)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertEqual(position.quantity, 5)
         self.assertEqual(position.latest_price, 155.0)
         self.assertAlmostEqual(position.cost_basis, 750.0)  # Half of the original cost basis
 
-    def test_multiple_buys_update_cost_basis(self):
+    async def test_multiple_buys_update_cost_basis(self):
         # First Buy Trade
         trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade1)
-        self.session.commit()
+        await self.session.add(trade1)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade1)
+        await self.broker.update_positions(self.session, trade1)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertEqual(position.symbol, "AAPL")
         self.assertEqual(position.quantity, 10)
         self.assertEqual(position.latest_price, 150.0)
         self.assertEqual(position.cost_basis, 1500.0)
 
         trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade2)
-        self.session.commit()
+        await self.session.add(trade2)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade2)
+        await self.broker.update_positions(self.session, trade2)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertEqual(position.quantity, 15)
         self.assertEqual(position.latest_price, 160.0)
         self.assertAlmostEqual(position.cost_basis, 2300.0)  # 1500 + 5*160
 
-    def test_full_sell_removes_position(self):
+    async def test_full_sell_removes_position(self):
         # First Buy Trade
         trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade1)
-        self.session.commit()
+        await self.session.add(trade1)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade1)
+        await self.broker.update_positions(self.session, trade1)
 
         # Full Sell Trade
         trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade2)
-        self.session.commit()
+        await self.session.add(trade2)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade2)
+        await self.broker.update_positions(self.session, trade2)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertEqual(position, None)
 
-    def test_edge_case_zero_quantity(self):
+    async def test_edge_case_zero_quantity(self):
         trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        self.broker.update_positions(self.session, trade)
+        await self.broker.update_positions(self.session, trade)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
+        position = await self.session.query(Position).filter_by(symbol="AAPL").first()
         self.assertIsNone(position)  # No position should be created
 
-    def test_pl_calculation_buy_trade(self):
+    async def test_pl_calculation_buy_trade(self):
         trade = Trade(
             symbol="AAPL",
             quantity=10,
@@ -169,13 +169,13 @@ class TestTrading(unittest.TestCase):
             profit_loss=None,
             success="yes"
         )
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        profit_loss = await self.db_manager.calculate_profit_loss(trade)
         self.assertIsNone(profit_loss, "Profit/Loss for a buy trade should be None")
 
-    def test_pl_calculation_option_full_sell_trade(self):
+    async def test_pl_calculation_option_full_sell_trade(self):
         position = Position(
             symbol="QQQ240726P00470000",
             broker="dummy_broker",
@@ -185,8 +185,8 @@ class TestTrading(unittest.TestCase):
             last_updated=datetime.now(),
             strategy="test_strategy"
         )
-        self.session.add(position)
-        self.session.commit()
+        await self.session.add(position)
+        await self.session.commit()
 
         trade = Trade(
             symbol="QQQ240726P00470000",
@@ -201,13 +201,13 @@ class TestTrading(unittest.TestCase):
             profit_loss=None,
             success="yes"
         )
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        profit_loss = await self.db_manager.calculate_profit_loss(trade)
         self.assertEqual(profit_loss, 5000.0, "Profit/Loss calculation for sell trade is incorrect")
 
-    def test_pl_calculation_full_sell_trade(self):
+    async def test_pl_calculation_full_sell_trade(self):
         position = Position(
             symbol="AAPL",
             broker="dummy_broker",
@@ -217,8 +217,8 @@ class TestTrading(unittest.TestCase):
             last_updated=datetime.now(),
             strategy="test_strategy"
         )
-        self.session.add(position)
-        self.session.commit()
+        await self.session.add(position)
+        await self.session.commit()
 
         trade = Trade(
             symbol="AAPL",
@@ -233,13 +233,13 @@ class TestTrading(unittest.TestCase):
             profit_loss=None,
             success="yes"
         )
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        profit_loss = await self.db_manager.calculate_profit_loss(trade)
         self.assertEqual(profit_loss, 50.0, "Profit/Loss calculation for sell trade is incorrect")
 
-    def test_pl_calculation_sell_trade(self):
+    async def test_pl_calculation_sell_trade(self):
         position = Position(
             symbol="AAPL",
             broker="dummy_broker",
@@ -249,8 +249,8 @@ class TestTrading(unittest.TestCase):
             last_updated=datetime.now(),
             strategy="test_strategy"
         )
-        self.session.add(position)
-        self.session.commit()
+        await self.session.add(position)
+        await self.session.commit()
 
         trade = Trade(
             symbol="AAPL",
@@ -265,13 +265,13 @@ class TestTrading(unittest.TestCase):
             profit_loss=None,
             success="yes"
         )
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        profit_loss = await self.db_manager.calculate_profit_loss(trade)
         self.assertEqual(profit_loss, 25.0, "Profit/Loss calculation for sell trade is incorrect")
 
-    def test_pl_calculation_no_position(self):
+    async def test_pl_calculation_no_position(self):
         trade = Trade(
             symbol="AAPL",
             quantity=5,
@@ -285,19 +285,19 @@ class TestTrading(unittest.TestCase):
             profit_loss=None,
             success="yes"
         )
-        self.session.add(trade)
-        self.session.commit()
+        await self.session.add(trade)
+        await self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
+        profit_loss = await self.db_manager.calculate_profit_loss(trade)
         self.assertIsNone(profit_loss, "Profit/Loss calculation should return None when no position exists")
 
-    def test_calculate_profit_loss_futures_option(self):
+    async def test_calculate_profit_loss_futures_option(self):
         # Example test for a futures option (NOTE: the symbol is fake/incorrect but that's fine)
         trade = Trade(order_type='sell', executed_price=105.0, broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2)
         position = Position(broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2, cost_basis=100.0)
 
         with patch.object(DBManager, 'get_position', return_value=position):
-            profit_loss = self.db_manager.calculate_profit_loss(trade)
+            profit_loss = await self.db_manager.calculate_profit_loss(trade)
         expected_profit_loss = (105.0 * 2 - 100.0) * 50  # futures contract size for './ESU4' is 50
         self.assertEqual(profit_loss, expected_profit_loss)
 

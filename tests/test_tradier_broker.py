@@ -65,26 +65,26 @@ class TestTradierBroker(BaseTest):
 
     @patch('brokers.tradier_broker.requests.get')
     @patch('brokers.tradier_broker.requests.post')
-    def test_get_order_status(self, mock_post_connect, mock_get):
+    async def test_get_order_status(self, mock_post_connect, mock_get):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'completed'}
         mock_get.return_value = mock_response
 
         self.broker.connect()
-        order_status = self.broker.get_order_status('order_id')
+        order_status = await self.broker.get_order_status('order_id')
         self.assertEqual(order_status, {'status': 'completed'})
 
     @patch('brokers.tradier_broker.requests.delete')
     @patch('brokers.tradier_broker.requests.post')
-    def test_cancel_order(self, mock_post_connect, mock_delete):
+    async def test_cancel_order(self, mock_post_connect, mock_delete):
         self.mock_connect(mock_post_connect)
         mock_response = MagicMock()
         mock_response.json.return_value = {'status': 'cancelled'}
         mock_delete.return_value = mock_response
 
         self.broker.connect()
-        cancel_status = self.broker.cancel_order('order_id')
+        cancel_status = await self.broker.cancel_order('order_id')
         self.assertEqual(cancel_status, {'status': 'cancelled'})
 
     @patch('brokers.tradier_broker.requests.get')
