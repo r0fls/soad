@@ -48,11 +48,12 @@ class TestTrading(unittest.IsolatedAsyncioTestCase):
         cls.engine = create_async_engine('sqlite+aiosqlite:///:memory:')
         cls.Session = sessionmaker(bind=cls.engine, class_=AsyncSession)
         cls.db_manager = DBManager(cls.engine)
+        cls.session = cls.Session()
 
-    def setUp(self):
-        Base.metadata.drop_all(self.engine)
-        Base.metadata.create_all(self.engine)
-        self.session = self.Session()
+    async def setUp(self):
+        async with self.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
         self.broker = MockBroker(api_key="dummy_api_key", secret_key="dummy_secret_key", broker_name="dummy_broker", engine=self.engine, prevent_day_trading=True)
 
     def tearDown(self):
