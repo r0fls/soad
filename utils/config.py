@@ -5,10 +5,10 @@ import importlib.util
 from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.etrade_broker import EtradeBroker
+from sqlalchemy.ext.asyncio import create_async_engine
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
 from strategies.black_swan_strategy import BlackSwanStrategy
-from sqlalchemy import create_engine
 from .logger import logger
 
 # Mapping of broker types to their constructors
@@ -86,11 +86,11 @@ def parse_config(config_path):
 def initialize_brokers(config):
     # Create a single database engine for all brokers
     if 'database' in config and 'url' in config['database']:
-        engine = create_engine(config['database']['url'])
+        engine = create_async_engine(config['database']['url'])
     elif os.environ.get("DATABASE_URL", None):
-        engine = create_engine(os.environ.get("DATABASE_URL"))
+        engine = create_async_engine(os.environ.get("DATABASE_URL"))
     else:
-        engine = create_engine('sqlite:///default_trading_system.db')
+        engine = create_async_engine('sqlite+aiosqlite:///default_trading_system.db')
 
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
