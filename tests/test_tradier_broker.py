@@ -6,9 +6,9 @@ from database.models import Balance, Trade
 
 class TestTradierBroker(BaseTest):
 
-    def setUp(self):
-        super().setUp()  # Call the setup from BaseTest
-        self.broker = TradierBroker('api_key', 'secret_key', engine=self.engine)
+    async def asyncSetUp(self):
+        await super().setUp()  # Call the setup from BaseTest
+        self.broker = await TradierBroker('api_key', 'secret_key', engine=self.engine)
 
     def mock_connect(self, mock_post):
         mock_response = MagicMock()

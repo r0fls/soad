@@ -16,3 +16,4 @@ yfinance
 freezegun
 asyncpg
 aiosqlite
+greenlet
