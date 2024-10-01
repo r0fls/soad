@@ -23,7 +23,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         logger.debug("Starting rebalance process")
         await self.sync_positions_with_broker()
 
-        account_info = self.get_account_info()
+        account_info = await self.get_account_info()
         cash_balance = account_info.get('cash_available')
 
         with self.broker.Session() as session:

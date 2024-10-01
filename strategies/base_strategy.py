@@ -10,17 +10,16 @@ class BaseStrategy(ABC):
         self.broker = broker
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
-        self.initialize_starting_balance()
         self.rebalance_interval_minutes = rebalance_interval_minutes
 
     @abstractmethod
     async def rebalance(self):
         pass
 
-    def initialize_starting_balance(self):
+    async def initialize_starting_balance(self):
         logger.debug("Initializing starting balance", extra={'strategy_name': self.strategy_name})
 
-        account_info = await self.broker.get_account_info()
+        account_info = self.broker.get_account_info()
         buying_power = account_info.get('buying_power')
         logger.debug(f"Account info: {account_info}", extra={'strategy_name': self.strategy_name})
 
@@ -171,7 +170,7 @@ class BaseStrategy(ABC):
         logger.debug(f"Retrieved current positions: {positions_dict}", extra={'strategy_name': self.strategy_name})
         return positions_dict
 
-    def get_account_info(self):
+    async def get_account_info(self):
         account_info = await self.broker.get_account_info()
         if not account_info:
             logger.error("Failed to fetch account information", extra={'strategy_name': self.strategy_name})
