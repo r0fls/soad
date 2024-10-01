@@ -125,9 +125,47 @@ async def test_update_positions_sell(session, broker):
     assert position.latest_price == 155.0
     assert position.cost_basis == 750.0
 
-
 @pytest.mark.asyncio
 async def test_multiple_buys_update_cost_basis(session, broker):
+    # First buy trade
+    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+
+    session.add(trade1)
+    await session.commit()  # Commit the first transaction
+    await session.refresh(trade1)
+
+    # Update the position after the first trade
+    await broker.update_positions(session, trade1)
+
+    # Verify the position after the first trade
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position.symbol == "AAPL"
+    assert position.quantity == 10
+    assert position.latest_price == 150.0
+    assert position.cost_basis == 1500.0
+
+    # Second buy trade
+    trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+
+    session.add(trade2)
+    await session.commit()  # Commit the second transaction
+    await session.refresh(trade2)
+
+    # Update the position after the second trade
+    await broker.update_positions(session, trade2)
+
+    # Verify the position after the second trade
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+
+    # Verify updated position and cost basis
+    assert position.quantity == 15
+    assert position.latest_price == 160.0
+    assert position.cost_basis == 2300.0
+
+@pytest.mark.asyncio
+async def test_full_sell_removes_position(session, broker):
     trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade1)
@@ -136,47 +174,18 @@ async def test_multiple_buys_update_cost_basis(session, broker):
 
     await broker.update_positions(session, trade1)
 
-    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
-    position = result.scalars().first()
-    assert position.symbol == "AAPL"
-    assert position.quantity == 10
-    assert position.latest_price == 150.0
-    assert position.cost_basis == 1500.0
-
-    trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade2)
     await session.commit()
     await session.refresh(trade2)
 
     await broker.update_positions(session, trade2)
-
-    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
-    position = result.scalars().first()
-    assert position.quantity == 15
-    assert position.latest_price == 160.0
-    assert position.cost_basis == 2300.0
-
-
-@pytest.mark.asyncio
-async def test_full_sell_removes_position(session, broker):
-    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-    async with session.begin():
-        session.add(trade1)
     await session.commit()
+    await session.refresh(trade2)
 
-    await broker.update_positions(session, trade1)
-
-    trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-    async with session.begin():
-        session.add(trade2)
-    await session.commit()
-
-    await broker.update_positions(session, trade2)
-
-    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
-    position = result.scalars().first()
-    assert position is None
+    position = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    assert position.first() is None
 
 
 @pytest.mark.asyncio
