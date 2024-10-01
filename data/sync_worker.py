@@ -1,6 +1,7 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 from datetime import datetime, UTC
 from utils.logger import logger
 from utils.utils import is_option, extract_option_details, OPTION_MULTIPLIER, futures_contract_size, is_futures_symbol
@@ -85,7 +86,7 @@ class BalanceService:
     async def update_uncategorized_balances(self, session, timestamp):
         now = timestamp or datetime.now(UTC)
         logger.info('Updating uncategorized balances')
-        brokers = await session.execute(session.query(Balance.broker).distinct())
+        brokers = await session.execute(select(Balance.broker).distinct())
         for broker in brokers.scalars():
             await self._process_broker_balances(session, broker, now)
 
@@ -98,15 +99,15 @@ class BalanceService:
         total_value = account_info['value']
         uncategorized_balance = total_value
 
-        strategies = await session.execute(session.query(Balance.strategy).filter_by(broker=broker).distinct())
+        strategies = await session.execute(select(Balance.strategy).filter_by(broker=broker).distinct())
         for strategy in strategies.scalars():
             uncategorized_balance -= await self._get_strategy_balances(session, broker, strategy)
 
         uncategorized_position_balance = await session.execute(
-            session.query(Balance).filter_by(broker=broker, strategy='uncategorized', type='positions').first()
+            select(Balance).filter_by(broker=broker, strategy='uncategorized', type='positions').limit(1)
         )
-        uncategorized_position_balance = uncategorized_position_balance.scalar().balance if uncategorized_position_balance.scalar() else 0.0
-        uncategorized_balance -= uncategorized_position_balance
+        uncategorized_position_balance = uncategorized_position_balance.scalar()
+        uncategorized_balance -= uncategorized_position_balance.balance if uncategorized_position_balance else 0.0
 
         if uncategorized_balance < 0:
             logger.error(f'Uncategorized balance for broker {broker} is negative: {uncategorized_balance}. Setting to 0.')
@@ -123,11 +124,13 @@ class BalanceService:
         logger.debug(f'Added new uncategorized balance for broker {broker}: {uncategorized_balance}')
 
     async def _get_strategy_balances(self, session, broker, strategy):
-        cash_balance = await session.execute(session.query(Balance).filter_by(broker=broker, strategy=strategy, type='cash').first())
-        cash_balance = cash_balance.scalar().balance if cash_balance.scalar() else 0.0
+        cash_balance = await session.execute(select(Balance).filter_by(broker=broker, strategy=strategy, type='cash').limit(1))
+        cash_balance = cash_balance.scalar()
+        cash_balance = cash_balance.balance if cash_balance else 0.0
 
-        position_balance = await session.execute(session.query(Balance).filter_by(broker=broker, strategy=strategy, type='positions').first())
-        position_balance = position_balance.scalar().balance if position_balance.scalar() else 0.0
+        position_balance = await session.execute(select(Balance).filter_by(broker=broker, strategy=strategy, type='positions').limit(1))
+        position_balance = position_balance.scalar()
+        position_balance = position_balance.balance if position_balance else 0.0
 
         return cash_balance + position_balance
 
@@ -145,6 +148,7 @@ async def sync_worker(engine, brokers):
         async_engine = engine
     else:
         raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
+
     # Use the async engine to create sessionmaker
     Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
 
@@ -157,7 +161,7 @@ async def sync_worker(engine, brokers):
         now = datetime.now(UTC)
         async with Session() as session:
             # Update position prices and volatility
-            positions = await session.execute(session.query(Position).all())
+            positions = await session.execute(select(Position))
             await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
             # Update uncategorized balances
             await balance_service.update_uncategorized_balances(session, now)
