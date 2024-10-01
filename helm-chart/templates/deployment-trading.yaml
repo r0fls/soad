@@ -23,7 +23,7 @@ spec:
           imagePullPolicy: {{ .Values.trading.image.pullPolicy }}
           env:
             - name: DATABASE_URL
-              value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
+              value: "postgresql+asyncpg://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
             - name: TRADIER_API_KEY
               value: "{{ .Values.brokers.tradier.apiKey }}"
             - name: ETGTRADE_API_KEY
