@@ -148,7 +148,7 @@ def adjust_balance():
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
     new_total_balance = data.get('new_total_balance')
-    now = datetime.utcnow()
+    now = datetime.now(datetime.UTC)
 
     if new_total_balance is None or new_total_balance <= 0:
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400

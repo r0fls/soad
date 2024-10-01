@@ -17,8 +17,8 @@ brokers = ['tradier', 'tastytrade']
 strategies = ['RSI', 'MACD']
 
 # Generate unique hourly timestamps for the past 5 days
-start_date = datetime.utcnow() - timedelta(days=5)
-end_date = datetime.utcnow()
+start_date =datetime.now(datetime.UTC) - timedelta(days=5)
+end_date = datetime.now(datetime.UTC)
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
 # Generate fake trade data

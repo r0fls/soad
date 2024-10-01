@@ -65,7 +65,7 @@ class BlackSwanStrategy(BaseStrategy):
 
     async def handle_previous_positions(self, current_db_positions_dict, previous_trades):
         with self.broker.Session() as session:
-            current_date = datetime.utcnow().date()
+            current_date = datetime.now(datetime.UTC).date()
             for position, details in current_db_positions_dict.items():
                 trade_date = next((trade.timestamp.date() for trade in previous_trades if trade.symbol == position), None)
                 if not trade_date:
@@ -82,7 +82,7 @@ class BlackSwanStrategy(BaseStrategy):
                     logger.info(f"Closed position for {position} held for {days_held} days")
 
     async def find_valid_option(self, symbol, option_type, total_balance):
-        current_date = datetime.utcnow()
+        current_date = datetime.now(datetime.UTC)
         target_exp_date = current_date + timedelta(days=self.expiry_days)
         ticker = yf.Ticker(symbol)
         # Fetch the available expiration dates
