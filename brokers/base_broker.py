@@ -20,7 +20,7 @@ class BaseBroker(ABC):
         self.broker_name = broker_name.lower()
         self.db_manager = DBManager(engine)
         # Use AsyncSession
-        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=True)
         self.account_id = None
         self.prevent_day_trading = prevent_day_trading
         logger.info('Initialized BaseBroker', extra={'broker_name': self.broker_name})
@@ -97,53 +97,71 @@ class BaseBroker(ABC):
             logger.error('Failed to check if bought today', extra={'error': str(e)})
             return False
 
-    async def update_positions(self, session, trade):
+    async def update_positions(self, trade):
         '''Update the positions based on the trade'''
         logger.info('Updating positions', extra={'trade': trade})
+
         if trade.quantity == 0:
             logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
             return
+
         try:
-            # Using session.execute and select to handle AsyncSession correctly
-            result = await session.execute(
-                select(Position).filter_by(
-                    symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy
-                )
-            )
-            position = result.scalars().first()
-            
-            if trade.order_type == 'buy':
-                if position:
-                    position.cost_basis += trade.executed_price * trade.quantity
-                    position.quantity += trade.quantity
-                    position.latest_price = trade.executed_price
-                    position.timestamp = datetime.now()
-                else:
-                    position = Position(
-                        broker=self.broker_name,
-                        strategy=trade.strategy,
-                        symbol=trade.symbol,
-                        quantity=trade.quantity,
-                        latest_price=trade.executed_price,
-                        cost_basis=trade.executed_price * trade.quantity,
+            async with self.Session() as session:
+                # Log before querying the position
+                logger.debug(f"Querying position for symbol: {trade.symbol}, broker: {self.broker_name}, strategy: {trade.strategy}")
+
+                result = await session.execute(
+                    select(Position).filter_by(
+                        symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy
                     )
-                    session.add(position)
-            elif trade.order_type == 'sell':
-                if position:
-                    if position.quantity == trade.quantity:
-                        logger.info('Deleting sold position', extra={'position': position})
-                        await session.delete(position)
-                    elif position.quantity > trade.quantity:
-                        cost_per_share = position.cost_basis / position.quantity
-                        position.cost_basis -= trade.quantity * cost_per_share
-                        position.quantity -= trade.quantity
+                )
+                position = result.scalars().first()
+
+                # Log after querying the position
+                logger.debug(f"Queried position: {position}")
+
+                if trade.order_type == 'buy':
+                    logger.info('Processing buy order', extra={'trade': trade})
+                    if position:
+                        logger.debug(f"Updating existing position: {position}")
+                        position.cost_basis += trade.executed_price * trade.quantity
+                        position.quantity += trade.quantity
                         position.latest_price = trade.executed_price
-                    session.add(position)
-            await session.commit()
-            logger.info('Position updated', extra={'position': position})
+                        position.timestamp = datetime.now()
+                    else:
+                        logger.debug(f"Creating new position for symbol: {trade.symbol}")
+                        position = Position(
+                            broker=self.broker_name,
+                            strategy=trade.strategy,
+                            symbol=trade.symbol,
+                            quantity=trade.quantity,
+                            latest_price=trade.executed_price,
+                            cost_basis=trade.executed_price * trade.quantity,
+                        )
+                        session.add(position)
+
+                elif trade.order_type == 'sell':
+                    logger.info('Processing sell order', extra={'trade': trade})
+                    if position:
+                        if position.quantity == trade.quantity:
+                            logger.info('Deleting sold position', extra={'position': position})
+                            await session.delete(position)
+                        elif position.quantity > trade.quantity:
+                            logger.debug(f"Reducing quantity of position: {position}")
+                            cost_per_share = position.cost_basis / position.quantity
+                            position.cost_basis -= trade.quantity * cost_per_share
+                            position.quantity -= trade.quantity
+                            position.latest_price = trade.executed_price
+                        session.add(position)
+
+                await session.commit()
+
+                # Log after committing changes
+                logger.info('Position updated', extra={'position': position})
+     
         except Exception as e:
-            await session.rollback()
             logger.error('Failed to update positions', extra={'error': str(e)})
+
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
         '''Place an order for a future option'''
@@ -184,7 +202,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 session.add(trade)
                 await session.commit()
-                await self.update_positions(session, trade)
+                await self.update_positions(trade)
 
                 latest_balance = await session.execute(
                     session.query(Balance).filter_by(
@@ -255,7 +273,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 session.add(trade)
                 await session.commit()
-                await self.update_positions(session, trade)
+                await self.update_positions(trade)
 
                 latest_balance = await session.execute(
                     session.query(Balance).filter_by(
@@ -315,7 +333,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 session.add(trade)
                 await session.commit()
-                await self.update_positions(session, trade)
+                await self.update_positions(trade)
 
                 latest_balance = await session.execute(
                     session.query(Balance).filter_by(
