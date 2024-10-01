@@ -71,8 +71,10 @@ async def broker(engine):
 @pytest.mark.asyncio
 async def test_has_bought_today(session, broker):
     async with session.begin():
-        session.add(Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker'))
+        trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+        session.add(trade)
     await session.commit()
+    await session.refresh(trade)
 
     result = await broker.has_bought_today("AAPL")
     assert result is True
