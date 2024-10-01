@@ -84,7 +84,7 @@ class BaseBroker(ABC):
         try:
             today = datetime.now().date()
             logger.info('Checking if bought today', extra={'symbol': symbol})
-            
+
             async with self.Session() as session:
                 result = await session.execute(
                     select(Trade)

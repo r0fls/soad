@@ -20,7 +20,7 @@ class BaseStrategy(ABC):
     def initialize_starting_balance(self):
         logger.debug("Initializing starting balance", extra={'strategy_name': self.strategy_name})
 
-        account_info = self.broker.get_account_info()
+        account_info = await self.broker.get_account_info()
         buying_power = account_info.get('buying_power')
         logger.debug(f"Account info: {account_info}", extra={'strategy_name': self.strategy_name})
 
@@ -172,7 +172,7 @@ class BaseStrategy(ABC):
         return positions_dict
 
     def get_account_info(self):
-        account_info = self.broker.get_account_info()
+        account_info = await self.broker.get_account_info()
         if not account_info:
             logger.error("Failed to fetch account information", extra={'strategy_name': self.strategy_name})
             raise ValueError("Failed to fetch account information")
