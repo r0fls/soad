@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
 from utils.utils import is_market_open, is_futures_symbol, is_futures_market_open
-from datetime import datetime
+from datetime import datetime, UTC
 import asyncio
 
 class BaseStrategy(ABC):
@@ -128,7 +128,7 @@ class BaseStrategy(ABC):
                         position.strategy = self.strategy_name
                         position.quantity = data['quantity']
                         position.latest_price = current_price
-                        position.last_updated = datetime.now(datetime.UTC)
+                        position.last_updated = datetime.now(UTC)
                         logger.info(
                             f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
@@ -139,7 +139,7 @@ class BaseStrategy(ABC):
                             symbol=symbol,
                             quantity=data['quantity'],
                             latest_price=current_price,
-                            last_updated=datetime.now(datetime.UTC)
+                            last_updated=datetime.now(UTC)
                         )
                         session.add(position)
                         logger.info(

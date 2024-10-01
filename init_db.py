@@ -1,7 +1,7 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
 from database.models import Trade, AccountInfo, Balance, Position, drop_then_init_db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import random
 
 DATABASE_URL = "sqlite+aiosqlite:///trading.db"
@@ -17,8 +17,8 @@ brokers = ['tradier', 'tastytrade']
 strategies = ['RSI', 'MACD']
 
 # Generate unique hourly timestamps for the past 5 days
-start_date =datetime.now(datetime.UTC) - timedelta(days=5)
-end_date = datetime.now(datetime.UTC)
+start_date =datetime.now(UTC) - timedelta(days=5)
+end_date = datetime.now(UTC)
 timestamps = [start_date + timedelta(hours=i) for i in range((end_date - start_date).days * 24)]
 
 # Generate fake trade data

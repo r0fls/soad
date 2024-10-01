@@ -7,7 +7,7 @@ from flask_cors import CORS
 import numpy as np
 from scipy.stats import norm
 import os
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
 from utils.utils import is_option, black_scholes_delta_theta, extract_option_details, OPTION_MULTIPLIER, is_futures_symbol, futures_contract_size
 from utils.logger import logger
 
@@ -148,7 +148,7 @@ def adjust_balance():
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
     new_total_balance = data.get('new_total_balance')
-    now = datetime.now(datetime.UTC)
+    now = datetime.now(UTC)
 
     if new_total_balance is None or new_total_balance <= 0:
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400

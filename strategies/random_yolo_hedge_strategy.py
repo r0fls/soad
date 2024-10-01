@@ -1,5 +1,5 @@
 import random
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
 from database.models import Balance, Trade
 from utils.utils import is_market_open
 from utils.logger import logger
@@ -99,7 +99,7 @@ class RandomYoloHedge(BaseStrategy):
         return nasdaq_100_tickers
 
     async def find_valid_option(self, stocks, option_type, total_balance):
-        current_date = datetime.now(datetime.UTC)
+        current_date = datetime.now(UTC)
         exp_date = (current_date + timedelta(days=(4 - current_date.weekday()))).strftime('%Y-%m-%d')
         while stocks:
             stock = random.choice(stocks)

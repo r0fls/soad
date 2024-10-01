@@ -1,7 +1,7 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, UTC
 from utils.logger import logger
 from utils.utils import is_option, extract_option_details, OPTION_MULTIPLIER, futures_contract_size, is_futures_symbol
 from database.models import Position, Balance
@@ -27,7 +27,7 @@ class PositionService:
         self.broker_service = broker_service
 
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
-        now = timestamp or datetime.now(datetime.UTC)
+        now = timestamp or datetime.now(UTC)
 
         for position in positions:
             try:
@@ -83,7 +83,7 @@ class BalanceService:
         self.broker_service = broker_service
 
     async def update_uncategorized_balances(self, session, timestamp):
-        now = timestamp or datetime.now(datetime.UTC)
+        now = timestamp or datetime.now(UTC)
         logger.info('Updating uncategorized balances')
         brokers = await session.execute(session.query(Balance.broker).distinct())
         for broker in brokers.scalars():
@@ -154,7 +154,7 @@ async def sync_worker(engine, brokers):
 
     try:
         logger.info('Starting sync worker iteration')
-        now = datetime.now(datetime.UTC)
+        now = datetime.now(UTC)
         async with Session() as session:
             # Update position prices and volatility
             positions = await session.execute(session.query(Position).all())
