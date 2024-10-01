@@ -81,24 +81,18 @@ class BaseBroker(ABC):
             return None
 
     async def has_bought_today(self, symbol):
-        '''Check if the symbol has been bought today'''
-        logger.info('Checking if bought today', extra={'symbol': symbol})
-        today = datetime.now().date()
         try:
+            today = datetime.now().date()
+            logger.info('Checking if bought today', extra={'symbol': symbol})
+            
             async with self.Session() as session:
-                trades = await session.execute(
-                    session.query(Trade).filter(
-                        and_(
-                            Trade.symbol == symbol,
-                            Trade.broker == self.broker_name,
-                            Trade.order_type == 'buy',
-                            Trade.timestamp >= today
-                        )
-                    )
+                result = await session.execute(
+                    select(Trade)
+                    .filter_by(symbol=symbol, broker=self.broker_name, order_type='buy')
+                    .filter(Trade.timestamp >= today)
                 )
-                trades = trades.scalars().all()
-                logger.info('Checked for trades today', extra={'symbol': symbol, 'trade_count': len(trades)})
-                return len(trades) > 0
+                trade = result.scalars().first()
+                return trade is not None
         except Exception as e:
             logger.error('Failed to check if bought today', extra={'error': str(e)})
             return False

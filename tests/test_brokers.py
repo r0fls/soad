@@ -6,7 +6,7 @@ from database.models import Trade, Position, Base
 from database.db_manager import DBManager
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from brokers.base_broker import BaseBroker
 #import logging
 #logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
@@ -79,9 +79,8 @@ async def test_has_bought_today(session, broker):
     result = await broker.has_bought_today("AAPL")
     assert result is True
 
-    await session.execute(select(Trade).filter_by(symbol="AAPL")).delete()
+    await session.execute(delete(Trade).filter_by(symbol="AAPL"))
     await session.commit()
-
     result = await broker.has_bought_today("AAPL")
     assert result is False
 
