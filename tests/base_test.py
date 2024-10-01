@@ -15,8 +15,8 @@ class BaseTest(unittest.TestCase):
 
     async def asyncSetUp(self):
         self.engine = create_async_engine('sqlite+aiosqlite:///:memory:')
-        await init_db(cls.engine)
-        self.Session = sessionmaker(bind=cls.engine, class_=AsyncSession)
+        await init_db(self.engine)
+        self.Session = sessionmaker(bind=self.engine, class_=AsyncSession)
         self.session = self.Session()
 
     async def asyncTearDown(self):

@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from brokers.tradier_broker import TradierBroker
 from .base_test import BaseTest
 from database.models import Balance, Trade
+from sqlalchemy.sql import select
 
 @pytest.mark.asyncio
 class TestTradierBroker(BaseTest):
