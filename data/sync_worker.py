@@ -20,7 +20,11 @@ class BrokerService:
 
     async def get_latest_price(self, broker_name, symbol):
         broker_instance = self.get_broker_instance(broker_name)
-        return await broker_instance.get_current_price(symbol)
+        # check if get_current_price is a coroutine function
+        if asyncio.iscoroutinefunction(broker_instance.get_current_price):
+            return await broker_instance.get_current_price(symbol)
+        else:
+            return broker_instance.get_current_price(symbol)
 
 
 class PositionService:
