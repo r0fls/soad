@@ -101,7 +101,7 @@ class BalanceService:
 
     async def _process_broker_balances(self, session, broker, timestamp):
         broker_instance = self.broker_service.get_broker_instance(broker)
-        account_info = broker_instance.get_account_info()
+        account_info = await broker_instance.get_account_info()
         total_value = account_info['value']
         uncategorized_balance = total_value
 
