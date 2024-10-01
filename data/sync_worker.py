@@ -146,7 +146,7 @@ async def sync_worker(engine, brokers):
     else:
         raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
     # Use the async engine to create sessionmaker
-    Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
+    Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
 
     broker_service = BrokerService(brokers)
     position_service = PositionService(broker_service)

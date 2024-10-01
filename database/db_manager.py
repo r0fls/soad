@@ -9,7 +9,7 @@ from utils.logger import logger
 class DBManager:
     def __init__(self, engine):
         self.engine = engine
-        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=True)
         logger.info('DBManager initialized', extra={'database_url': self.engine.url})
 
     async def add_account_info(self, account_info):
