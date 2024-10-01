@@ -26,7 +26,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         account_info = await self.get_account_info()
         cash_balance = account_info.get('cash_available')
 
-        with self.broker.Session() as session:
+        async with self.broker.Session() as session:
             balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name,
@@ -61,8 +61,8 @@ class ConstantPercentageStrategy(BaseStrategy):
             if stock not in self.stock_allocations:
                 await self.place_order(stock, quantity, 'sell')
 
-    def should_own(self, symbol, current_price):
-        with self.broker.Session() as session:
+    async def should_own(self, symbol, current_price):
+        async with self.broker.Session() as session:
             balance = session.query(Balance).filter_by(
                 strategy=self.strategy_name,
                 broker=self.broker.broker_name,
