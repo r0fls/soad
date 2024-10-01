@@ -15,14 +15,14 @@ class TestBaseStrategyMethods(unittest.TestCase):
 
     def setUp(self):
         self.broker = MagicMock()
-        
+
         # Mock get_account_info to return a dictionary with an integer buying_power
         self.broker.get_account_info.return_value = {'buying_power': 20000}
-        
+
         # Mock Session and its return value
         session_mock = MagicMock()
         self.broker.Session.return_value.__enter__.return_value = session_mock
-        
+
         # Mock query result for Balance
         balance_mock = MagicMock()
         balance_mock.balance = 10000

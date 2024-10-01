@@ -1,5 +1,6 @@
 requests_oauthlib
 pytest
+pytest-asyncio
 sqlalchemy
 pyyaml
 flask

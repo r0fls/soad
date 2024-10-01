@@ -10,3 +10,4 @@ app.log
 venv
 custom_rsi_strategy.py
 site/
+.vscode/

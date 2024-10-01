@@ -35,10 +35,13 @@ class DBManager:
                 logger.info('Retrieving trade', extra={'trade_id': trade_id})
                 result = await session.execute(select(Trade).filter_by(id=trade_id))
                 trade = result.scalar()
-                logger.info('Trade retrieved', extra={'trade': trade})
+                if trade is None:
+                    logger.warning(f"No trade found with id {trade_id}")
+                else:
+                    logger.info('Trade retrieved', extra={'trade': trade})
                 return trade
             except Exception as e:
-                logger.error('Failed to retrieve trade', extra={'error': str(e)})
+                logger.error(f'Failed to retrieve trade {trade_id}', extra={'error': str(e)})
                 return None
 
     async def get_all_trades(self):
@@ -73,31 +76,50 @@ class DBManager:
                 return None
 
     async def calculate_profit_loss(self, trade):
-        try:
-            profit_loss = None
-            logger.info('Calculating profit/loss', extra={'trade': trade})
-            current_price = trade.executed_price
-            if current_price is None:
-                logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
+        async with self.Session() as session:
+            try:
+                profit_loss = None
+                logger.info('Calculating profit/loss', extra={'trade': trade})
+                
+                # Fetch current price
+                current_price = trade.executed_price
+                logger.info(f"Current price fetched: {current_price}", extra={'trade': trade})
+                if current_price is None:
+                    logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
+                    return None
+
+                # Handling buy trades
+                if trade.order_type.lower() == 'buy':
+                    logger.info('Buy order detected, no P/L calculation needed.', extra={'trade': trade})
+                    return profit_loss
+                
+                # Handling sell trades
+                elif trade.order_type.lower() == 'sell':
+                    logger.info('Sell order detected, calculating P/L.', extra={'trade': trade})
+                    position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
+                    logger.info(f"Position fetched: {position}", extra={'trade': trade})
+                    
+                    if position and position.quantity == trade.quantity:
+                        profit_loss = (trade.executed_price * trade.quantity - position.cost_basis)
+                        logger.info(f"Full sell detected, profit/loss calculated as: {profit_loss}", extra={'trade': trade})
+                    else:
+                        profit_loss = await self.calculate_partial_profit_loss(trade, position)
+                        logger.info(f"Partial sell, profit/loss calculated as: {profit_loss}", extra={'trade': trade})
+                    
+                    # Adjust for futures and options
+                    if is_futures_symbol(trade.symbol):
+                        profit_loss *= futures_contract_size(trade.symbol)
+                        logger.info(f"Futures detected, adjusted P/L: {profit_loss}", extra={'trade': trade})
+                    if is_option(trade.symbol):
+                        profit_loss *= OPTION_MULTIPLIER
+                        logger.info(f"Option detected, adjusted P/L: {profit_loss}", extra={'trade': trade})
+
+                logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
+                return profit_loss
+            except Exception as e:
+                logger.error('Failed to calculate profit/loss', extra={'error': str(e), 'trade': trade})
                 return None
 
-            if trade.order_type.lower() == 'buy':
-                return profit_loss
-            elif trade.order_type.lower() == 'sell':
-                position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
-                if position and position.quantity == trade.quantity:
-                    profit_loss = (trade.executed_price * trade.quantity - position.cost_basis)
-                else:
-                    profit_loss = await self.calculate_partial_profit_loss(trade, position)
-                if is_futures_symbol(trade.symbol):
-                    profit_loss *= futures_contract_size(trade.symbol)
-                if is_option(trade.symbol):
-                    profit_loss *= OPTION_MULTIPLIER
-            logger.info('Profit/loss calculated', extra={'trade': trade, 'profit_loss': profit_loss})
-            return profit_loss
-        except Exception as e:
-            logger.error('Failed to calculate profit/loss', extra={'error': str(e)})
-            return None
 
     async def calculate_partial_profit_loss(self, trade, position):
         try:
