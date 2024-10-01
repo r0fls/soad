@@ -3,6 +3,7 @@ import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import and_
+from sqlalchemy import select
 from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
@@ -109,12 +110,13 @@ class BaseBroker(ABC):
             logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
             return
         try:
-            position = await session.execute(
-                session.query(Position).filter_by(
+            # Using session.execute and select to handle AsyncSession correctly
+            result = await session.execute(
+                select(Position).filter_by(
                     symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy
                 )
             )
-            position = position.scalars().first()
+            position = result.scalars().first()
             
             if trade.order_type == 'buy':
                 if position:
@@ -146,6 +148,7 @@ class BaseBroker(ABC):
             await session.commit()
             logger.info('Position updated', extra={'position': position})
         except Exception as e:
+            await session.rollback()
             logger.error('Failed to update positions', extra={'error': str(e)})
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):

@@ -73,14 +73,12 @@ async def test_has_bought_today(session, broker):
     async with session.begin():
         session.add(Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker'))
     await session.commit()
-    await session.refresh()
 
     result = await broker.has_bought_today("AAPL")
     assert result is True
 
     await session.execute(select(Trade).filter_by(symbol="AAPL")).delete()
     await session.commit()
-    await session.refresh()
 
     result = await broker.has_bought_today("AAPL")
     assert result is False
@@ -92,6 +90,7 @@ async def test_update_positions_buy(session, broker):
     async with session.begin():
         session.add(trade)
     await session.commit()
+    await session.refresh(trade)
 
     await broker.update_positions(session, trade)
 
@@ -115,6 +114,7 @@ async def test_update_positions_sell(session, broker):
     async with session.begin():
         session.add(trade)
     await session.commit()
+    await session.refresh(trade)
 
     await broker.update_positions(session, trade)
 
@@ -131,6 +131,7 @@ async def test_multiple_buys_update_cost_basis(session, broker):
     async with session.begin():
         session.add(trade1)
     await session.commit()
+    await session.refresh(trade1)
 
     await broker.update_positions(session, trade1)
 
@@ -145,6 +146,7 @@ async def test_multiple_buys_update_cost_basis(session, broker):
     async with session.begin():
         session.add(trade2)
     await session.commit()
+    await session.refresh(trade2)
 
     await broker.update_positions(session, trade2)
 
