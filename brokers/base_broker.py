@@ -146,6 +146,7 @@ class BaseBroker(ABC):
                         if position.quantity == trade.quantity:
                             logger.info('Deleting sold position', extra={'position': position})
                             await session.delete(position)
+                            await session.commit()
                             logger.debug(f"Position after sell: {position}")
                         elif position.quantity > trade.quantity:
                             logger.debug(f"Reducing quantity of position: {position}")
@@ -159,7 +160,6 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-                logger.debug(f"Updated quantity: {position.quantity}, cost basis: {position.cost_basis}")
      
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})

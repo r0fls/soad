@@ -175,8 +175,7 @@ async def test_multiple_buys_update_cost_basis(session, broker):
 @pytest.mark.asyncio
 async def test_full_sell_removes_position(session, broker):
     trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-    async with session.begin():
-        session.add(trade1)
+    session.add(trade1)
     await session.commit()
     await session.refresh(trade1)
 
