@@ -1,5 +1,5 @@
 import random
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, UTC
 from database.models import Balance, Trade
 from utils.utils import is_market_open
 from utils.logger import logger
