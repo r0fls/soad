@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timezone
 from utils.logger import logger
 from utils.utils import is_option, extract_option_details, OPTION_MULTIPLIER, futures_contract_size, is_futures_symbol
 from database.models import Position, Balance
@@ -34,16 +34,18 @@ class PositionService:
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now = timestamp or datetime.now(UTC)
 
+        now_naive = now.replace(tzinfo=None)
+
         for position in positions:
             try:
-                await self._update_position_price(session, position, now)
+                await self._update_position_price(session, position, now_naive)
             except Exception as e:
                 logger.exception(f"Error processing position {position.symbol}")
 
         await session.commit()
         logger.info('Completed updating latest prices and volatility')
 
-    async def _update_position_price(self, session, position, now):
+    async def _update_position_price(self, session, position, now_naive):
         latest_price = await self.broker_service.get_latest_price(position.broker, position.symbol)
         if latest_price is None:
             logger.error(f'Could not get latest price for {position.symbol}')
@@ -51,7 +53,7 @@ class PositionService:
 
         logger.debug(f'Updated latest price for {position.symbol} to {latest_price}')
         position.latest_price = latest_price
-        position.last_updated = now
+        position.last_updated = now_naive
 
         underlying_symbol = self._get_underlying_symbol(position)
         latest_underlying_price = await self.broker_service.get_latest_price(position.broker, underlying_symbol)
