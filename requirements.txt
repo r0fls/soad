@@ -11,6 +11,7 @@ pytz
 numpy
 scipy
 asyncpg
+psycopg2
 websocket-client
 tastytrade==v8.3
 yfinance
