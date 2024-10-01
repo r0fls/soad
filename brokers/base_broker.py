@@ -70,10 +70,9 @@ class BaseBroker(ABC):
         logger.info('Getting account information')
         try:
             account_info = self._get_account_info()
-            async with self.Session() as session:
-                await session.run_sync(self.db_manager.add_account_info, AccountInfo(
-                    broker=self.broker_name, value=account_info['value']
-                ))
+            await self.db_manager.add_account_info(AccountInfo(
+                broker=self.broker_name, value=account_info['value']
+            ))
             logger.info('Account information retrieved', extra={'account_info': account_info})
             return account_info
         except Exception as e:
