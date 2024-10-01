@@ -1,25 +1,24 @@
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from database.models import Trade, AccountInfo, Balance, init_db
 import unittest
 
 class BaseTest(unittest.TestCase):
 
     @classmethod
-    def setUpClass(cls):
-        cls.engine = create_engine('sqlite:///:memory:')
-        init_db(cls.engine)
-        cls.Session = sessionmaker(bind=cls.engine)
-        cls.session = cls.Session()
+    async def asyncSetUpClass(cls):
+        pass
 
     @classmethod
-    def tearDownClass(cls):
-        cls.session.close()
-        cls.engine.dispose()
+    async def asyncTearDownClass(cls):
+        pass
 
-    def setUp(self):
+    async def asyncSetUp(self):
+        self.engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+        await init_db(cls.engine)
+        self.Session = sessionmaker(bind=cls.engine, class_=AsyncSession)
         self.session = self.Session()
 
-    def tearDown(self):
-        self.session.rollback()
+    async def asyncTearDown(self):
         self.session.close()
+        self.engine.dispose()

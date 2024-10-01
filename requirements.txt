@@ -1,5 +1,6 @@
 requests_oauthlib
 pytest
+pytest-asyncio
 sqlalchemy
 pyyaml
 flask
@@ -14,3 +15,6 @@ websocket-client
 tastytrade
 yfinance
 freezegun
+asyncpg
+aiosqlite
+greenlet

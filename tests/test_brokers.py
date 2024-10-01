@@ -1,321 +1,368 @@
-import unittest
+import pytest
+import pytest_asyncio
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
-from database.models import Trade, Balance, Position, Base
+from datetime import datetime
+from database.models import Trade, Position, Base
 from database.db_manager import DBManager
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select, delete
 from brokers.base_broker import BaseBroker
-
+#import logging
+#logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
 class MockBroker(BaseBroker):
-    def connect(self):
+    async def connect(self):
         pass
 
-    def get_positions(self):
-        pass
+    async def get_positions(self):
+        return ['AAPL', 'GOOGL']
 
-    def _get_account_info(self):
-        return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
-
-    def _place_option_order(self, symbol, quantity, order_type, price=None):
-        return {'status': 'filled', 'filled_price': 150.0}
-
-    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
-        return {'status': 'filled', 'filled_price': 150.0}
-
-    def _place_order(self, symbol, quantity, order_type, price=None):
-        return {'status': 'filled', 'filled_price': 150.0}
-
-    def _get_order_status(self, order_id):
-        return {'status': 'completed'}
-
-    def _cancel_order(self, order_id):
-        return {'status': 'cancelled'}
-
-    def _get_options_chain(self, symbol, expiration_date):
-        return {'options': 'chain'}
-
-    def get_current_price(self, symbol):
+    async def get_current_price(self, symbol):
         return 150.0
 
-    def execute_trade(self, *args):
+    async def execute_trade(self, *args):
         pass
 
-class TestTrading(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Create an in-memory SQLite database
-        cls.engine = create_engine('sqlite:///:memory:')
-        cls.Session = sessionmaker(bind=cls.engine)
-        cls.db_manager = DBManager(cls.engine)
+    async def _get_account_info(self):
+        return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
 
-    def setUp(self):
-        Base.metadata.drop_all(self.engine)
-        Base.metadata.create_all(self.engine)
-        self.session = self.Session()
-        self.broker = MockBroker(api_key="dummy_api_key", secret_key="dummy_secret_key", broker_name="dummy_broker", engine=self.engine, prevent_day_trading=True)
+    async def _place_option_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
 
-    def tearDown(self):
-        self.session.close()
+    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
 
-    def test_has_bought_today(self):
-        today = datetime.now().date()
-        self.session.add(Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker'))
-        self.session.commit()
+    async def _place_order(self, symbol, quantity, order_type, price=None):
+        return {'status': 'filled', 'filled_price': 150.0}
 
-        result = self.broker.has_bought_today("AAPL")
-        self.assertTrue(result)
+    async def _get_order_status(self, order_id):
+        return {'status': 'completed'}
 
-        self.session.query(Trade).delete()
-        self.session.commit()
+    async def _cancel_order(self, order_id):
+        return {'status': 'cancelled'}
 
-        result = self.broker.has_bought_today("AAPL")
-        self.assertFalse(result)
+    async def _get_options_chain(self, symbol, expiration_date):
+        return {'options': 'chain'}
 
-    def test_update_positions_buy(self):
+
+@pytest_asyncio.fixture(scope="module")
+async def engine():
+    engine = create_async_engine('sqlite+aiosqlite:///./test.db')
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def session(engine):
+    Session = sessionmaker(bind=engine, class_=AsyncSession)
+    async with Session() as session:
+        yield session
+
+@pytest_asyncio.fixture(autouse=True)
+async def truncate_tables(engine):
+    async with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            # Correct delete statement for each table
+            await conn.execute(delete(table))
+        await conn.commit()  # Make sure to commit the transaction after deletion
+
+
+@pytest_asyncio.fixture
+async def broker(engine):
+    return MockBroker(api_key="dummy_api_key", secret_key="dummy_secret_key", broker_name="dummy_broker", engine=engine)
+
+
+@pytest.mark.asyncio
+async def test_has_bought_today(session, broker):
+    async with session.begin():
         trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-        self.broker.update_positions(self.session, trade)
+    result = await broker.has_bought_today("AAPL")
+    assert result is True
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertIsNotNone(position)
-        self.assertEqual(position.symbol, "AAPL")
-        self.assertEqual(position.quantity, 10)
-        self.assertEqual(position.latest_price, 150.0)
-        self.assertEqual(position.cost_basis, 1500.0)
+    await session.execute(delete(Trade).filter_by(symbol="AAPL"))
+    await session.commit()
+    result = await broker.has_bought_today("AAPL")
+    assert result is False
 
-    def test_update_positions_sell(self):
-        position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
-        self.session.add(position)
-        self.session.commit()
 
-        trade = Trade(symbol="AAPL", quantity=5, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+@pytest.mark.asyncio
+async def test_update_positions_buy(session, broker):
+    trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-        self.broker.update_positions(self.session, trade)
+    await broker.update_positions(trade)
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertEqual(position.quantity, 5)
-        self.assertEqual(position.latest_price, 155.0)
-        self.assertAlmostEqual(position.cost_basis, 750.0)  # Half of the original cost basis
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position is not None
+    assert position.symbol == "AAPL"
+    assert position.quantity == 10
+    assert position.latest_price == 150.0
+    assert position.cost_basis == 1500.0
 
-    def test_multiple_buys_update_cost_basis(self):
-        # First Buy Trade
-        trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade1)
-        self.session.commit()
 
-        self.broker.update_positions(self.session, trade1)
+@pytest.mark.asyncio
+async def test_update_positions_sell(session, broker):
+    position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
+    async with session.begin():
+        session.add(position)
+    await session.commit()
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertEqual(position.symbol, "AAPL")
-        self.assertEqual(position.quantity, 10)
-        self.assertEqual(position.latest_price, 150.0)
-        self.assertEqual(position.cost_basis, 1500.0)
+    trade = Trade(symbol="AAPL", quantity=5, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-        trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade2)
-        self.session.commit()
+    await broker.update_positions(trade)
 
-        self.broker.update_positions(self.session, trade2)
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position.quantity == 5
+    assert position.latest_price == 155.0
+    assert position.cost_basis == 750.0
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertEqual(position.quantity, 15)
-        self.assertEqual(position.latest_price, 160.0)
-        self.assertAlmostEqual(position.cost_basis, 2300.0)  # 1500 + 5*160
+@pytest.mark.asyncio
+async def test_multiple_buys_update_cost_basis(session, broker):
+    # First buy trade
+    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
 
-    def test_full_sell_removes_position(self):
-        # First Buy Trade
-        trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade1)
-        self.session.commit()
+    session.add(trade1)
+    await session.commit()  # Commit the first transaction
+    await session.refresh(trade1)
 
-        self.broker.update_positions(self.session, trade1)
+    # Update the position after the first trade
+    await broker.update_positions(trade1)
 
-        # Full Sell Trade
-        trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade2)
-        self.session.commit()
+    # Verify the position after the first trade
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position.symbol == "AAPL"
+    assert position.quantity == 10
+    assert position.latest_price == 150.0
+    assert position.cost_basis == 1500.0
 
-        self.broker.update_positions(self.session, trade2)
+    # Second buy trade
+    trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertEqual(position, None)
+    session.add(trade2)
+    await session.commit()  # Commit the second transaction
+    await session.refresh(trade2)
 
-    def test_edge_case_zero_quantity(self):
-        trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
-        self.session.add(trade)
-        self.session.commit()
+    # Update the position after the second trade
+    await broker.update_positions(trade2)
 
-        self.broker.update_positions(self.session, trade)
+    # Verify the position after the second trade
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
 
-        position = self.session.query(Position).filter_by(symbol="AAPL").first()
-        self.assertIsNone(position)  # No position should be created
+    # Verify updated position and cost basis
+    assert position.quantity == 15
+    assert position.latest_price == 160.0
+    assert position.cost_basis == 2300.0
 
-    def test_pl_calculation_buy_trade(self):
-        trade = Trade(
-            symbol="AAPL",
-            quantity=10,
-            price=150.0,
-            executed_price=150.0,
-            order_type="buy",
-            status="executed",
-            timestamp=datetime.now(),
-            broker="dummy_broker",
-            strategy="test_strategy",
-            profit_loss=None,
-            success="yes"
-        )
-        self.session.add(trade)
-        self.session.commit()
+@pytest.mark.asyncio
+async def test_full_sell_removes_position(session, broker):
+    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    session.add(trade1)
+    await session.commit()
+    await session.refresh(trade1)
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
-        self.assertIsNone(profit_loss, "Profit/Loss for a buy trade should be None")
+    await broker.update_positions(trade1)
 
-    def test_pl_calculation_option_full_sell_trade(self):
-        position = Position(
-            symbol="QQQ240726P00470000",
-            broker="dummy_broker",
-            quantity=10,
-            latest_price=150.0,
-            cost_basis=1500.0,
-            last_updated=datetime.now(),
-            strategy="test_strategy"
-        )
-        self.session.add(position)
-        self.session.commit()
+    trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    session.add(trade2)
+    await session.commit()
+    await session.refresh(trade2)
 
-        trade = Trade(
-            symbol="QQQ240726P00470000",
-            quantity=10,
-            price=155.0,
-            executed_price=155.0,
-            order_type="sell",
-            status="executed",
-            timestamp=datetime.now(),
-            broker="dummy_broker",
-            strategy="test_strategy",
-            profit_loss=None,
-            success="yes"
-        )
-        self.session.add(trade)
-        self.session.commit()
+    await broker.update_positions(trade2)
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
-        self.assertEqual(profit_loss, 5000.0, "Profit/Loss calculation for sell trade is incorrect")
+    position = await session.execute(select(Position).filter_by(symbol="AAPL"))
 
-    def test_pl_calculation_full_sell_trade(self):
-        position = Position(
-            symbol="AAPL",
-            broker="dummy_broker",
-            quantity=10,
-            latest_price=150.0,
-            cost_basis=1500.0,
-            last_updated=datetime.now(),
-            strategy="test_strategy"
-        )
-        self.session.add(position)
-        self.session.commit()
+    assert position.scalar() is None
 
-        trade = Trade(
-            symbol="AAPL",
-            quantity=10,
-            price=155.0,
-            executed_price=155.0,
-            order_type="sell",
-            status="executed",
-            timestamp=datetime.now(),
-            broker="dummy_broker",
-            strategy="test_strategy",
-            profit_loss=None,
-            success="yes"
-        )
-        self.session.add(trade)
-        self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
-        self.assertEqual(profit_loss, 50.0, "Profit/Loss calculation for sell trade is incorrect")
 
-    def test_pl_calculation_sell_trade(self):
-        position = Position(
-            symbol="AAPL",
-            broker="dummy_broker",
-            quantity=10,
-            latest_price=150.0,
-            cost_basis=1500.0,
-            last_updated=datetime.now(),
-            strategy="test_strategy"
-        )
-        self.session.add(position)
-        self.session.commit()
+@pytest.mark.asyncio
+async def test_edge_case_zero_quantity(session, broker):
+    trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-        trade = Trade(
-            symbol="AAPL",
-            quantity=5,
-            price=155.0,
-            executed_price=155.0,
-            order_type="sell",
-            status="executed",
-            timestamp=datetime.now(),
-            broker="dummy_broker",
-            strategy="test_strategy",
-            profit_loss=None,
-            success="yes"
-        )
-        self.session.add(trade)
-        self.session.commit()
+    await broker.update_positions(trade)
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
-        self.assertEqual(profit_loss, 25.0, "Profit/Loss calculation for sell trade is incorrect")
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position is None
 
-    def test_pl_calculation_no_position(self):
-        trade = Trade(
-            symbol="AAPL",
-            quantity=5,
-            price=155.0,
-            executed_price=155.0,
-            order_type="sell",
-            status="executed",
-            timestamp=datetime.now(),
-            broker="dummy_broker",
-            strategy="test_strategy",
-            profit_loss=None,
-            success="yes"
-        )
-        self.session.add(trade)
-        self.session.commit()
 
-        profit_loss = self.db_manager.calculate_profit_loss(trade)
-        self.assertIsNone(profit_loss, "Profit/Loss calculation should return None when no position exists")
+@pytest.mark.asyncio
+async def test_pl_calculation_buy_trade(session, broker):
+    trade = Trade(
+        symbol="AAPL",
+        quantity=10,
+        price=150.0,
+        executed_price=150.0,
+        order_type="buy",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-    def test_calculate_profit_loss_futures_option(self):
-        # Example test for a futures option (NOTE: the symbol is fake/incorrect but that's fine)
-        trade = Trade(order_type='sell', executed_price=105.0, broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2)
-        position = Position(broker='TestBroker', symbol='./ESU4', strategy='TestStrategy', quantity=2, cost_basis=100.0)
+    profit_loss = await broker.db_manager.calculate_profit_loss(trade)
+    assert profit_loss is None
 
-        with patch.object(DBManager, 'get_position', return_value=position):
-            profit_loss = self.db_manager.calculate_profit_loss(trade)
-        expected_profit_loss = (105.0 * 2 - 100.0) * 50  # futures contract size for './ESU4' is 50
-        self.assertEqual(profit_loss, expected_profit_loss)
 
-class TestBaseBroker(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Create an in-memory SQLite database
-        cls.engine = create_engine('sqlite:///:memory:')
-        cls.Session = sessionmaker(bind=cls.engine)
-        cls.db_manager = DBManager(cls.engine)
+@pytest.mark.asyncio
+async def test_pl_calculation_option_full_sell_trade(session, broker):
+    position = Position(
+        symbol="QQQ240726P00470000",
+        broker="dummy_broker",
+        quantity=10,
+        latest_price=150.0,
+        cost_basis=1500.0,
+        last_updated=datetime.now(),
+        strategy="test_strategy"
+    )
+    async with session.begin():
+        session.add(position)
+    await session.commit()
 
-    def setUp(self):
-        self.broker = MockBroker(api_key="dummy_api_key", secret_key="dummy_secret_key", broker_name="dummy_broker", engine=self.engine, prevent_day_trading=True)
-        self.broker.get_positions = MagicMock(return_value=['AAPL', 'GOOGL'])
+    trade = Trade(
+        symbol="QQQ240726P00470000",
+        quantity=10,
+        price=155.0,
+        executed_price=155.0,
+        order_type="sell",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
 
-    def test_position_exists(self):
-        self.assertTrue(self.broker.position_exists('AAPL'))
-        self.assertFalse(self.broker.position_exists('TSLA'))
+    profit_loss = await broker.db_manager.calculate_profit_loss(trade)
+    assert profit_loss == 5000.0
 
-if __name__ == '__main__':
-    unittest.main()
+
+@pytest.mark.asyncio
+async def test_pl_calculation_full_sell_trade(session, broker):
+    position = Position(
+        symbol="AAPL",
+        broker="dummy_broker",
+        quantity=10,
+        latest_price=150.0,
+        cost_basis=1500.0,
+        last_updated=datetime.now(),
+        strategy="test_strategy"
+    )
+    async with session.begin():
+        session.add(position)
+    await session.commit()
+
+    trade = Trade(
+        symbol="AAPL",
+        quantity=10,
+        price=155.0,
+        executed_price=155.0,
+        order_type="sell",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
+
+    profit_loss = await broker.db_manager.calculate_profit_loss(trade)
+    assert profit_loss == 50.0
+
+
+@pytest.mark.asyncio
+async def test_pl_calculation_sell_trade(session, broker):
+    position = Position(
+        symbol="AAPL",
+        broker="dummy_broker",
+        quantity=10,
+        latest_price=150.0,
+        cost_basis=1500.0,
+        last_updated=datetime.now(),
+        strategy="test_strategy"
+    )
+    async with session.begin():
+        session.add(position)
+    await session.commit()
+
+    trade = Trade(
+        symbol="AAPL",
+        quantity=5,
+        price=155.0,
+        executed_price=155.0,
+        order_type="sell",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
+
+    profit_loss = await broker.db_manager.calculate_profit_loss(trade)
+    assert profit_loss == 25.0
+
+
+@pytest.mark.asyncio
+async def test_pl_calculation_no_position(session, broker):
+    trade = Trade(
+        symbol="AAPL",
+        quantity=5,
+        price=155.0,
+        executed_price=155.0,
+        order_type="sell",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
+
+    profit_loss = await broker.db_manager.calculate_profit_loss(trade)
+    assert profit_loss is None

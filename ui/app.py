@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import create_engine, func, text
+from sqlalchemy import func, text
 from database.models import Trade, AccountInfo, Balance, Position
 from flask_cors import CORS
 import numpy as np
@@ -148,7 +148,7 @@ def adjust_balance():
     broker = data.get('broker')
     strategy_name = data.get('strategy_name')
     new_total_balance = data.get('new_total_balance')
-    now = datetime.utcnow()
+    now = datetime.now(datetime.UTC)
 
     if new_total_balance is None or new_total_balance <= 0:
         return jsonify({'status': 'error', 'message': 'Invalid balance amount'}), 400

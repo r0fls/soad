@@ -99,7 +99,7 @@ class RandomYoloHedge(BaseStrategy):
         return nasdaq_100_tickers
 
     async def find_valid_option(self, stocks, option_type, total_balance):
-        current_date = datetime.utcnow()
+        current_date = datetime.now(datetime.UTC)
         exp_date = (current_date + timedelta(days=(4 - current_date.weekday()))).strftime('%Y-%m-%d')
         while stocks:
             stock = random.choice(stocks)

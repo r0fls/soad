@@ -27,7 +27,7 @@ class PositionService:
         self.broker_service = broker_service
 
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
-        now = timestamp or datetime.utcnow()
+        now = timestamp or datetime.now(datetime.UTC)
 
         for position in positions:
             try:
@@ -83,7 +83,7 @@ class BalanceService:
         self.broker_service = broker_service
 
     async def update_uncategorized_balances(self, session, timestamp):
-        now = timestamp or datetime.utcnow()
+        now = timestamp or datetime.now(datetime.UTC)
         logger.info('Updating uncategorized balances')
         brokers = await session.execute(session.query(Balance.broker).distinct())
         for broker in brokers.scalars():
@@ -146,7 +146,7 @@ async def sync_worker(engine, brokers):
     else:
         raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
     # Use the async engine to create sessionmaker
-    Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
+    Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
 
     broker_service = BrokerService(brokers)
     position_service = PositionService(broker_service)
@@ -154,7 +154,7 @@ async def sync_worker(engine, brokers):
 
     try:
         logger.info('Starting sync worker iteration')
-        now = datetime.utcnow()
+        now = datetime.now(datetime.UTC)
         async with Session() as session:
             # Update position prices and volatility
             positions = await session.execute(session.query(Position).all())

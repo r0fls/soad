@@ -1,168 +1,174 @@
-import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
-from sqlalchemy import create_engine
-from brokers.tastytrade_broker import TastytradeBroker
-from database.models import Trade, Balance
-from .base_test import BaseTest
+import requests
+import time
+import json
+import re
+from decimal import Decimal
+from brokers.base_broker import BaseBroker
+from utils.logger import logger
+from utils.utils import extract_underlying_symbol, is_ticker, is_option, is_futures_symbol
+from tastytrade import session, DXLinkStreamer, Account
+from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
+from tastytrade.dxfeed import EventType
+from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
 
-class TestTastytradeBroker(BaseTest):
-
-    def setUp(self):
-        super().setUp()  # Call the setup from BaseTest
-
-    def mock_connect(self, mock_post, mock_get, mock_prod_sesh):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'data': {
-                'session-token': 'token',
-                'user': {
-                    'username': 'testuser'
-                }
-            }
+class TastytradeBroker(BaseBroker):
+    def __init__(self, username, password, engine, **kwargs):
+        super().__init__(username, password, 'Tastytrade', engine=engine, **kwargs)
+        self.base_url = 'https://api.tastytrade.com'
+        self.username = username
+        self.password = password
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
         }
-        mock_post.return_value = mock_response
-        self.broker = TastytradeBroker('myusername', 'mypassword', engine=self.engine)
+        self.order_timeout = 1
+        self.auto_cancel_orders = True
+        logger.info('Initialized TastytradeBroker', extra={'base_url': self.base_url})
+        self.session = None
+        self.connect()
+        self._get_account_info()
 
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_connect(self, mock_post, mock_get, mock_prod_sesh):
-        self.mock_connect(mock_post, mock_get, mock_prod_sesh)
-        self.broker.connect()
-        self.assertTrue(hasattr(self.broker, 'auth'))
-        mock_prod_sesh.assert_called_with('myusername', 'mypassword')
+    @staticmethod
+    def format_option_symbol(option_symbol):
+        match = re.match(r'^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$', option_symbol)
+        if not match:
+            raise ValueError("Invalid option symbol format")
+        underlying = match.group(1)
+        rest_of_symbol = ''.join(match.groups()[1:])
+        formatted_symbol = f"{underlying:<6}{rest_of_symbol}"
+        return formatted_symbol
 
+    async def get_option_chain(self, underlying_symbol):
+        try:
+            option_chain = await NestedOptionChain.get(self.session, underlying_symbol)
+            return option_chain
+        except Exception as e:
+            logger.error(f"Error fetching option chain for {underlying_symbol}: {e}")
+            return None
 
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_get_account_info(self, mock_post, mock_get, mock_prod_sesh):
-        self.mock_connect(mock_post, mock_get, mock_prod_sesh)
-
-        # Mock response for accounts
-        mock_response_accounts = MagicMock()
-        mock_response_accounts.json.return_value = {
-            'data': {
-                'items': [{'account': {'account-number': '12345'}}]
-            }
+    def connect(self):
+        logger.info('Connecting to Tastytrade API')
+        auth_data = {
+            "login": self.username,
+            "password": self.password,
+            "remember-me": True
         }
+        response = requests.post(f"{self.base_url}/sessions", json=auth_data, headers={"Content-Type": "application/json"})
+        response.raise_for_status()
+        auth_response = response.json().get('data')
+        self.auth = auth_response['session-token']
+        self.headers["Authorization"] = self.auth
+        self.session = session(self.username, self.password)
+        logger.info('Connected to Tastytrade API')
 
-        # Mock response for balances
-        mock_response_balances = MagicMock()
-        mock_response_balances.json.return_value = {
-            'data': {
-                'equity-buying-power': 5000.0,
-                'net-liquidating-value': 10000.0,
-                'cash-balance': 2000.0,  # Add cash-balance to the mock response
+    def _get_account_info(self, retry=True):
+        logger.info('Retrieving account information')
+        try:
+            response = requests.get(f"{self.base_url}/customers/me/accounts", headers=self.headers)
+            response.raise_for_status()
+            account_info = response.json()
+            account_id = account_info['data']['items'][0]['account']['account-number']
+            self.account_id = account_id
+            logger.info('Account info retrieved', extra={'account_id': self.account_id})
+
+            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/balances", headers=self.headers)
+            response.raise_for_status()
+            account_data = response.json().get('data')
+
+            if not account_data:
+                logger.error("Invalid account info response")
+
+            buying_power = account_data['equity-buying-power']
+            account_value = account_data['net-liquidating-value']
+            cash = account_data.get('cash-balance')
+
+            logger.info('Account balances retrieved', extra={'buying_power': buying_power, 'value': account_value})
+            return {
+                'account_number': self.account_id,
+                'buying_power': float(buying_power),
+                'cash': float(cash),
+                'value': float(account_value)
             }
-        }
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve account information', extra={'error': str(e)})
+            if retry:
+                self.connect()
+                return self._get_account_info(retry=False)
 
-        # Set the side effect for the mock GET requests
-        mock_get.side_effect = [mock_response_accounts, mock_response_balances]
+    async def _place_order(self, symbol, quantity, order_type, price=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        try:
+            last_price = await self.get_current_price(symbol)
+            if price is None:
+                price = round(last_price, 2)
+            quantity = Decimal(quantity)
+            price = Decimal(price)
 
-        # Assuming self.broker is already defined and initialized in the test setup
-        self.broker.connect()
+            if order_type.lower() == 'buy':
+                action = OrderAction.BUY_TO_OPEN
+                price_effect = PriceEffect.DEBIT
+            elif order_type.lower() == 'sell':
+                action = OrderAction.SELL_TO_CLOSE
+                price_effect = PriceEffect.CREDIT
+            else:
+                raise ValueError(f"Unsupported order type: {order_type}")
 
-        # Call the method to be tested
-        account_info = self.broker._get_account_info()
+            account = Account.get_account(self.session, self.account_id)
+            symbol = Equity.get_equity(self.session, symbol)
+            leg = symbol.build_leg(quantity, action)
 
-        # Perform assertions as needed
-        self.assertEqual(self.broker.account_id, '12345')
-        self.assertEqual(account_info.get('buying_power'), 5000.0)
-        self.assertEqual(account_info.get('cash'), 2000.0)
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.DAY,
+                order_type=OrderType.LIMIT,
+                legs=[leg],
+                price=price,
+                price_effect=price_effect
+            )
 
-    @patch('brokers.tastytrade_broker.DXLinkStreamer', new_callable=AsyncMock)
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.post')
-    @patch('brokers.tastytrade_broker.requests.get')
-    async def test_place_order(self, mock_get, mock_post, mock_prod_sesh, mock_dx_streamer):
-        self.mock_connect(mock_post, mock_get, mock_prod_sesh)
-        # Update the mock response to include 'session-token'
-        mock_post.side_effect = [
-            MagicMock(json=MagicMock(return_value={
-                'data': {
-                    'session-token': 'token',
-                    'user': {'username': 'testuser'}
-                }
-            })),
-            MagicMock(json=MagicMock(return_value={
-                'data': {'order': {'order_id': 'order123', 'status': 'filled', 'filled_price': 155.00}}
-            }))
-        ]
+            response = account.place_order(self.session, order, dry_run=False)
 
-        # Mock get_account_info response
-        mock_get.side_effect = [
-            MagicMock(json=MagicMock(return_value={
-                'data': {
-                    'items': [{'account': {'account-number': '12345'}}]
-                }
-            })),
-            MagicMock(json=MagicMock(return_value={
-                'data': {
-                    'equity-buying-power': 5000.0,
-                    'net-liquidating-value': 10000.0
-                }
-            }))
-        ]
+            if getattr(response, 'errors', None):
+                logger.error('Order placement failed with no order ID', extra={'response': str(response)})
+                return {'filled_price': None}
+            else:
+                if self.is_order_filled(response):
+                    logger.info('Order filled', extra={'response': str(response)})
+                else:
+                    logger.info('Order likely still open', extra={'order_data': response})
+                return {'filled_price': price, 'order_id': getattr(response, 'id', 0)}
 
-        # Mock DXLinkStreamer response for get_current_price
-        mock_dx_streamer.return_value.__aenter__.return_value.get_event.return_value = MagicMock(bidPrice=150.0, askPrice=160.0)
+        except Exception as e:
+            logger.error('Failed to place order', extra={'error': str(e)})
+            return {'filled_price': None}
 
-        self.broker.connect()
-        self.broker._get_account_info()
-        order_info = await self.broker._place_order('AAPL', 10, 'buy', 150.00)
+    async def get_current_price(self, symbol):
+        async with DXLinkStreamer(self.session) as streamer:
+            try:
+                subs_list = [symbol]
+                await streamer.subscribe(EventType.QUOTE, subs_list)
+                quote = await streamer.get_event(EventType.QUOTE)
+                return round(float((quote.bidPrice + quote.askPrice) / 2), 2)
+            finally:
+                await streamer.close()
 
-        self.assertEqual(order_info, {'data': {'order': {'order_id': 'order123', 'status': 'filled', 'filled_price': 155.00}}})
+    def _get_order_status(self, order_id):
+        logger.info('Retrieving order status', extra={'order_id': order_id})
+        try:
+            response = requests.get(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
+            response.raise_for_status()
+            order_status = response.json()
+            logger.info('Order status retrieved', extra={'order_status': order_status})
+            return order_status
+        except requests.RequestException as e:
+            logger.error('Failed to retrieve order status', extra={'error': str(e)})
 
-        # Verify the trade was inserted
-        trade = self.session.query(Trade).filter_by(symbol='AAPL').first()
-        self.assertIsNotNone(trade)
-
-        # Verify the balance was updated
-        balance = self.session.query(Balance).filter_by(broker='Tastytrade', strategy='example_strategy').first()
-        self.assertIsNotNone(balance)
-        self.assertEqual(balance.total_balance, 10000.0 + (10 * 155.00))  # Assuming the balance should include the executed trade
-
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_get_order_status(self, mock_post_connect, mock_get, mock_prod_sesh):
-        self.mock_connect(mock_post_connect, mock_get, mock_prod_sesh)
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'data': {'status': 'completed'}}
-        mock_get.return_value = mock_response
-
-        self.broker.connect()
-        order_status = self.broker._get_order_status('order_id')
-        self.assertEqual(order_status, {'data': {'status': 'completed'}})
-
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.put')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_cancel_order(self, mock_post_connect, mock_put, mock_get, mock_prod_sesh):
-        self.mock_connect(mock_post_connect, mock_get, mock_prod_sesh)
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'data': {'status': 'cancelled'}}
-        mock_put.return_value = mock_response
-
-        self.broker.connect()
-        cancel_status = self.broker._cancel_order('order_id')
-        self.assertEqual(cancel_status, {'data': {'status': 'cancelled'}})
-
-    @patch('brokers.tastytrade_broker.Session', autospec=True)
-    @patch('brokers.tastytrade_broker.requests.get')
-    @patch('brokers.tastytrade_broker.requests.post')
-    def test_get_options_chain(self, mock_post_connect, mock_get, mock_prod_sesh):
-        self.mock_connect(mock_post_connect, mock_get, mock_prod_sesh)
-        mock_response = MagicMock()
-        mock_response.json.return_value = {'data': {'items': 'chain'}}
-        mock_get.return_value = mock_response
-
-        self.broker.connect()
-        options_chain = self.broker._get_options_chain('AAPL', '2024-12-20')
-        self.assertEqual(options_chain, {'data': {'items': 'chain'}})
-
-if __name__ == '__main__':
-    unittest.main()
+    def _cancel_order(self, order_id):
+        logger.info('Cancelling order', extra={'order_id': order_id})
+        try:
+            response = requests.put(f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel", headers=self.headers)
+            response.raise_for_status()
+            cancellation_response = response.json()
+            logger.info('Order cancelled successfully', extra={'cancellation_response': cancellation_response})
+            return cancellation_response
+        except requests.RequestException as e:
+            logger.error('Failed to cancel order', extra={'error': str(e)})

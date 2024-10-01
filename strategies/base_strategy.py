@@ -128,7 +128,7 @@ class BaseStrategy(ABC):
                         position.strategy = self.strategy_name
                         position.quantity = data['quantity']
                         position.latest_price = current_price
-                        position.last_updated = datetime.utcnow()
+                        position.last_updated = datetime.now(datetime.UTC)
                         logger.info(
                             f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
@@ -139,7 +139,7 @@ class BaseStrategy(ABC):
                             symbol=symbol,
                             quantity=data['quantity'],
                             latest_price=current_price,
-                            last_updated=datetime.utcnow()
+                            last_updated=datetime.now(datetime.UTC)
                         )
                         session.add(position)
                         logger.info(

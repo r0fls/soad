@@ -6,7 +6,7 @@ from decimal import Decimal
 from brokers.base_broker import BaseBroker
 from utils.logger import logger
 from utils.utils import extract_underlying_symbol, is_ticker, is_option, is_futures_symbol
-from tastytrade import Session, DXLinkStreamer, Account
+from tastytrade import session, DXLinkStreamer, Account
 from tastytrade.instruments import Equity, NestedOptionChain, Option, Future, FutureOption
 from tastytrade.dxfeed import EventType
 from tastytrade.order import NewOrder, OrderAction, OrderTimeInForce, OrderType, PriceEffect, OrderStatus
@@ -70,7 +70,7 @@ class TastytradeBroker(BaseBroker):
         self.auth = auth_response['session-token']
         self.headers["Authorization"] = self.auth
         # Refresh the session
-        self.session = Session(self.username, self.password)
+        self.session = session(self.username, self.password)
         logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self, retry=True):

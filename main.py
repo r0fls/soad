@@ -3,7 +3,7 @@ import asyncio
 import time
 import os
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from database.models import init_db
 from database.db_manager import DBManager
 from ui.app import create_app
@@ -16,10 +16,10 @@ SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 
 def create_database_engine(config, local_testing=False):
     if local_testing:
-        return create_engine('sqlite:///trading.db')
+        return create_async_engine('sqlite:///trading.db')
     if 'database' in config and 'url' in config['database']:
-        return create_engine(config['database']['url'])
-    return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+        return create_async_engine(config['database']['url'])
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
 
 def initialize_database(engine):
     try:

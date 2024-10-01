@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine, ForeignKey, PrimaryKeyConstraint, ForeignKeyConstraint, Index
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, PrimaryKeyConstraint, Index
 from datetime import datetime
 
 Base = declarative_base()
@@ -60,9 +61,21 @@ class Position(Base):
 
     balance = relationship("Balance", back_populates="positions", foreign_keys=[balance_id])
 
-def drop_then_init_db(engine):
-    Base.metadata.drop_all(engine)  # Drop existing tables
-    Base.metadata.create_all(engine)  # Create new tables
+# Async engine setup
+DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
+engine = create_async_engine(DATABASE_URL, echo=True)
 
-def init_db(engine):
-    Base.metadata.create_all(engine)  # Create new tables
+# Async session setup
+async_session = sessionmaker(
+    engine, expire_on_commit=True, class_=AsyncSession
+)
+
+# Drop and create tables asynchronously
+async def drop_then_init_db(engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+async def init_db(engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
