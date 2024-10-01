@@ -12,7 +12,7 @@ numpy
 scipy
 psycopg2
 websocket-client
-tastytrade
+tastytrade==v8.3
 yfinance
 freezegun
 asyncpg
