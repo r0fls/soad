@@ -62,6 +62,14 @@ async def session(engine):
     async with Session() as session:
         yield session
 
+@pytest_asyncio.fixture(autouse=True)
+async def truncate_tables(engine):
+    async with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            # Correct delete statement for each table
+            await conn.execute(delete(table))
+        await conn.commit()  # Make sure to commit the transaction after deletion
+
 
 @pytest_asyncio.fixture
 async def broker(engine):
