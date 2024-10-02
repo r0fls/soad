@@ -85,7 +85,7 @@ def test_fetch_current_db_positions(strategy):
     assert positions == {'AAPL': 10}
 
 @pytest.mark.asyncio
-@patch('utils.utils.is_market_open', return_value=True)
+@patch('strategies.base_strategy.is_market_open', return_value=True)
 @patch('strategies.base_strategy.asyncio.iscoroutinefunction', return_value=False)
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     await strategy.place_order('AAPL', 10, 'buy', 150)
