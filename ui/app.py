@@ -17,7 +17,7 @@ from utils.logger import logger
 
 
 # Create Sanic app
-app = Sanic("TradingAPI")
+app = Sanic("SystemOfADowAPI")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 
 # Configure CORS
@@ -271,20 +271,104 @@ async def trades_per_strategy(request):
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 async def historic_balance_per_strategy(request):
     try:
-        query = """
-        WITH one_week_ago AS (SELECT NOW() - INTERVAL '7 days' AS ts),
-        latest_cash_subquery AS (SELECT broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval, MAX(timestamp) AS latest_cash_timestamp
-        FROM balances WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago) GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')),
-        latest_positions_subquery AS (SELECT broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval, MAX(timestamp) AS latest_positions_timestamp
-        FROM balances WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago) GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')),
-        latest_cash_balances AS (SELECT b.broker, b.strategy, to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval, b.balance AS cash_balance FROM balances b
-        JOIN latest_cash_subquery lcs ON b.broker = lcs.broker AND b.strategy = lcs.strategy AND b.timestamp = lcs.latest_cash_timestamp WHERE b.type = 'cash'),
-        latest_positions_balances AS (SELECT b.broker, b.strategy, to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval, b.balance AS positions_balance
-        FROM balances b JOIN latest_positions_subquery lps ON b.broker = lps.broker AND b.strategy = lps.strategy AND b.timestamp = lps.latest_positions_timestamp WHERE b.type = 'positions')
-        SELECT lcb.broker, lcb.strategy, lcb.interval, COALESCE(lcb.cash_balance, 0) AS cash_balance, COALESCE(lpb.positions_balance, 0) AS positions_balance,
-        (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance FROM latest_cash_balances lcb FULL OUTER JOIN latest_positions_balances lpb
-        ON lcb.broker = lpb.broker AND lcb.strategy = lpb.strategy AND lcb.interval = lpb.interval;
-        """
+        # Identify the dialect being used (SQLite or PostgreSQL)
+        engine_dialect = app.ctx.engine.dialect.name
+        
+        # PostgreSQL query
+        if engine_dialect == "postgresql":
+            query = """
+            WITH one_week_ago AS (SELECT NOW() - INTERVAL '7 days' AS ts),
+            latest_cash_subquery AS (
+                SELECT broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval, 
+                MAX(timestamp) AS latest_cash_timestamp
+                FROM balances 
+                WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago) 
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+            ),
+            latest_positions_subquery AS (
+                SELECT broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI') AS interval, 
+                MAX(timestamp) AS latest_positions_timestamp
+                FROM balances 
+                WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago) 
+                GROUP BY broker, strategy, to_char(timestamp, 'YYYY-MM-DD HH24:MI')
+            ),
+            latest_cash_balances AS (
+                SELECT b.broker, b.strategy, to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval, 
+                b.balance AS cash_balance 
+                FROM balances b
+                JOIN latest_cash_subquery lcs 
+                ON b.broker = lcs.broker AND b.strategy = lcs.strategy AND b.timestamp = lcs.latest_cash_timestamp 
+                WHERE b.type = 'cash'
+            ),
+            latest_positions_balances AS (
+                SELECT b.broker, b.strategy, to_char(b.timestamp, 'YYYY-MM-DD HH24:MI') AS interval, 
+                b.balance AS positions_balance
+                FROM balances b 
+                JOIN latest_positions_subquery lps 
+                ON b.broker = lps.broker AND b.strategy = lps.strategy AND b.timestamp = lps.latest_positions_timestamp 
+                WHERE b.type = 'positions'
+            )
+            SELECT lcb.broker, lcb.strategy, lcb.interval, COALESCE(lcb.cash_balance, 0) AS cash_balance, 
+            COALESCE(lpb.positions_balance, 0) AS positions_balance,
+            (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance 
+            FROM latest_cash_balances lcb 
+            FULL OUTER JOIN latest_positions_balances lpb 
+            ON lcb.broker = lpb.broker AND lcb.strategy = lpb.strategy AND lcb.interval = lpb.interval;
+            """
+        
+        # SQLite query
+        elif engine_dialect == "sqlite":
+            query = """
+            WITH one_week_ago AS (SELECT datetime('now', '-7 days') AS ts),
+            latest_cash_subquery AS (
+                SELECT broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp) AS interval, 
+                MAX(timestamp) AS latest_cash_timestamp
+                FROM balances 
+                WHERE type = 'cash' AND timestamp >= (SELECT ts FROM one_week_ago) 
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
+            ),
+            latest_positions_subquery AS (
+                SELECT broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp) AS interval, 
+                MAX(timestamp) AS latest_positions_timestamp
+                FROM balances 
+                WHERE type = 'positions' AND timestamp >= (SELECT ts FROM one_week_ago) 
+                GROUP BY broker, strategy, strftime('%Y-%m-%d %H:%M', timestamp)
+            ),
+            latest_cash_balances AS (
+                SELECT b.broker, b.strategy, strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval, 
+                b.balance AS cash_balance 
+                FROM balances b
+                JOIN latest_cash_subquery lcs 
+                ON b.broker = lcs.broker AND b.strategy = lcs.strategy AND b.timestamp = lcs.latest_cash_timestamp 
+                WHERE b.type = 'cash'
+            ),
+            latest_positions_balances AS (
+                SELECT b.broker, b.strategy, strftime('%Y-%m-%d %H:%M', b.timestamp) AS interval, 
+                b.balance AS positions_balance
+                FROM balances b 
+                JOIN latest_positions_subquery lps 
+                ON b.broker = lps.broker AND b.strategy = lps.strategy AND b.timestamp = lps.latest_positions_timestamp 
+                WHERE b.type = 'positions'
+            )
+            SELECT lcb.broker, lcb.strategy, lcb.interval, COALESCE(lcb.cash_balance, 0) AS cash_balance, 
+            COALESCE(lpb.positions_balance, 0) AS positions_balance,
+            (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance 
+            FROM latest_cash_balances lcb 
+            LEFT JOIN latest_positions_balances lpb 
+            ON lcb.broker = lpb.broker AND lcb.strategy = lpb.strategy AND lcb.interval = lpb.interval
+            UNION ALL
+            SELECT lpb.broker, lpb.strategy, lpb.interval, COALESCE(lcb.cash_balance, 0) AS cash_balance, 
+            COALESCE(lpb.positions_balance, 0) AS positions_balance,
+            (COALESCE(lcb.cash_balance, 0) + COALESCE(lpb.positions_balance, 0)) AS total_balance 
+            FROM latest_positions_balances lpb 
+            LEFT JOIN latest_cash_balances lcb 
+            ON lpb.broker = lcb.broker AND lpb.strategy = lcb.strategy AND lpb.interval = lcb.interval
+            WHERE lcb.broker IS NULL;
+            """
+
+        else:
+            raise Exception("Unsupported database dialect")
+
         async with app.ctx.session() as session:
             result = await session.execute(text(query))
             combined_balances = result.fetchall()
@@ -302,6 +386,7 @@ async def historic_balance_per_strategy(request):
             })
 
         return json({"historic_balance_per_strategy": historical_balances_serializable})
+    
     except Exception as e:
         logger.error(f'Error fetching historic balance per strategy: {str(e)}')
         return json({'status': 'error', 'message': str(e)}, status=500)
@@ -586,7 +671,13 @@ async def add_session_to_request(request):
 @app.middleware('response')
 async def close_session(request, response):
     if hasattr(request.ctx, 'session'):
-        await request.ctx.session.close()
+        try:
+            await request.ctx.session.commit() 
+        except Exception as e:
+            await request.ctx.session.rollback()
+            logger.error(f"Session rollback due to error: {str(e)}")
+        finally:
+            await request.ctx.session.close() 
 
 @app.listener('before_server_start')
 async def setup_db(app, loop):
