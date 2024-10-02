@@ -3,9 +3,9 @@ pytest
 pytest-asyncio
 sqlalchemy
 pyyaml
-flask
-flask-cors
-flask-jwt-extended
+sanic
+sanic-cors
+sanic-jwt
 python-json-logger
 pytz
 numpy
