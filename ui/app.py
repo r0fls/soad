@@ -1,6 +1,7 @@
+from functools import wraps
 from sanic import Sanic, json
-from sanic_jwt import Initialize, exceptions
-import sanic_jwt
+from sqlalchemy.ext.asyncio import create_async_engine
+import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -14,42 +15,75 @@ from scipy.stats import norm
 from utils.utils import is_option, black_scholes_delta_theta, OPTION_MULTIPLIER, is_futures_symbol, futures_contract_size
 from utils.logger import logger
 
+
+# Create Sanic app
 app = Sanic("TradingAPI")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 
 # Configure CORS
 CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}}, supports_credentials=True)
 
+# Define secret key and token expiration
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'super-secret')
+JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
+
+# Define username and password for login
 USERNAME = os.environ.get('APP_USERNAME', 'emperor')
 PASSWORD = os.environ.get('APP_PASSWORD', 'fugazi')
 
-async def authenticate(request):
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
-    if not username or not password:
-        raise exceptions.AuthenticationFailed("Missing username or password.")
-    if username != USERNAME or password != PASSWORD:
-        raise exceptions.AuthenticationFailed("Invalid credentials.")
-    return {'user_id': username}
+# Helper function to create a JWT token
+def create_access_token(identity):
+    payload = {
+        'identity': identity,
+        'exp': datetime.utcnow() + JWT_ACCESS_TOKEN_EXPIRES,
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
 
-Initialize(app, authenticate=authenticate)
+# Middleware to check for token and decode it
+def check_auth_token(request):
+    auth_header = request.headers.get('Authorization', None)
+    if not auth_header:
+        raise Unauthorized("Missing Authorization Header")
 
-@app.route('/')
+    try:
+        token_type, token = auth_header.split()
+        if token_type.lower() != 'bearer':
+            raise Unauthorized("Invalid Token Type")
+        decoded_token = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        return decoded_token
+    except Exception as e:
+        raise Unauthorized(f"Invalid Token: {str(e)}")
+
+# Decorator for routes requiring authentication
+def jwt_required(f):
+    @wraps(f)
+    async def decorated_function(request, *args, **kwargs):
+        request.ctx.user = check_auth_token(request)
+        return await f(request, *args, **kwargs)
+    return decorated_function
+
+@app.route("/", methods=["GET"])
 async def ok(request):
     return json({"status": "ok"}, status=200)
 
-
 @app.route("/login", methods=["POST"])
 async def login(request):
-    try:
-        return await sanic_jwt.login(request)
-    except exceptions.AuthenticationFailed as e:
-        return json({"msg": str(e)}, status=401)
-    except Exception as e:
-        logger.error(f"Error logging in: {str(e)}")
-        return json({"msg": "Something went wrong"}, status=500)
+    if not request.json:
+        return json({"msg": "Missing JSON in request"}, status=400)
 
-app.route('/account_values')
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+
+    if username != USERNAME or password != PASSWORD:
+        return json({"msg": "Bad username or password"}, status=401)
+
+    # Generate JWT token
+    access_token = create_access_token(identity=username)
+    return json({"access_token": access_token}, status=200)
+
+@jwt_required
+@app.route('/account_values')
 async def account_values(request):
     try:
         async with app.ctx.session() as session:
@@ -60,6 +94,7 @@ async def account_values(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/get_brokers_strategies', methods=['GET'])
 async def get_brokers_strategies(request):
     try:
@@ -129,6 +164,7 @@ async def get_brokers_strategies(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/adjust_balance', methods=['POST'])
 async def adjust_balance(request):
     data = request.json
@@ -215,6 +251,7 @@ async def adjust_balance(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/trades_per_strategy', methods=['GET'])
 async def trades_per_strategy(request):
     try:
@@ -230,6 +267,7 @@ async def trades_per_strategy(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/historic_balance_per_strategy', methods=['GET'])
 async def historic_balance_per_strategy(request):
     try:
@@ -265,8 +303,10 @@ async def historic_balance_per_strategy(request):
 
         return json({"historic_balance_per_strategy": historical_balances_serializable})
     except Exception as e:
+        logger.error(f'Error fetching historic balance per strategy: {str(e)}')
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/trade_success_rate', methods=['GET'])
 async def trade_success_rate(request):
     try:
@@ -298,6 +338,7 @@ async def trade_success_rate(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/positions', methods=['GET'])
 async def get_positions(request):
     try:
@@ -370,6 +411,7 @@ async def get_positions(request):
         logger.error(f'Error fetching positions: {str(e)}')
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/trades', methods=['GET'])
 async def get_trades(request):
     try:
@@ -400,6 +442,7 @@ async def get_trades(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/trade_stats', methods=['GET'])
 async def get_trade_stats(request):
     try:
@@ -448,6 +491,7 @@ async def get_trade_stats(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/var', methods=['GET'])
 async def get_var(request):
     try:
@@ -476,6 +520,7 @@ async def get_var(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/max_drawdown', methods=['GET'])
 async def get_max_drawdown(request):
     try:
@@ -504,6 +549,7 @@ async def get_max_drawdown(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
+@jwt_required
 @app.route('/sharpe_ratio', methods=['GET'])
 async def get_sharpe_ratio(request):
     try:
@@ -532,8 +578,31 @@ async def get_sharpe_ratio(request):
     except Exception as e:
         return json({'status': 'error', 'message': str(e)}, status=500)
 
-def create_app(engine):
-    """This function creates the app and sets up the session using the passed-in engine."""
+# Middleware to add and close session per request
+@app.middleware('request')
+async def add_session_to_request(request):
+    request.ctx.session = app.ctx.session()
+
+@app.middleware('response')
+async def close_session(request, response):
+    if hasattr(request.ctx, 'session'):
+        await request.ctx.session.close()
+
+@app.listener('before_server_start')
+async def setup_db(app, loop):
+    config = app.config.get("CUSTOM_CONFIG", {})  # Access custom config safely    
+    engine = create_database_engine(config)
     async_session_factory = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     app.ctx.session = scoped_session(async_session_factory)
+
+def create_database_engine(config, local_testing=False):
+    if local_testing:
+        return create_async_engine('sqlite+aiosqlite:///trading.db')
+    if 'database' in config and 'url' in config['database']:
+        return create_async_engine(config['database']['url'])
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db'))
+
+def create_app(config):
+    logger.info('Adding custom configuration to the app: %s', config)
+    app.update_config({"CUSTOM_CONFIG": config})  
     return app

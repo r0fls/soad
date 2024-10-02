@@ -21,9 +21,9 @@ def create_database_engine(config, local_testing=False):
         return create_async_engine(config['database']['url'])
     return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db'))
 
-def initialize_database(engine):
+async def initialize_database(engine):
     try:
-        init_db(engine)
+        await init_db(engine)
         logger.info('Database initialized successfully')
     except Exception as e:
         logger.error('Failed to initialize database', extra={'error': str(e)})
@@ -82,7 +82,7 @@ async def start_trading_system(config_path):
     logger.info('Database engine created', extra={'db_url': engine.url})
 
     # Initialize the database
-    initialize_database(engine)
+    await initialize_database(engine)
 
     # Initialize the brokers and strategies
     brokers, strategies = await initialize_brokers_and_strategies(config)
@@ -112,7 +112,7 @@ async def start_trading_system(config_path):
         await asyncio.sleep(60)  # Check every minute
     logger.info('Trading system finished 24 hours of trading')
 
-def start_api_server(config_path=None, local_testing=False):
+async def start_api_server(config_path=None, local_testing=False):
     logger.info('Starting API server', extra={'config_path': config_path, 'local_testing': local_testing})
 
     if config_path is None:
@@ -130,11 +130,11 @@ def start_api_server(config_path=None, local_testing=False):
     logger.info('Database engine created for API server', extra={'db_url': engine.url})
 
     # Initialize the database
-    initialize_database(engine)
+    await initialize_database(engine)
 
     # Create and run the app
     try:
-        app = create_app(engine)
+        app = create_app(config)
         logger.info('API server created successfully')
         app.run(host="0.0.0.0", port=8000, debug=True)
     except Exception as e:
@@ -156,7 +156,7 @@ async def start_sync_worker(config_path):
     logger.info('Database engine created for sync worker', extra={'db_url': engine.url})
 
     # Initialize the database
-    initialize_database(engine)
+    await initialize_database(engine)
 
     # Initialize the brokers
     try:
@@ -200,7 +200,7 @@ async def main():
                 logger.info('Restarting the trading system')
                 continue
     elif args.mode == 'api':
-        start_api_server(config_path=args.config, local_testing=args.local_testing)
+        await start_api_server(config_path=args.config, local_testing=args.local_testing)
     elif args.mode == 'sync':
         if not args.config:
             parser.error('--config is required when mode is "sync"')
