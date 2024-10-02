@@ -16,10 +16,10 @@ SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 
 def create_database_engine(config, local_testing=False):
     if local_testing:
-        return create_async_engine('sqlite:///trading.db')
+        return create_async_engine('sqlite+aiosqlite:///trading.db')
     if 'database' in config and 'url' in config['database']:
         return create_async_engine(config['database']['url'])
-    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db'))
 
 def initialize_database(engine):
     try:
