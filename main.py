@@ -4,6 +4,7 @@ import time
 import os
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import create_engine
 from database.models import init_db
 from database.db_manager import DBManager
 from ui.app import create_app
@@ -14,12 +15,20 @@ from data.sync_worker import sync_worker  # Import the sync worker
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 
+def create_api_database_engine(config, local_testing=False):
+    if local_testing:
+        return create_engine('sqlite:///trading.db')
+    if 'database' in config and 'url' in config['database']:
+        return create_engine(config['database']['url'])
+    return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+
+
 def create_database_engine(config, local_testing=False):
     if local_testing:
-        return create_async_engine('sqlite+aiosqlite:///trading.db')
+        return create_async_engine('sqlite:///trading.db')
     if 'database' in config and 'url' in config['database']:
         return create_async_engine(config['database']['url'])
-    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db'))
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
 
 def initialize_database(engine):
     try:
@@ -126,7 +135,7 @@ def start_api_server(config_path=None, local_testing=False):
             return
 
     # Setup the database engine
-    engine = create_database_engine(config, local_testing)
+    engine = create_api_database_engine(config, local_testing)
     logger.info('Database engine created for API server', extra={'db_url': engine.url})
 
     # Initialize the database
