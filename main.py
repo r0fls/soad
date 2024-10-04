@@ -26,6 +26,8 @@ def create_api_database_engine(config, local_testing=False):
 def create_database_engine(config, local_testing=False):
     if local_testing:
         return create_async_engine('sqlite:///trading.db')
+    if type(config) == str:
+        return create_async_engine(config)
     if 'database' in config and 'url' in config['database']:
         return create_async_engine(config['database']['url'])
     return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
