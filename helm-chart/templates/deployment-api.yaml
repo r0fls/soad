@@ -28,6 +28,8 @@ spec:
               value: "{{ .Values.api.password }}"
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
+            - name: ASYNC_DATABASE_URL
+              value: "postgresql+asyncpg://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
             - name: TRADIER_API_KEY
               value: "{{ .Values.brokers.tradier.apiKey }}"
             {{- if .Values.dashboard.ingress.tls.enabled }}
