@@ -143,7 +143,7 @@ async def start_api_server(config_path=None, local_testing=False):
     # Initialize the database
     async_db_url = os.environ.get("ASYNC_DATABASE_URL", 'sqlite:///default_trading_system.db')
     async_db_engine = create_database_engine(async_db_url, local_testing)
-    await initialize_database(engine)
+    await initialize_database(async_db_engine)
 
     # Create and run the app
     try:
