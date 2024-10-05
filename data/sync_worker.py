@@ -158,7 +158,12 @@ class BalanceService:
         await self.update_uncategorized_balances(session, broker, timestamp)
 
     async def _get_strategies(self, session, broker):
-        strategies_result = await session.execute(select(Balance.strategy).filter_by(broker=broker).distinct())
+        strategies_result = await session.execute(
+            select(Balance.strategy).
+            filter_by(broker=broker).
+            distinct().
+            where(Balance.strategy != 'uncategorized')
+        )
         return strategies_result.scalars().all()
 
     async def _update_each_strategy_balance(self, session, broker, strategies, timestamp):
@@ -195,8 +200,11 @@ class BalanceService:
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
         total_value, categorized_balance_sum = await self._get_account_balance_info(session, broker)
-        logger.info(f"Total value: {total_value}, categorized balance sum: {categorized_balance_sum}")
+        logger.info(f"Broker {broker}: Total account value: {total_value}, Categorized balance sum: {categorized_balance_sum}")
+        uncategorized_balance = max(0, total_value - categorized_balance_sum)
+        logger.debug(f"Calculated uncategorized balance for broker {broker}: {uncategorized_balance}")
         await self._insert_uncategorized_balance(session, broker, total_value, categorized_balance_sum, timestamp)
+
 
     async def _get_account_balance_info(self, session, broker):
         account_info = await self.broker_service.get_account_info(broker)
