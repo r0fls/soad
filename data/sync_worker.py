@@ -134,68 +134,121 @@ class BalanceService:
     def __init__(self, broker_service):
         self.broker_service = broker_service
 
-    async def update_uncategorized_balances(self, session, timestamp):
+    async def update_all_strategy_balances(self, session, broker, timestamp):
+        """
+        Update the balances for all strategies including uncategorized
+        """
         now = timestamp or datetime.now()
-        logger.info('Updating uncategorized balances')
-        brokers = await session.execute(select(Balance.broker).distinct())
-        for broker in brokers.scalars():
-            await self._process_broker_balances(session, broker, now)
 
-        await session.commit()
-        logger.info('Completed updating uncategorized balances')
-
-    async def _process_broker_balances(self, session, broker, timestamp):
-        broker_instance = self.broker_service.get_broker_instance(broker)
-        account_info = await broker_instance.get_account_info()
-        total_value = account_info['value']
-        uncategorized_balance = total_value
-
-        strategies = await session.execute(select(Balance.strategy).filter_by(broker=broker).distinct())
-        for strategy in strategies.scalars():
-            uncategorized_balance -= await self._get_strategy_balances(session, broker, strategy)
-
-        uncategorized_position_balance = await session.execute(
-            select(Balance).
-            filter_by(broker=broker, strategy='uncategorized', type='positions').
-            order_by(Balance.timestamp.desc()).
-            limit(1)
+        # Get all strategies
+        strategies = await session.execute(
+            select(Balance.strategy)
+            .filter_by(broker=broker)
+            .distinct()
         )
-        uncategorized_position_balance = uncategorized_position_balance.scalar()
-        uncategorized_balance -= uncategorized_position_balance.balance if uncategorized_position_balance else 0.0
+        strategies = strategies.scalars().all()
 
-        if uncategorized_balance < 0:
-            logger.error(f'Uncategorized balance for broker {broker} is negative: {uncategorized_balance}. Setting to 0.')
-            uncategorized_balance = 0
+        # Update balances for each strategy
+        for strategy in strategies:
+            await self.update_strategy_balance(session, broker, strategy, now)
 
-        new_uncategorized_balance = Balance(
+        # Update uncategorized balances
+        await self.update_uncategorized_balances(session, broker, now)
+
+    async def update_strategy_balance(self, session, broker, strategy, timestamp):
+        """
+        Update the total balance for a specific strategy
+        """
+        now = timestamp or datetime.now()
+
+        # Fetch latest cash and position balance for the strategy
+        cash_balance = await session.execute(
+            select(Balance)
+            .filter_by(broker=broker, strategy=strategy, type='cash')
+            .order_by(Balance.timestamp.desc())
+            .limit(1)
+        )
+        cash_balance = cash_balance.scalar()
+        cash_balance = cash_balance.balance if cash_balance else 0
+
+        position_balance = await session.execute(
+            select(Balance)
+            .filter_by(broker=broker, strategy=strategy, type='positions')
+            .order_by(Balance.timestamp.desc())
+            .limit(1)
+        )
+        position_balance = position_balance.scalar()
+        position_balance = position_balance.balance if position_balance else 0
+
+        # Sum up total balance
+        total_balance = cash_balance + position_balance
+
+        # Insert or update the balance for the strategy
+        new_balance_record = Balance(
+            broker=broker,
+            strategy=strategy,
+            type='total',
+            balance=total_balance,
+            timestamp=now
+        )
+        session.add(new_balance_record)
+        logger.debug(f"Updated balance for strategy {strategy}: {total_balance}")
+
+    async def update_uncategorized_balances(self, session, broker, timestamp):
+        """
+        Calculate uncategorized balances by subtracting all strategies' balances from the total value.
+        """
+        now = timestamp or datetime.now()
+
+        account_info = await self.broker_service.get_account_info(broker)
+        total_value = account_info['value']
+        categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
+
+        uncategorized_balance = total_value - categorized_balance_sum
+
+        # Insert uncategorized balance record
+        new_balance_record = Balance(
             broker=broker,
             strategy='uncategorized',
             type='cash',
-            balance=uncategorized_balance,
-            timestamp=timestamp
+            balance=max(0, uncategorized_balance),
+            timestamp=now
         )
-        session.add(new_uncategorized_balance)
-        logger.debug(f'Added new uncategorized balance for broker {broker}: {uncategorized_balance}')
+        session.add(new_balance_record)
+        logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
 
-    async def _get_strategy_balances(self, session, broker, strategy):
-        cash_balance = await session.execute(
-                select(Balance).
-                filter_by(broker=broker, strategy=strategy, type='cash').
-                order_by(Balance.timestamp.desc()).
-                limit(1)
+    async def _sum_all_strategy_balances(self, session, broker):
+        """
+        Calculate the sum of all strategy balances for a given broker.
+        """
+        strategies = await session.execute(
+            select(Balance.strategy)
+            .filter_by(broker=broker)
+            .distinct()
         )
-        cash_balance = cash_balance.scalar()
-        cash_balance = cash_balance.balance if cash_balance else 0.0
+        strategies = strategies.scalars().all()
 
-        position_balance = await session.execute(
-                select(Balance).filter_by(broker=broker, strategy=strategy, type='positions').
-                order_by(Balance.timestamp.desc()).
-                limit(1)
-        )
-        position_balance = position_balance.scalar()
-        position_balance = position_balance.balance if position_balance else 0.0
+        total_balance = 0
+        for strategy in strategies:
+            cash_balance = await session.execute(
+                select(Balance.balance)
+                .filter_by(broker=broker, strategy=strategy, type='cash')
+                .order_by(Balance.timestamp.desc())
+                .limit(1)
+            )
+            cash_balance = cash_balance.scalar() or 0
 
-        return cash_balance + position_balance
+            position_balance = await session.execute(
+                select(Balance.balance)
+                .filter_by(broker=broker, strategy=strategy, type='positions')
+                .order_by(Balance.timestamp.desc())
+                .limit(1)
+            )
+            position_balance = position_balance.scalar() or 0
+
+            total_balance += (cash_balance + position_balance)
+
+        return total_balance
 
 
 async def sync_worker(engine, brokers):
@@ -226,8 +279,11 @@ async def sync_worker(engine, brokers):
             # Update position prices and volatility
             positions = await session.execute(select(Position))
             await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
+            # Reconcile positions for each broker
+            for broker in brokers:
+                await position_service.reconcile_positions(session, broker)
             # Update uncategorized balances
-            await balance_service.update_uncategorized_balances(session, now)
+            await balance_service.update_all_strategy_balances(session, broker, now)
         logger.info('Sync worker completed an iteration')
     except Exception as e:
         logger.error('Error in sync worker iteration', extra={'error': str(e)})
