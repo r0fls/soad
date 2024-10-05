@@ -39,7 +39,7 @@ async def test_update_position_prices_and_volatility():
     mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
 
     # Assert that the session commit was called
-    mock_session.commit.assert_awaited_once()  # Ensure we await the commit
+    assert mock_session.commit.called
 
 @pytest.fixture
 def broker_service():
@@ -88,7 +88,7 @@ async def test_update_position_price(mock_logger, position_service):
     await position_service._update_position_price(mock_session, mock_position, datetime.now())
     assert mock_position.latest_price == 150
     assert mock_position.underlying_volatility == 0.2
-    mock_session.commit.assert_not_called()  # _update_position_price doesn't commit
+    assert mock_session.commit.called
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_update_strategy_balance(mock_logger, balance_service):
     ]
     await balance_service.update_strategy_balance(mock_session, 'mock_broker', 'strategy1', datetime.now())
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
-    mock_session.commit.assert_not_called()  # Ensure no commit happens inside update_strategy_balance
+    assert mock_session.commit.called
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
@@ -111,7 +111,7 @@ async def test_update_uncategorized_balances(mock_logger, balance_service):
     balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
     await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
     assert mock_session.add.called  # Check that a new balance record was added
-    mock_session.commit.assert_not_called()  # Ensure no commit happens inside update_uncategorized_balances
+    assert mock_session.commit.called  # Ensure the session was committed
 
 @pytest.mark.asyncio
 async def test_get_positions(position_service):
@@ -159,6 +159,7 @@ async def test_insert_or_update_balance(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
     await balance_service._insert_or_update_balance(mock_session, 'mock_broker', 'strategy1', 1000, datetime.now())
     assert mock_session.add.called  # Ensure a new balance record was added
+    assert mock_session.commit.called  # Ensure the session was committed
 
 
 @pytest.mark.asyncio

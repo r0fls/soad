@@ -85,6 +85,7 @@ class PositionService:
             last_updated=now,
         )
         session.add(new_position)
+        await session.commit()
         logger.info(f"Added uncategorized position to DB: {new_position}")
 
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
@@ -130,6 +131,8 @@ class PositionService:
             logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
         else:
             logger.error(f'Could not calculate volatility for {underlying_symbol}')
+        session.add(position)
+        await session.commit()
 
     @staticmethod
     def _get_underlying_symbol(position):
@@ -196,6 +199,7 @@ class BalanceService:
             timestamp=timestamp
         )
         session.add(new_balance_record)
+        await session.commit()
         logger.debug(f"Updated balance for strategy {strategy}: {total_balance}")
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
@@ -222,6 +226,7 @@ class BalanceService:
             timestamp=timestamp
         )
         session.add(new_balance_record)
+        await session.commit()
         logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
 
     async def _sum_all_strategy_balances(self, session, broker):
