@@ -31,6 +31,51 @@ class PositionService:
     def __init__(self, broker_service):
         self.broker_service = broker_service
 
+    async def reconcile_positions(self, session, broker, timestamp=None):
+        logger.info(f"Reconciling positions for broker: {broker}")
+        now = timestamp or datetime.now()
+
+        # Get positions from the broker
+        broker_instance = self.broker_service.get_broker_instance(broker)
+        broker_positions = await broker_instance.get_positions()  # Assuming this returns a list of positions
+
+        # Get positions from the database
+        db_positions = await session.execute(
+            select(Position).filter_by(broker=broker)
+        )
+        db_positions = {pos.symbol: pos for pos in db_positions.scalars()}
+
+        # Remove positions in the DB that are not in the broker's list
+        broker_symbols = {pos['symbol'] for pos in broker_positions}
+        db_symbols = set(db_positions.keys())
+
+        # Positions to remove from the database
+        symbols_to_remove = db_symbols - broker_symbols
+        if symbols_to_remove:
+            await session.execute(
+                sqlalchemy.delete(Position).where(Position.broker == broker, Position.symbol.in_(symbols_to_remove))
+            )
+            logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
+
+        # Add positions from the broker that aren't in the database
+        symbols_to_add = broker_symbols - db_symbols
+        for broker_pos in broker_positions:
+            if broker_pos['symbol'] in symbols_to_add:
+                # Add the missing position to the database as uncategorized
+                new_position = Position(
+                    broker=broker,
+                    strategy='uncategorized',
+                    symbol=broker_pos['symbol'],
+                    quantity=broker_pos['quantity'],
+                    latest_price=broker_pos['latest_price'],
+                    last_updated=now,
+                )
+                session.add(new_position)
+                logger.info(f"Added uncategorized position to DB: {new_position}")
+
+        await session.commit()
+        logger.info(f"Reconciliation for broker {broker} completed.")
+
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now = timestamp or datetime.now()
 
@@ -110,7 +155,10 @@ class BalanceService:
             uncategorized_balance -= await self._get_strategy_balances(session, broker, strategy)
 
         uncategorized_position_balance = await session.execute(
-            select(Balance).filter_by(broker=broker, strategy='uncategorized', type='positions').limit(1)
+            select(Balance).
+            filter_by(broker=broker, strategy='uncategorized', type='positions').
+            order_by(Balance.timestamp.desc()).
+            limit(1)
         )
         uncategorized_position_balance = uncategorized_position_balance.scalar()
         uncategorized_balance -= uncategorized_position_balance.balance if uncategorized_position_balance else 0.0
@@ -130,11 +178,20 @@ class BalanceService:
         logger.debug(f'Added new uncategorized balance for broker {broker}: {uncategorized_balance}')
 
     async def _get_strategy_balances(self, session, broker, strategy):
-        cash_balance = await session.execute(select(Balance).filter_by(broker=broker, strategy=strategy, type='cash').limit(1))
+        cash_balance = await session.execute(
+                select(Balance).
+                filter_by(broker=broker, strategy=strategy, type='cash').
+                order_by(Balance.timestamp.desc()).
+                limit(1)
+        )
         cash_balance = cash_balance.scalar()
         cash_balance = cash_balance.balance if cash_balance else 0.0
 
-        position_balance = await session.execute(select(Balance).filter_by(broker=broker, strategy=strategy, type='positions').limit(1))
+        position_balance = await session.execute(
+                select(Balance).filter_by(broker=broker, strategy=strategy, type='positions').
+                order_by(Balance.timestamp.desc()).
+                limit(1)
+        )
         position_balance = position_balance.scalar()
         position_balance = position_balance.balance if position_balance else 0.0
 
