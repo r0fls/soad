@@ -260,11 +260,3 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
         logger.info('Sync worker completed an iteration')
     except Exception as e:
         logger.error('Error in sync worker iteration', extra={'error': str(e)})
-
-
-async def _process_session_tasks(session, position_service, balance_service, brokers, now):
-    positions = await session.execute(select(Position))
-    await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
-    for broker in brokers:
-        await position_service.reconcile_positions(session, broker)
-    await balance_service.update_all_strategy_balances(session, broker, now)
