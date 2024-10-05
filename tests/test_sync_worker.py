@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock, ANY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from data.sync_worker import PositionService, BalanceService, BrokerService, _get_async_engine, _run_sync_worker_iteration
+from data.sync_worker import PositionService, BalanceService, BrokerService, _get_async_engine, _run_sync_worker_iteration, _fetch_and_update_positions, _reconcile_brokers_and_update_balances
 from database.models import Position, Balance
 
 # Mock data for testing
@@ -195,3 +195,36 @@ async def test_get_async_engine():
     engine_url = "sqlite+aiosqlite:///:memory:"
     async_engine = await _get_async_engine(engine_url)
     assert async_engine.name == "sqlite"
+
+@pytest.mark.asyncio
+@patch('data.sync_worker.logger')
+async def test_fetch_and_update_positions(mock_logger):
+    mock_session = AsyncMock()
+    mock_position_service = AsyncMock()
+    mock_positions = AsyncMock()
+
+    # Mock session.execute to return mock positions
+    mock_session.execute.return_value = mock_positions
+
+    await _fetch_and_update_positions(mock_session, mock_position_service, datetime.now())
+
+    mock_session.execute.assert_called_once_with(ANY)
+    #mock_position_service.update_position_prices_and_volatility.assert_awaited_once_with(mock_session, mock_positions.scalars(), ANY)
+    mock_logger.info.assert_any_call('Positions fetched')
+
+@pytest.mark.asyncio
+@patch('data.sync_worker.logger')
+async def test_reconcile_brokers_and_update_balances(mock_logger):
+    mock_session = AsyncMock()
+    mock_position_service = AsyncMock()
+    mock_balance_service = AsyncMock()
+    mock_brokers = ['broker1', 'broker2']
+    mock_now = datetime.now()  # Capture datetime once
+
+    await _reconcile_brokers_and_update_balances(mock_session, mock_position_service, mock_balance_service, mock_brokers, mock_now)
+
+    # Ensure reconcile positions and update balances are called for both brokers
+    mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker1')
+    mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker2')
+    mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker1', mock_now)
+    mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker2', mock_now)
