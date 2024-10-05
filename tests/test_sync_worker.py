@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from data.sync_worker import PositionService, BalanceService, BrokerService
+from data.sync_worker import PositionService, BalanceService, BrokerService, _get_async_engine, _run_sync_worker_iteration
 from database.models import Position, Balance
 
 # Mock data for testing
@@ -103,7 +103,6 @@ async def test_update_strategy_balance(mock_logger, balance_service):
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
     mock_session.commit.assert_not_called()  # Ensure no commit happens inside update_strategy_balance
 
-
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
 async def test_update_uncategorized_balances(mock_logger, balance_service):
@@ -113,3 +112,57 @@ async def test_update_uncategorized_balances(mock_logger, balance_service):
     await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
     assert mock_session.add.called  # Check that a new balance record was added
     mock_session.commit.assert_not_called()  # Ensure no commit happens inside update_uncategorized_balances
+
+@pytest.mark.asyncio
+async def test_get_positions(position_service):
+    mock_session = AsyncMock(AsyncSession)
+    mock_broker_positions = {'AAPL': 'mock_position'}
+    # Mock the dependencies of position_service instead of position_service itself
+    position_service.broker_service.get_broker_instance = MagicMock()
+    position_service.broker_service.get_broker_instance.return_value.get_positions.return_value = mock_broker_positions
+    position_service._fetch_db_positions = AsyncMock(return_value={})
+    broker_positions, db_positions = await position_service._get_positions(mock_session, 'mock_broker')
+    assert broker_positions == mock_broker_positions
+    assert db_positions == {}
+
+@pytest.mark.asyncio
+@patch('data.sync_worker.logger')
+async def test_fetch_and_log_price(mock_logger, position_service):
+    mock_position = Position(symbol='AAPL', broker='mock_broker')
+    position_service.broker_service.get_latest_price = AsyncMock(return_value=150)
+    price = await position_service._fetch_and_log_price(mock_position)
+    assert price == 150
+    mock_logger.debug.assert_called_with('Updated latest price for AAPL to 150')
+
+
+def test_strip_timezone(position_service):
+    timestamp_with_tz = datetime.now(timezone.utc)
+    timestamp_naive = position_service._strip_timezone(timestamp_with_tz)
+    assert timestamp_naive.tzinfo is None
+
+def test_fetch_broker_instance(broker_service):
+    broker_instance = broker_service._fetch_broker_instance('mock_broker')
+    assert broker_instance == broker_service.brokers['mock_broker']
+
+
+@pytest.mark.asyncio
+async def test_fetch_price(broker_service):
+    mock_broker = AsyncMock()
+    mock_broker.get_current_price = AsyncMock(return_value=100)
+    price = await broker_service._fetch_price(mock_broker, 'AAPL')
+    assert price == 100
+
+
+@pytest.mark.asyncio
+@patch('data.sync_worker.logger')
+async def test_insert_or_update_balance(mock_logger, balance_service):
+    mock_session = AsyncMock(AsyncSession)
+    await balance_service._insert_or_update_balance(mock_session, 'mock_broker', 'strategy1', 1000, datetime.now())
+    assert mock_session.add.called  # Ensure a new balance record was added
+
+
+@pytest.mark.asyncio
+async def test_get_async_engine():
+    engine_url = "sqlite+aiosqlite:///:memory:"
+    async_engine = await _get_async_engine(engine_url)
+    assert async_engine.name == "sqlite"
