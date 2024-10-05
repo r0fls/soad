@@ -51,7 +51,7 @@ class PositionService:
 
     async def _fetch_db_positions(self, session, broker):
         db_positions_result = await session.execute(select(Position).filter_by(broker=broker))
-        return {pos.symbol: pos for pos in await db_positions_result.scalars()}
+        return {pos.symbol: pos for pos in db_positions_result.scalars()}
 
     async def _remove_db_positions(self, session, broker, db_positions, broker_positions):
         broker_symbols = set(broker_positions.keys())
@@ -248,15 +248,12 @@ async def _get_async_engine(engine):
 async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers):
     logger.info('Starting sync worker iteration')
     now = datetime.now()
-    try:
-        async with Session() as session:
-            logger.info('Session started')
-            positions = await session.execute(select(Position))
-            logger.info('Positions fetched')
-            await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
-            for broker in brokers:
-                await position_service.reconcile_positions(session, broker)
-            await balance_service.update_all_strategy_balances(session, broker, now)
-        logger.info('Sync worker completed an iteration')
-    except Exception as e:
-        logger.error('Error in sync worker iteration', extra={'error': str(e)})
+    async with Session() as session:
+        logger.info('Session started')
+        positions = await session.execute(select(Position))
+        logger.info('Positions fetched')
+        await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
+        for broker in brokers:
+            await position_service.reconcile_positions(session, broker)
+        await balance_service.update_all_strategy_balances(session, broker, now)
+    logger.info('Sync worker completed an iteration')
