@@ -60,7 +60,7 @@ class PositionService:
         # Add positions from the broker that aren't in the database
         symbols_to_add = broker_symbols - db_symbols
         for broker_pos in broker_positions:
-            if broker_pos['symbol'] in symbols_to_add:
+            if broker_pos in symbols_to_add:
                 # Add the missing position to the database as uncategorized
                 new_position = Position(
                     broker=broker,
