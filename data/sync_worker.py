@@ -25,6 +25,9 @@ class BrokerService:
         broker_instance = self.get_broker_instance(broker_name)
         return await self._fetch_price(broker_instance, symbol)
 
+    async def get_account_info(self, broker_instance):
+        return await broker_instance.get_account_info()
+
     async def _fetch_price(self, broker_instance, symbol):
         if asyncio.iscoroutinefunction(broker_instance.get_current_price):
             return await broker_instance.get_current_price(symbol)
