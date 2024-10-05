@@ -152,6 +152,34 @@ async def test_fetch_price(broker_service):
     price = await broker_service._fetch_price(mock_broker, 'AAPL')
     assert price == 100
 
+@pytest.mark.asyncio
+async def test_insert_new_position():
+    # Mock the session and broker position
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_broker_position = {
+        'symbol': 'AAPL',
+        'quantity': 10,
+        'latest_price': 150.0
+    }
+    # Create PositionService and timestamp
+    position_service = PositionService(AsyncMock())
+    now = datetime.now()
+
+    # Call the method
+    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position, now)
+
+    # Verify session.add was called with the correct new position
+    mock_session.add.assert_called_once()
+    added_position = mock_session.add.call_args[0][0]
+    assert added_position.broker == 'mock_broker'
+    assert added_position.strategy == 'uncategorized'
+    assert added_position.symbol == 'AAPL'
+    assert added_position.quantity == 10
+    assert added_position.latest_price == 150.0
+    assert added_position.last_updated == now
+
+    # Verify that commit was called
+    mock_session.commit.assert_awaited_once()
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
