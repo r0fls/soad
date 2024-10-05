@@ -195,6 +195,7 @@ class BalanceService:
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
         total_value, categorized_balance_sum = await self._get_account_balance_info(session, broker)
+        logger.info(f"Total value: {total_value}, categorized balance sum: {categorized_balance_sum}")
         await self._insert_uncategorized_balance(session, broker, total_value, categorized_balance_sum, timestamp)
 
     async def _get_account_balance_info(self, session, broker):
@@ -224,6 +225,7 @@ class BalanceService:
         for strategy in strategies:
             cash_balance = await self._get_balance_by_type(session, broker, strategy, 'cash')
             position_balance = await self._get_balance_by_type(session, broker, strategy, 'positions')
+            logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {position_balance}")
             total_balance += (cash_balance + position_balance)
         return total_balance
 
