@@ -37,7 +37,7 @@ class PositionService:
 
         # Get positions from the broker
         broker_instance = self.broker_service.get_broker_instance(broker)
-        broker_positions = await broker_instance.get_positions()  # Assuming this returns a list of positions
+        broker_positions = broker_instance.get_positions()
 
         # Get positions from the database
         db_positions = await session.execute(
