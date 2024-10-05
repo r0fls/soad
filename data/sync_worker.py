@@ -155,7 +155,7 @@ class BalanceService:
 
     async def _get_strategies(self, session, broker):
         strategies_result = await session.execute(select(Balance.strategy).filter_by(broker=broker).distinct())
-        return await strategies_result.scalars().all()
+        return strategies_result.scalars().all()
 
     async def _update_each_strategy_balance(self, session, broker, strategies, timestamp):
         for strategy in strategies:
