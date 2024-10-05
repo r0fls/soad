@@ -46,7 +46,7 @@ class PositionService:
         db_positions = {pos.symbol: pos for pos in db_positions.scalars()}
 
         # Remove positions in the DB that are not in the broker's list
-        broker_symbols = {pos['symbol'] for pos in broker_positions}
+        broker_symbols = set(broker_positions.keys())
         db_symbols = set(db_positions.keys())
 
         # Positions to remove from the database
