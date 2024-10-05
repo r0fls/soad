@@ -25,7 +25,8 @@ class BrokerService:
         broker_instance = self.get_broker_instance(broker_name)
         return await self._fetch_price(broker_instance, symbol)
 
-    async def get_account_info(self, broker_instance):
+    async def get_account_info(self, broker_name):
+        broker_instance = self.get_broker_instance(broker_name)
         return await broker_instance.get_account_info()
 
     async def _fetch_price(self, broker_instance, symbol):
