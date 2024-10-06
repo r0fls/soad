@@ -3,6 +3,9 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 from strategies.base_strategy import BaseStrategy
 import asyncio
+from unittest.mock import AsyncMock
+from sqlalchemy import select
+from database.models import Balance, Position
 
 class TestBaseStrategy(BaseStrategy):
     def __init__(self, broker):
@@ -34,12 +37,44 @@ def broker():
 def strategy(broker):
     return TestBaseStrategy(broker)
 
+
 @pytest.mark.asyncio
 async def test_initialize_starting_balance_existing(strategy):
+    # Mock the async session
+    mock_session = AsyncMock()
+    strategy.broker.Session.return_value.__aenter__.return_value = mock_session
+
+    # Create a mock balance object
+    mock_balance = MagicMock()
+    mock_balance.balance = 10000  # Set an example balance
+
+    # Simulate session.execute() returning a mock result
+    mock_result = AsyncMock()
+    mock_result.scalar.return_value = mock_balance
+    mock_session.execute.return_value = mock_result
+
+    # Call the initialize_starting_balance method
     await strategy.initialize_starting_balance()
-    session_mock = strategy.broker.Session.return_value.__enter__.return_value
-    session_mock.add.assert_not_called()
-    session_mock.commit.assert_not_called()
+
+    # Build the expected query
+    expected_query = select(Balance).filter_by(
+        strategy=strategy.strategy_name,
+        broker=strategy.broker.broker_name,
+        type='cash'
+    )
+
+    # Verify that execute() was called with the correct query using SQL string comparison
+    mock_session.execute.assert_called_once()
+
+    # Compare the SQL representation
+    actual_query = str(mock_session.execute.call_args[0][0])
+    expected_query_str = str(expected_query)
+
+    assert actual_query == expected_query_str, f"Expected query: {expected_query_str}, but got: {actual_query}"
+
+    # Ensure that the balance was not re-added since it already exists
+    mock_session.add.assert_not_called()
+    mock_session.commit.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_initialize_starting_balance_new(strategy):
