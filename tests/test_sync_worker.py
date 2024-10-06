@@ -107,7 +107,7 @@ async def test_update_strategy_balance(mock_logger, balance_service):
 @patch('data.sync_worker.logger')
 async def test_update_uncategorized_balances(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
-    balance_service.broker_service.get_account_info = MagicMock(return_value={'value': 1000})
+    balance_service.broker_service.get_account_info = AsyncMock(return_value={'value': 1000})
     balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
     await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
     assert mock_session.add.called  # Check that a new balance record was added

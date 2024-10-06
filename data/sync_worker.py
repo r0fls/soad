@@ -239,7 +239,7 @@ class BalanceService:
         await self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
 
     async def _get_account_balance_info(self, session, broker):
-        account_info = self.broker_service.get_account_info(broker)
+        account_info = await self.broker_service.get_account_info(broker)
         total_value = account_info['value']  # The total value of the broker account
         categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
         return total_value, categorized_balance_sum
