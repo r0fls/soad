@@ -31,9 +31,6 @@ def test_initialization(strategy_setup):
     assert strategy.rebalance_interval == timedelta(minutes=60)
     assert strategy.starting_capital == 10000
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-
 @pytest.mark.asyncio
 @patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.calculate_target_balances')
 @patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.should_own')
@@ -100,3 +97,125 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
 
     # Verify that the database session commit was called
     mock_session.commit.assert_called_once()
+
+@pytest.mark.asyncio
+@patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.calculate_target_balances')
+@patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.should_own')
+@patch('strategies.base_strategy.BaseStrategy.fetch_current_db_positions')
+@patch('strategies.base_strategy.is_market_open')
+async def test_no_rebalance_needed(mock_is_market_open, mock_current_db_positions, mock_should_own, mock_calculate_target_balances, strategy_setup):
+    mock_is_market_open.return_value = True  # Market is open
+    # Current positions match target
+    mock_current_db_positions.return_value = {
+        'AAPL': 15,
+        'GOOGL': 10,
+        'MSFT': 10
+    }
+
+    # Mock should_own return values
+    mock_should_own.side_effect = [15, 10, 10]  # Target quantities: AAPL(10), GOOGL(5), MSFT(15)
+
+    # Unpack strategy and mock broker
+    strategy, mock_broker = strategy_setup
+    mock_broker.place_order = AsyncMock()
+
+    # Mock account info
+    mock_broker.get_account_info.return_value = {
+        'securities_account': {
+            'balance': {
+                'cash': 10000,
+                'total': 100000  # Total balance matches starting capital
+            }
+        }
+    }
+
+    mock_broker.get_positions.return_value = {
+        'AAPL': {'quantity': 15},  # 10 shares owned
+        'GOOGL': {'quantity': 10},  # 5 shares owned
+        'MSFT': {'quantity': 10}   # 15 shares owned
+    }
+
+    # Mock stock prices
+    mock_broker.get_current_price.side_effect = lambda symbol: 100 if symbol == 'AAPL' else 200 if symbol == 'GOOGL' else 150
+
+    # Mock session for async database access
+    mock_session = AsyncMock()
+    strategy.broker.Session.return_value.__aenter__.return_value = mock_session
+
+    mock_balance = MagicMock()
+    mock_balance.balance = 10000  # Mock balance
+
+    # Mock calculate_target_balances to return 50% cash and 50% investment
+    mock_calculate_target_balances.return_value = (5000, 5000)
+
+    # Simulate session.execute() returning a mock result
+    mock_result = MagicMock()
+    mock_result.scalar.return_value = mock_balance
+    mock_session.execute.return_value = mock_result
+
+    # Call rebalance
+    await strategy.rebalance()
+
+    # Ensure that no orders were placed since the target is already met
+    mock_broker.place_order.assert_not_called()
+
+@pytest.mark.asyncio
+@patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.calculate_target_balances')
+@patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.should_own')
+@patch('strategies.base_strategy.BaseStrategy.fetch_current_db_positions')
+@patch('strategies.base_strategy.is_market_open')
+async def test_no_rebalance_needed(mock_is_market_open, mock_current_db_positions, mock_should_own, mock_calculate_target_balances, strategy_setup):
+    mock_is_market_open.return_value = True  # Market is open
+    # Current positions match target
+    mock_current_db_positions.return_value = {
+        'AAPL': 15,
+        'GOOGL': 10,
+        'MSFT': 51
+    }
+
+    # Mock should_own return values
+    mock_should_own.side_effect = [15, 10, 10]  # Target quantities: AAPL(10), GOOGL(5), MSFT(15)
+
+    # Unpack strategy and mock broker
+    strategy, mock_broker = strategy_setup
+    mock_broker.place_order = AsyncMock()
+
+    # Mock account info
+    mock_broker.get_account_info.return_value = {
+        'securities_account': {
+            'balance': {
+                'cash': 10000,
+                'total': 100000  # Total balance matches starting capital
+            }
+        }
+    }
+
+    mock_broker.get_positions.return_value = {
+        'AAPL': {'quantity': 15},
+        'GOOGL': {'quantity': 10},
+        'MSFT': {'quantity': 51}
+    }
+
+    # Mock stock prices
+    mock_broker.get_current_price.side_effect = lambda symbol: 100 if symbol == 'AAPL' else 200 if symbol == 'GOOGL' else 150
+
+    # Mock session for async database access
+    mock_session = AsyncMock()
+    strategy.broker.Session.return_value.__aenter__.return_value = mock_session
+
+    mock_balance = MagicMock()
+    mock_balance.balance = 10000  # Mock balance
+
+    # Mock calculate_target_balances to return 50% cash and 50% investment
+    mock_calculate_target_balances.return_value = (5000, 5000)
+
+    # Simulate session.execute() returning a mock result
+    mock_result = MagicMock()
+    mock_result.scalar.return_value = mock_balance
+    mock_session.execute.return_value = mock_result
+
+    # Call rebalance
+    await strategy.rebalance()
+
+    # Ensure that no orders were placed since the target is already met
+    mock_broker.place_order.assert_any_call('MSFT', 41, 'sell', 'constant_percentage', 150)
