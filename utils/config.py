@@ -27,7 +27,8 @@ STRATEGY_MAP = {
         stock_allocations=config['stock_allocations'],
         cash_percentage=config['cash_percentage'],
         rebalance_interval_minutes=config['rebalance_interval_minutes'],
-        starting_capital=config['starting_capital']
+        starting_capital=config['starting_capital'],
+        buffer=config.get('rebalance_buffer', 0.1)
     ),
     'random_yolo_hedge': lambda broker, strategy_name, config: RandomYoloHedge(
         broker=broker,
