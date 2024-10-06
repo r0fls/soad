@@ -1,9 +1,11 @@
+import asyncio
 from datetime import timedelta
 from database.models import Balance
 from utils.utils import is_market_open
 from utils.logger import logger
 from strategies.base_strategy import BaseStrategy
 import asyncio
+from sqlalchemy import select
 
 class ConstantPercentageStrategy(BaseStrategy):
     def __init__(self, broker, strategy_name, stock_allocations, cash_percentage, rebalance_interval_minutes, starting_capital, buffer=0.1):
@@ -23,15 +25,19 @@ class ConstantPercentageStrategy(BaseStrategy):
         logger.debug("Starting rebalance process")
         await self.sync_positions_with_broker()
 
-        account_info = await self.get_account_info()
+        account_info = self.get_account_info()
         cash_balance = account_info.get('cash_available')
 
         async with self.broker.Session() as session:
-            balance = session.query(Balance).filter_by(
-                strategy=self.strategy_name,
-                broker=self.broker.broker_name,
-                type='cash'
-            ).order_by(Balance.timestamp.desc()).first()
+            # Using async session and query execution
+            result = await session.execute(
+                select(Balance).filter_by(
+                    strategy=self.strategy_name,
+                    broker=self.broker.broker_name,
+                    type='cash'
+                ).order_by(Balance.timestamp.desc())
+            )
+            balance = result.scalars().first()
             if balance is None:
                 logger.error(
                     f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker.broker_name}.")
@@ -39,7 +45,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                     f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker.broker_name}.")
             total_balance = balance.balance
 
-            current_db_positions_dict = self.fetch_current_db_positions(session)
+            current_db_positions_dict = await self.fetch_current_db_positions(session)
 
         target_cash_balance, target_investment_balance = self.calculate_target_balances(total_balance, self.cash_percentage)
 
@@ -63,11 +69,14 @@ class ConstantPercentageStrategy(BaseStrategy):
 
     async def should_own(self, symbol, current_price):
         async with self.broker.Session() as session:
-            balance = session.query(Balance).filter_by(
-                strategy=self.strategy_name,
-                broker=self.broker.broker_name,
-                type='cash'
-            ).first()
+            result = await session.execute(
+                select(Balance).filter_by(
+                    strategy=self.strategy_name,
+                    broker=self.broker.broker_name,
+                    type='cash'
+                )
+            )
+            balance = result.scalars().first()
         allocation = self.stock_allocations.get(symbol, 0)
         total_balance = balance.balance
         target_investment_balance = total_balance * (1 - self.cash_percentage)
