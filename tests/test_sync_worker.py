@@ -97,7 +97,7 @@ async def test_update_strategy_balance(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
     mock_session.execute.side_effect = [
         AsyncMock(scalar=MagicMock(return_value=None)),  # Cash balance query
-        AsyncMock(scalar=MagicMock(return_value=None))   # Positions balance query
+        MagicMock(scalar=MagicMock(return_value=None))   # Positions balance query
     ]
     await balance_service.update_strategy_balance(mock_session, 'mock_broker', 'strategy1', datetime.now())
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
@@ -107,7 +107,7 @@ async def test_update_strategy_balance(mock_logger, balance_service):
 @patch('data.sync_worker.logger')
 async def test_update_uncategorized_balances(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
-    balance_service.broker_service.get_account_info = AsyncMock(return_value={'value': 1000})
+    balance_service.broker_service.get_account_info = MagicMock(return_value={'value': 1000})
     balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
     await balance_service.update_uncategorized_balances(mock_session, 'mock_broker', datetime.now())
     assert mock_session.add.called  # Check that a new balance record was added
@@ -228,3 +228,69 @@ async def test_reconcile_brokers_and_update_balances(mock_logger):
     mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker2')
     mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker1', mock_now)
     mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker2', mock_now)
+
+@pytest.mark.asyncio
+async def test_update_strategy_and_uncategorized_balances():
+    # Mock broker_service
+    mock_broker_service = MagicMock()
+    mock_broker_service.get_account_info.return_value = {'value': 30000}
+    mock_broker_service.get_latest_price.side_effect = lambda broker, symbol: 100 if symbol == 'AAPL' else 200 if symbol == 'GOOGL' else 150
+
+    # Create the BalanceService instance
+    balance_service = BalanceService(mock_broker_service)
+
+    # Mock SQLAlchemy session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock the strategy cash and position balances
+    mock_cash_balance = Balance(broker='tradier', strategy='test_strategy', type='cash', balance=5000, timestamp=datetime.now())
+    mock_position_balance = Balance(broker='tradier', strategy='test_strategy', type='positions', balance=10000, timestamp=datetime.now())
+
+    mock_session.execute.side_effect = [
+        MagicMock(scalar=MagicMock(return_value=None)),  # Cash balance query
+        MagicMock(scalar=MagicMock(return_value=None))   # Positions balance query
+    ]
+
+    # Mock query results for cash and positions balance
+    mock_session.execute.return_value.scalars.side_effect = [
+        [mock_cash_balance],  # First call returns cash balance
+        [mock_position_balance],  # Second call returns position balance
+        []  # Assume no further results
+    ]
+
+    # Mock current positions for the strategy
+    mock_position = Position(broker='tradier', strategy='test_strategy', symbol='AAPL', quantity=50, latest_price=100, last_updated=datetime.now())
+    mock_session.execute.return_value.scalars.return_value = [mock_position]
+
+    # Mock the strategy and uncategorized balance update process
+    await balance_service.update_all_strategy_balances(mock_session, 'tradier', datetime.now())
+
+    # Check that the balances were inserted/updated correctly
+    mock_session.add.assert_any_call(Balance(
+        broker='tradier',
+        strategy='test_strategy',
+        type='cash',
+        balance=5000,
+        timestamp=ANY
+    ))
+
+    mock_session.add.assert_any_call(Balance(
+        broker='tradier',
+        strategy='test_strategy',
+        type='positions',
+        balance=10000,
+        timestamp=pytest.any
+    ))
+
+    # Check uncategorized balance calculation
+    uncategorized_balance = 30000 - (5000 + 10000)
+    mock_session.add.assert_any_call(Balance(
+        broker='tradier',
+        strategy='uncategorized',
+        type='cash',
+        balance=uncategorized_balance,
+        timestamp=pytest.any
+    ))
+
+    # Ensure the session commits were called
+    assert mock_session.commit.call_count == 3

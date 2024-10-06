@@ -150,7 +150,6 @@ class PositionService:
             logger.error(f'Error calculating volatility for {symbol}: {e}')
             return None
 
-
 class BalanceService:
     def __init__(self, broker_service):
         self.broker_service = broker_service
@@ -174,50 +173,78 @@ class BalanceService:
             await self.update_strategy_balance(session, broker, strategy, timestamp)
 
     async def update_strategy_balance(self, session, broker, strategy, timestamp):
-        total_balance = await self._get_total_balance(session, broker, strategy)
-        await self._insert_or_update_balance(session, broker, strategy, total_balance, timestamp)
+        # Get the cash and positions balance for the strategy
+        cash_balance = await self._get_cash_balance(session, broker, strategy)
+        positions_balance = await self._calculate_positions_balance(session, broker, strategy)
 
-    async def _get_total_balance(self, session, broker, strategy):
-        cash_balance = await self._get_balance_by_type(session, broker, strategy, 'cash')
-        position_balance = await self._get_balance_by_type(session, broker, strategy, 'positions')
-        return cash_balance + position_balance
+        # Update cash balance
+        await self._insert_or_update_balance(session, broker, strategy, 'cash', cash_balance, timestamp)
 
-    async def _get_balance_by_type(self, session, broker, strategy, balance_type):
+        # Update positions balance
+        await self._insert_or_update_balance(session, broker, strategy, 'positions', positions_balance, timestamp)
+
+        # Update total balance (cash + positions)
+        total_balance = cash_balance + positions_balance
+        await self._insert_or_update_balance(session, broker, strategy, 'total', total_balance, timestamp)
+
+    async def _get_cash_balance(self, session, broker, strategy):
         balance_result = await session.execute(
-            select(Balance).filter_by(broker=broker, strategy=strategy, type=balance_type)
+            select(Balance).filter_by(broker=broker, strategy=strategy, type='cash')
             .order_by(Balance.timestamp.desc()).limit(1)
         )
         balance = balance_result.scalar()
         return balance.balance if balance else 0
 
-    async def _insert_or_update_balance(self, session, broker, strategy, total_balance, timestamp):
+    async def _calculate_positions_balance(self, session, broker, strategy):
+        # Fetch the current positions for the strategy
+        positions_result = await session.execute(
+            select(Position).filter_by(broker=broker, strategy=strategy)
+        )
+        positions = positions_result.scalars().all()
+
+        total_positions_value = 0
+        for position in positions:
+            # Get the latest price for the position's symbol
+            latest_price = await self.broker_service.get_latest_price(broker, position.symbol)
+            # Calculate the value of this position
+            position_value = latest_price * position.quantity
+            total_positions_value += position_value
+
+        return total_positions_value
+
+    async def _insert_or_update_balance(self, session, broker, strategy, balance_type, balance_value, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.now()
+        # Insert or update the balance record in the database
         new_balance_record = Balance(
             broker=broker,
             strategy=strategy,
-            type='total',
-            balance=total_balance,
+            type=balance_type,
+            balance=balance_value,
             timestamp=timestamp
         )
         session.add(new_balance_record)
         await session.commit()
-        logger.debug(f"Updated balance for strategy {strategy}: {total_balance}")
+        logger.debug(f"Updated {balance_type} balance for strategy {strategy}: {balance_value}")
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
         total_value, categorized_balance_sum = await self._get_account_balance_info(session, broker)
         logger.info(f"Broker {broker}: Total account value: {total_value}, Categorized balance sum: {categorized_balance_sum}")
+
+        # Calculate uncategorized balance as the difference between total value and categorized balances
         uncategorized_balance = max(0, total_value - categorized_balance_sum)
         logger.debug(f"Calculated uncategorized balance for broker {broker}: {uncategorized_balance}")
-        await self._insert_uncategorized_balance(session, broker, total_value, categorized_balance_sum, timestamp)
 
+        # Insert or update uncategorized balance record
+        await self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
 
     async def _get_account_balance_info(self, session, broker):
-        account_info = await self.broker_service.get_account_info(broker)
-        total_value = account_info['value']
+        account_info = self.broker_service.get_account_info(broker)
+        total_value = account_info['value']  # The total value of the broker account
         categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
         return total_value, categorized_balance_sum
 
-    async def _insert_uncategorized_balance(self, session, broker, total_value, categorized_balance_sum, timestamp):
-        uncategorized_balance = max(0, total_value - categorized_balance_sum)
+    async def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
         new_balance_record = Balance(
             broker=broker,
             strategy='uncategorized',
@@ -236,12 +263,12 @@ class BalanceService:
     async def _sum_each_strategy_balance(self, session, broker, strategies):
         total_balance = 0
         for strategy in strategies:
-            cash_balance = await self._get_balance_by_type(session, broker, strategy, 'cash')
-            position_balance = await self._get_balance_by_type(session, broker, strategy, 'positions')
-            logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {position_balance}")
-            total_balance += (cash_balance + position_balance)
+            # Sum cash and positions balances for each strategy
+            cash_balance = await self._get_cash_balance(session, broker, strategy)
+            positions_balance = await self._calculate_positions_balance(session, broker, strategy)
+            logger.info(f"Strategy: {strategy}, Cash: {cash_balance}, Positions: {positions_balance}")
+            total_balance += (cash_balance + positions_balance)
         return total_balance
-
 
 async def sync_worker(engine, brokers):
     async_engine = await _get_async_engine(engine)
