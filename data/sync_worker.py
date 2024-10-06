@@ -258,7 +258,8 @@ class BalanceService:
 
     async def _sum_all_strategy_balances(self, session, broker):
         strategies = await self._get_strategies(session, broker)
-        return await self._sum_each_strategy_balance(session, broker, strategies)
+        balance_sum = await self._sum_each_strategy_balance(session, broker, strategies)
+        return balance_sum
 
     async def _sum_each_strategy_balance(self, session, broker, strategies):
         total_balance = 0
