@@ -95,9 +95,9 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     await strategy.rebalance()
 
     # TODO: verify/check math here
-    mock_broker.place_order.assert_any_call('AAPL', 10 - 1, 'sell', 100)  # Buy 10 AAPL shares
-    mock_broker.place_order.assert_any_call('GOOGL', 5 - 1, 'sell', 200)  # Buy 5 GOOGL shares
-    mock_broker.place_order.assert_any_call('MSFT', 15 - 1, 'sell', 150)  # No action for MSFT, still checked
+    mock_broker.place_order.assert_any_call('AAPL', 10 - 1, 'sell', 'constant_percentage', 100)  # Buy 10 AAPL shares
+    mock_broker.place_order.assert_any_call('GOOGL', 5 - 1, 'sell', 'constant_percentage', 200)  # Buy 5 GOOGL shares
+    mock_broker.place_order.assert_any_call('MSFT', 15 - 1, 'sell', 'constant_percentage', 150)  # No action for MSFT, still checked
 
     # Verify that the database session commit was called
     mock_session.commit.assert_called_once()
