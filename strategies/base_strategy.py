@@ -38,10 +38,7 @@ class BaseStrategy(ABC):
                     type='cash'
                 )
             )
-            if iscoroutine(result.scalar()):
-                strategy_balance = await result.scalar()  # Use scalar() to get a single row
-            else:
-                strategy_balance = result.scalar()
+            strategy_balance = result.scalar()
 
             if strategy_balance is None:
                 strategy_balance = Balance(
@@ -133,10 +130,12 @@ class BaseStrategy(ABC):
                 target_quantity = await self.should_own(symbol, current_price)
 
                 if target_quantity is not None and target_quantity > 0:
+                    # We have a way of determining the target quantity for this strategy and symbol
+                    # See if there are uncategorized positions for this symbol that we can update
                     result = await session.execute(
                         select(Position).filter_by(
                             broker=self.broker.broker_name,
-                            strategy=None,
+                            strategy="uncategorized",
                             symbol=symbol
                         )
                     )
@@ -154,18 +153,20 @@ class BaseStrategy(ABC):
 
                     if position:
                         position.strategy = self.strategy_name
-                        position.quantity = data['quantity']
+                        # Update the position with the minimum of the target quantity and the broker's quantity
+                        # This is to handle the case where the broker has more shares than the strategy wants
+                        position.quantity = min(target_quantity, data['quantity'])
                         position.latest_price = current_price
                         position.last_updated = datetime.now(UTC)
                         logger.info(
-                            f"Updated uncategorized position for {symbol} to strategy {self.strategy_name} with quantity {data['quantity']} and price {current_price}",
+                            f"Updated position for {symbol} with quantity {position.quantity} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
                     else:
                         position = Position(
                             broker=self.broker.broker_name,
                             strategy=self.strategy_name,
                             symbol=symbol,
-                            quantity=data['quantity'],
+                            quantity=min(target_quantity, data['quantity']),
                             latest_price=current_price,
                             last_updated=datetime.now(UTC)
                         )
@@ -173,14 +174,23 @@ class BaseStrategy(ABC):
                         logger.info(
                             f"Created new position for {symbol} with quantity {data['quantity']} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
+                    # Create uncategorized positions for the remaining quantity
+                    if target_quantity < data['quantity']:
+                        position = Position(
+                            broker=self.broker.broker_name,
+                            strategy="uncategorized",
+                            symbol=symbol,
+                            quantity=data['quantity'] - target_quantity,
+                            latest_price=current_price,
+                            last_updated=datetime.now(UTC)
+                        )
+                        session.add(position)
+                        logger.info(
+                            f"Created uncategorized position for {symbol} with quantity {data['quantity'] - target_quantity} and price {current_price}",
+                            extra={'strategy_name': self.strategy_name})
 
-            result_db_positions = await session.execute(
-                select(Position).filter_by(
-                    broker=self.broker.broker_name,
-                    strategy=self.strategy_name
-                )
-            )
-            db_positions = result_db_positions.scalars().all()
+            db_positions = await self.get_db_positions()
+            logger.debug(f"DB positions: {db_positions}", extra={'strategy_name': self.strategy_name})
 
             broker_symbols = set(broker_positions.keys())
 
@@ -192,6 +202,16 @@ class BaseStrategy(ABC):
             await session.commit()
             logger.debug("Positions synced with broker", extra={'strategy_name': self.strategy_name})
 
+    async def get_db_positions(self):
+        async with self.broker.Session() as session:
+            result = await session.execute(
+                select(Position).filter_by(
+                    strategy=self.strategy_name,
+                    broker=self.broker.broker_name
+                )
+            )
+            return result.scalars().all()
+
     async def should_own(self, symbol, current_price):
         pass
 
@@ -201,8 +221,8 @@ class BaseStrategy(ABC):
         logger.debug(f"Retrieved current positions: {positions_dict}", extra={'strategy_name': self.strategy_name})
         return positions_dict
 
-    async def get_account_info(self):
-        account_info = await self.broker.get_account_info()
+    def get_account_info(self):
+        account_info = self.broker.get_account_info()
         if not account_info:
             logger.error("Failed to fetch account information", extra={'strategy_name': self.strategy_name})
             raise ValueError("Failed to fetch account information")
@@ -217,11 +237,15 @@ class BaseStrategy(ABC):
             extra={'strategy_name': self.strategy_name})
         return target_cash_balance, target_investment_balance
 
-    def fetch_current_db_positions(self, session):
-        current_db_positions = session.query(Position).filter_by(
-            strategy=self.strategy_name,
-            broker=self.broker.broker_name
-        ).all()
+    async def fetch_current_db_positions(self, session):
+        async with session() as session:
+            result = await session.execute(
+                select(Position).filter_by(
+                    strategy=self.strategy_name,
+                    broker=self.broker.broker_name
+                )
+            )
+            current_db_positions = result.scalars().all()
         current_db_positions_dict = {pos.symbol: pos.quantity for pos in current_db_positions if pos.quantity > 0}
         logger.debug(f"Current DB positions: {current_db_positions_dict}", extra={'strategy_name': self.strategy_name})
         return current_db_positions_dict

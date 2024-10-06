@@ -25,13 +25,13 @@ class ConstantPercentageStrategy(BaseStrategy):
         logger.debug("Starting rebalance process")
         await self.sync_positions_with_broker()
 
-        account_info = await self.get_account_info()
+        account_info = self.get_account_info()
         cash_balance = account_info.get('cash_available')
 
         async with self.broker.Session() as session:
             # Using async session and query execution
             result = await session.execute(
-                Balance.select().filter_by(
+                select(Balance).filter_by(
                     strategy=self.strategy_name,
                     broker=self.broker.broker_name,
                     type='cash'
@@ -45,7 +45,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                     f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker.broker_name}.")
             total_balance = balance.balance
 
-            current_db_positions_dict = self.fetch_current_db_positions(session)
+            current_db_positions_dict = await self.fetch_current_db_positions(session)
 
         target_cash_balance, target_investment_balance = self.calculate_target_balances(total_balance, self.cash_percentage)
 
