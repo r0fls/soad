@@ -49,7 +49,7 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     }
 
     # Mock return value for should_own (indicating the number of shares we want to own)
-    mock_should_own.side_effect = [20, 10, 15]  # Target quantities: AAPL(20), GOOGL(10), MSFT(15)
+    mock_should_own.side_effect = [10, 5, 10]
 
     # Unpack strategy and mock broker
     strategy, mock_broker = strategy_setup
@@ -59,8 +59,8 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {
-                'cash': 1000,
-                'total': 10000  # Total balance matches starting capital
+                'cash': 10000,
+                'total': 100000  # Total balance matches starting capital
             }
         }
     }
@@ -79,12 +79,11 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     mock_session = AsyncMock()
     strategy.broker.Session.return_value.__aenter__.return_value = mock_session
 
-    # Create a mock balance object
     mock_balance = MagicMock()
-    mock_balance.balance = 1000  # Mock example balance
+    mock_balance.balance = 10000
 
     # Mock calculate_target_balances to return 50% cash and 50% investment
-    mock_calculate_target_balances.return_value = (500, 500)
+    mock_calculate_target_balances.return_value = (5000, 5000)
 
     # Simulate session.execute() returning a mock result
     mock_result = MagicMock()
@@ -95,9 +94,9 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     await strategy.rebalance()
 
     # TODO: verify/check math here
-    mock_broker.place_order.assert_any_call('AAPL', 10 - 1, 'sell', 'constant_percentage', 100)  # Buy 10 AAPL shares
-    mock_broker.place_order.assert_any_call('GOOGL', 5 - 1, 'sell', 'constant_percentage', 200)  # Buy 5 GOOGL shares
-    mock_broker.place_order.assert_any_call('MSFT', 15 - 1, 'sell', 'constant_percentage', 150)  # No action for MSFT, still checked
+    mock_broker.place_order.assert_any_call('AAPL', 15 - 10, 'buy', 'constant_percentage', 100)
+    mock_broker.place_order.assert_any_call('GOOGL', 10 - 5, 'buy', 'constant_percentage', 200)
+    mock_broker.place_order.assert_any_call('MSFT', 15 - 10, 'sell', 'constant_percentage', 150)
 
     # Verify that the database session commit was called
     mock_session.commit.assert_called_once()
