@@ -54,7 +54,7 @@ class Position(Base):
     symbol = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     latest_price = Column(Float, nullable=False)
-    cost_basis = Column(Float, nullable=False)
+    cost_basis = Column(Float, nullable=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
     underlying_volatility = Column(Float, nullable=True)
     underlying_latest_price = Column(Float, nullable=True)

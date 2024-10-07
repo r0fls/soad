@@ -330,6 +330,10 @@ class BaseBroker(ABC):
                 profit_loss=0,
                 success='yes'
             )
+            if order_type == 'sell':
+                profit_loss = self.db_manager.calculate_profit_loss(trade)
+                logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
+                trade.profit_loss = profit_loss
 
             async with self.Session() as session:
                 session.add(trade)

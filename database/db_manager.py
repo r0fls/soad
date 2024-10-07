@@ -80,7 +80,7 @@ class DBManager:
             try:
                 profit_loss = None
                 logger.info('Calculating profit/loss', extra={'trade': trade})
-                
+
                 # Fetch current price
                 current_price = trade.executed_price
                 logger.info(f"Current price fetched: {current_price}", extra={'trade': trade})
@@ -92,20 +92,20 @@ class DBManager:
                 if trade.order_type.lower() == 'buy':
                     logger.info('Buy order detected, no P/L calculation needed.', extra={'trade': trade})
                     return profit_loss
-                
+
                 # Handling sell trades
                 elif trade.order_type.lower() == 'sell':
                     logger.info('Sell order detected, calculating P/L.', extra={'trade': trade})
                     position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
                     logger.info(f"Position fetched: {position}", extra={'trade': trade})
-                    
+
                     if position and position.quantity == trade.quantity:
                         profit_loss = (trade.executed_price * trade.quantity - position.cost_basis)
                         logger.info(f"Full sell detected, profit/loss calculated as: {profit_loss}", extra={'trade': trade})
                     else:
                         profit_loss = await self.calculate_partial_profit_loss(trade, position)
                         logger.info(f"Partial sell, profit/loss calculated as: {profit_loss}", extra={'trade': trade})
-                    
+
                     # Adjust for futures and options
                     if is_futures_symbol(trade.symbol):
                         profit_loss *= futures_contract_size(trade.symbol)
