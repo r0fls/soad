@@ -53,6 +53,7 @@ async def test_rebalance(mock_is_market_open, mock_current_db_positions, mock_sh
     mock_broker.place_order = AsyncMock()
 
     # Mock account info
+    mock_broker.get_account_info = AsyncMock()
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {
@@ -120,6 +121,7 @@ async def test_no_rebalance_needed(mock_is_market_open, mock_current_db_position
     mock_broker.place_order = AsyncMock()
 
     # Mock account info
+    mock_broker.get_account_info = AsyncMock()
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {
@@ -181,6 +183,7 @@ async def test_no_rebalance_needed(mock_is_market_open, mock_current_db_position
     mock_broker.place_order = AsyncMock()
 
     # Mock account info
+    mock_broker.get_account_info = AsyncMock()
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {
@@ -245,6 +248,7 @@ async def test_rebalance_with_custom_buffer(mock_is_market_open, mock_current_db
     strategy.buffer = 0.25
 
     # Mock account info
+    mock_broker.get_account_info = AsyncMock()
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {
@@ -306,6 +310,7 @@ async def test_rebalance_with_custom_buffer_control(mock_is_market_open, mock_cu
     mock_broker.place_order = AsyncMock()
 
     # Mock account info
+    mock_broker.get_account_info = AsyncMock()
     mock_broker.get_account_info.return_value = {
         'securities_account': {
             'balance': {

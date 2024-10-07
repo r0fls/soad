@@ -21,6 +21,7 @@ def broker():
     broker = MagicMock()
 
     # Mock get_account_info to return a dictionary with an integer buying_power
+    broker.get_account_info = AsyncMock()
     broker.get_account_info.return_value = {'buying_power': 20000}
 
     # Mock Session and its return value
