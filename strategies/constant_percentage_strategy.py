@@ -19,6 +19,7 @@ class ConstantPercentageStrategy(BaseStrategy):
             f"Initialized {self.strategy_name} strategy with starting capital {self.starting_capital}")
 
     async def initialize(self):
+        await self.initialize_starting_balance()
         await self.sync_positions_with_broker()
 
     async def rebalance(self):
