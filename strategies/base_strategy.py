@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from database.models import Balance, Position
 from utils.logger import logger
 from utils.utils import is_market_open, is_futures_symbol, is_futures_market_open
-from datetime import datetime, UTC
+from datetime import datetime
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -157,7 +157,7 @@ class BaseStrategy(ABC):
                         # This is to handle the case where the broker has more shares than the strategy wants
                         position.quantity = min(target_quantity, data['quantity'])
                         position.latest_price = current_price
-                        position.last_updated = datetime.now(UTC)
+                        position.last_updated = datetime.now()
                         logger.info(
                             f"Updated position for {symbol} with quantity {position.quantity} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
@@ -168,7 +168,7 @@ class BaseStrategy(ABC):
                             symbol=symbol,
                             quantity=min(target_quantity, data['quantity']),
                             latest_price=current_price,
-                            last_updated=datetime.now(UTC)
+                            last_updated=datetime.now()
                         )
                         session.add(position)
                         logger.info(
@@ -182,7 +182,7 @@ class BaseStrategy(ABC):
                             symbol=symbol,
                             quantity=data['quantity'] - target_quantity,
                             latest_price=current_price,
-                            last_updated=datetime.now(UTC)
+                            last_updated=datetime.now()
                         )
                         session.add(position)
                         logger.info(
