@@ -45,7 +45,7 @@ class ConstantPercentageStrategy(BaseStrategy):
                     f"Strategy balance not initialized for {self.strategy_name} strategy on {self.broker.broker_name}.")
             total_balance = balance.balance
 
-            current_db_positions_dict = await self.fetch_current_db_positions(session)
+            current_db_positions_dict = await self.fetch_current_db_positions()
 
         target_cash_balance, target_investment_balance = self.calculate_target_balances(total_balance, self.cash_percentage)
 

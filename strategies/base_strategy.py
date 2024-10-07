@@ -237,8 +237,8 @@ class BaseStrategy(ABC):
             extra={'strategy_name': self.strategy_name})
         return target_cash_balance, target_investment_balance
 
-    async def fetch_current_db_positions(self, session):
-        async with session() as session:
+    async def fetch_current_db_positions(self):
+        async with self.broker.Session() as session:
             result = await session.execute(
                 select(Position).filter_by(
                     strategy=self.strategy_name,
