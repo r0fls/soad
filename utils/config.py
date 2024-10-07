@@ -108,6 +108,9 @@ async def initialize_strategy(strategy_name, strategy_type, broker, config):
     if asyncio.iscoroutinefunction(strategy.initialize):
         await strategy.initialize()
         return strategy
+    elif callable(strategy.initialize):
+        strategy.initialize()
+        return strategy
     else:
         return strategy
 

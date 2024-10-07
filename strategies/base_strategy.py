@@ -14,12 +14,16 @@ class BaseStrategy(ABC):
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
         self.rebalance_interval_minutes = rebalance_interval_minutes
+        self.initialized = False
 
     @abstractmethod
     async def rebalance(self):
         pass
 
     async def initialize_starting_balance(self):
+        if self.initialized:
+            logger.debug("Starting balance already initialized", extra={'strategy_name': self.strategy_name})
+            return
         logger.debug("Initializing starting balance", extra={'strategy_name': self.strategy_name})
 
         account_info = await self.broker.get_account_info()
@@ -52,6 +56,7 @@ class BaseStrategy(ABC):
                 logger.info(f"Initialized starting balance for {self.strategy_name} strategy with {self.starting_capital}", extra={'strategy_name': self.strategy_name})
             else:
                 logger.info(f"Existing balance found for {self.strategy_name} strategy: {strategy_balance.balance}", extra={'strategy_name': self.strategy_name})
+        self.initialized = True
 
     async def current_positions(self):
         async with self.broker.Session() as session:
