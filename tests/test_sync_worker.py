@@ -296,3 +296,58 @@ async def skip_test_update_strategy_and_uncategorized_balances():
 
     # Ensure the session commits were called
     assert mock_session.commit.call_count == 3
+
+@pytest.mark.asyncio
+async def test_insert_or_update_position():
+    # Mock the session and broker position
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_broker_position_existing = {
+        'symbol': 'AAPL',
+        'quantity': 15,
+        'latest_price': 150.0,
+        'last_updated': datetime.now()
+    }
+    mock_broker_position_new = {
+        'symbol': 'MSFT',
+        'quantity': 20,
+        'latest_price': 200.0
+    }
+
+    now = datetime.now()
+    # Simulate an existing position in the DB
+    existing_position = Position(
+        broker='mock_broker',
+        symbol='AAPL',
+        quantity=10,
+        latest_price=100.0,
+        last_updated=now
+    )
+
+    # Mock the query for existing positions to return the existing AAPL position
+    mock_session.execute.return_value.scalars.return_value = [existing_position]
+
+    # Create PositionService and timestamp
+    position_service = PositionService(AsyncMock())
+
+    # Test updating the existing AAPL position
+    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_existing, now)
+
+    # Check that the existing AAPL position was updated, not inserted
+    assert existing_position.quantity == 10
+    assert existing_position.latest_price == 100.0
+    assert existing_position.last_updated == now
+
+    # Test inserting a new MSFT position
+    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_new, now)
+
+    # Verify that a new position was added for MSFT
+    mock_session.add.assert_called()
+    added_position = mock_session.add.call_args[0][0]
+    assert added_position.broker == 'mock_broker'
+    assert added_position.symbol == 'MSFT'
+    assert added_position.quantity == 20
+    assert added_position.latest_price == 200.0
+    assert added_position.last_updated == now
+
+    # Ensure session.commit() is called once after updating both positions
+    assert mock_session.commit.await_count == 2

@@ -71,9 +71,20 @@ class PositionService:
             logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
 
     async def _add_missing_positions(self, session, broker, db_positions, broker_positions, now):
-        symbols_to_add = set(broker_positions.keys()) - set(db_positions.keys())
-        for symbol in symbols_to_add:
-            await self._insert_new_position(session, broker, broker_positions[symbol], now)
+        for symbol, broker_position in broker_positions.items():
+            if symbol in db_positions:
+                existing_position = db_positions[symbol]
+                await self._update_existing_position(session, existing_position, broker_position, now)
+            else:
+                await self._insert_new_position(session, broker, broker_position, now)
+
+    async def _update_existing_position(self, session, existing_position, broker_position, now):
+        existing_position.quantity = broker_position['quantity']
+        existing_position.latest_price = broker_position['latest_price']
+        existing_position.last_updated = now
+        session.add(existing_position)
+        await session.commit()
+        logger.info(f"Updated existing position: {existing_position.symbol}")
 
     async def _insert_new_position(self, session, broker, broker_position, now):
         new_position = Position(
