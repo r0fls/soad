@@ -61,20 +61,19 @@ def balance_service(broker_service):
 
 @pytest.mark.asyncio
 async def test_get_broker_instance(broker_service):
-    broker_instance = broker_service.get_broker_instance('mock_broker')
+    broker_instance = await broker_service.get_broker_instance('mock_broker')
     assert broker_instance == broker_service.brokers['mock_broker']
 
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
 async def test_get_latest_price_async(mock_logger, broker_service):
-    mock_broker = AsyncMock()
+    mock_broker = MagicMock()
     mock_broker.get_current_price = AsyncMock(return_value=100)
-    broker_service.brokers['mock_broker'] = mock_broker
+    broker_service.get_broker_instance = AsyncMock(return_value=mock_broker)
     price = await broker_service.get_latest_price('mock_broker', 'AAPL')
     assert price == 100
     mock_broker.get_current_price.assert_awaited_once_with('AAPL')
-
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
@@ -116,13 +115,20 @@ async def test_update_uncategorized_balances(mock_logger, balance_service):
 @pytest.mark.asyncio
 async def test_get_positions(position_service):
     mock_session = AsyncMock(AsyncSession)
+
     mock_broker_positions = {'AAPL': 'mock_position'}
-    # Mock the dependencies of position_service instead of position_service itself
-    position_service.broker_service.get_broker_instance = MagicMock()
-    position_service.broker_service.get_broker_instance.return_value.get_positions.return_value = mock_broker_positions
+
+    position_service.broker_service.get_broker_instance = AsyncMock()
+    mock_broker_instance = MagicMock()
+    mock_broker_instance.get_positions.return_value = mock_broker_positions
+    position_service.broker_service.get_broker_instance.return_value = mock_broker_instance
+
     position_service._fetch_db_positions = AsyncMock(return_value={})
+
     broker_positions, db_positions = await position_service._get_positions(mock_session, 'mock_broker')
+
     assert broker_positions == mock_broker_positions
+
     assert db_positions == {}
 
 @pytest.mark.asyncio
@@ -140,8 +146,8 @@ def test_strip_timezone(position_service):
     timestamp_naive = position_service._strip_timezone(timestamp_with_tz)
     assert timestamp_naive.tzinfo is None
 
-def test_fetch_broker_instance(broker_service):
-    broker_instance = broker_service._fetch_broker_instance('mock_broker')
+async def test_fetch_broker_instance(broker_service):
+    broker_instance = await broker_service._fetch_broker_instance('mock_broker')
     assert broker_instance == broker_service.brokers['mock_broker']
 
 
