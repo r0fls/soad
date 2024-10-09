@@ -61,15 +61,6 @@ class Position(Base):
 
     balance = relationship("Balance", back_populates="positions", foreign_keys=[balance_id])
 
-# Async engine setup
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
-engine = create_async_engine(DATABASE_URL, echo=True)
-
-# Async session setup
-async_session = sessionmaker(
-    engine, expire_on_commit=True, class_=AsyncSession
-)
-
 # Drop and create tables asynchronously
 async def drop_then_init_db(engine):
     async with engine.begin() as conn:
