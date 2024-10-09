@@ -332,3 +332,23 @@ class TastytradeBroker(BaseBroker):
                 return { "bid": quote.bidPrice, "ask": quote.askPrice }
             finally:
                 await streamer.close()
+
+    def get_cost_basis(self, symbol):
+        logger.info(f'Retrieving cost basis for symbol {symbol} from Tastytrade')
+        try:
+            url = f"{self.base_url}/accounts/{self.account_id}/positions"
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            positions_data = response.json()['data']['items']
+
+            for position in positions_data:
+                if position['symbol'] == symbol:
+                    cost_basis = position.get('average-open-price')
+                    logger.info(f"Cost basis for {symbol}: {cost_basis}")
+                    return cost_basis
+
+            logger.warning(f"No position found for {symbol}")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"Failed to retrieve cost basis for {symbol}: {str(e)}")
+            return None
