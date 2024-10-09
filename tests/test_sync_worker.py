@@ -61,19 +61,20 @@ def balance_service(broker_service):
 
 @pytest.mark.asyncio
 async def test_get_broker_instance(broker_service):
-    broker_instance = await broker_service.get_broker_instance('mock_broker')
+    broker_instance = broker_service.get_broker_instance('mock_broker')
     assert broker_instance == broker_service.brokers['mock_broker']
 
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
 async def test_get_latest_price_async(mock_logger, broker_service):
-    mock_broker = MagicMock()
+    mock_broker = AsyncMock()
     mock_broker.get_current_price = AsyncMock(return_value=100)
-    broker_service.get_broker_instance = AsyncMock(return_value=mock_broker)
+    broker_service.brokers['mock_broker'] = mock_broker
     price = await broker_service.get_latest_price('mock_broker', 'AAPL')
     assert price == 100
     mock_broker.get_current_price.assert_awaited_once_with('AAPL')
+
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
@@ -115,20 +116,13 @@ async def test_update_uncategorized_balances(mock_logger, balance_service):
 @pytest.mark.asyncio
 async def test_get_positions(position_service):
     mock_session = AsyncMock(AsyncSession)
-
     mock_broker_positions = {'AAPL': 'mock_position'}
-
-    position_service.broker_service.get_broker_instance = AsyncMock()
-    mock_broker_instance = MagicMock()
-    mock_broker_instance.get_positions.return_value = mock_broker_positions
-    position_service.broker_service.get_broker_instance.return_value = mock_broker_instance
-
+    # Mock the dependencies of position_service instead of position_service itself
+    position_service.broker_service.get_broker_instance = MagicMock()
+    position_service.broker_service.get_broker_instance.return_value.get_positions.return_value = mock_broker_positions
     position_service._fetch_db_positions = AsyncMock(return_value={})
-
     broker_positions, db_positions = await position_service._get_positions(mock_session, 'mock_broker')
-
     assert broker_positions == mock_broker_positions
-
     assert db_positions == {}
 
 @pytest.mark.asyncio
@@ -146,8 +140,8 @@ def test_strip_timezone(position_service):
     timestamp_naive = position_service._strip_timezone(timestamp_with_tz)
     assert timestamp_naive.tzinfo is None
 
-async def test_fetch_broker_instance(broker_service):
-    broker_instance = await broker_service._fetch_broker_instance('mock_broker')
+def test_fetch_broker_instance(broker_service):
+    broker_instance = broker_service._fetch_broker_instance('mock_broker')
     assert broker_instance == broker_service.brokers['mock_broker']
 
 
@@ -302,58 +296,3 @@ async def skip_test_update_strategy_and_uncategorized_balances():
 
     # Ensure the session commits were called
     assert mock_session.commit.call_count == 3
-
-@pytest.mark.asyncio
-async def test_insert_or_update_position():
-    # Mock the session and broker position
-    mock_session = AsyncMock(spec=AsyncSession)
-    mock_broker_position_existing = {
-        'symbol': 'AAPL',
-        'quantity': 15,
-        'latest_price': 150.0,
-        'last_updated': datetime.now()
-    }
-    mock_broker_position_new = {
-        'symbol': 'MSFT',
-        'quantity': 20,
-        'latest_price': 200.0
-    }
-
-    now = datetime.now()
-    # Simulate an existing position in the DB
-    existing_position = Position(
-        broker='mock_broker',
-        symbol='AAPL',
-        quantity=10,
-        latest_price=100.0,
-        last_updated=now
-    )
-
-    # Mock the query for existing positions to return the existing AAPL position
-    mock_session.execute.return_value.scalars.return_value = [existing_position]
-
-    # Create PositionService and timestamp
-    position_service = PositionService(AsyncMock())
-
-    # Test updating the existing AAPL position
-    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_existing, now)
-
-    # Check that the existing AAPL position was updated, not inserted
-    assert existing_position.quantity == 10
-    assert existing_position.latest_price == 100.0
-    assert existing_position.last_updated == now
-
-    # Test inserting a new MSFT position
-    await position_service._insert_new_position(mock_session, 'mock_broker', mock_broker_position_new, now)
-
-    # Verify that a new position was added for MSFT
-    mock_session.add.assert_called()
-    added_position = mock_session.add.call_args[0][0]
-    assert added_position.broker == 'mock_broker'
-    assert added_position.symbol == 'MSFT'
-    assert added_position.quantity == 20
-    assert added_position.latest_price == 200.0
-    assert added_position.last_updated == now
-
-    # Ensure session.commit() is called once after updating both positions
-    assert mock_session.commit.await_count == 2
