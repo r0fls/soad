@@ -21,7 +21,12 @@ MOCK_BALANCE = Balance(broker='tradier', strategy='RSI', type='cash', balance=10
 async def test_update_position_prices_and_volatility():
     # Mock the broker service
     mock_broker_service = AsyncMock()
-    mock_broker_service.get_latest_price = AsyncMock(return_value=150.0)  # Ensure it's async
+    mock_broker_instance = AsyncMock()
+    mock_broker_instance.get_latest_price = AsyncMock(return_value=150.0)
+    mock_broker_instance.get_cost_basis = MagicMock(return_value=100.0)  # Synchronous function
+
+    # Mock get_broker_instance to return the mock broker instance
+    mock_broker_service.get_broker_instance = AsyncMock(return_value=mock_broker_instance)
 
     # Initialize PositionService with the mocked broker service
     position_service = PositionService(mock_broker_service)
@@ -37,6 +42,9 @@ async def test_update_position_prices_and_volatility():
     # Assert that the broker service was called to get the latest price for each position
     mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
     mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
+
+    mock_broker_instance.get_cost_basis.assert_any_call('AAPL')
+    mock_broker_instance.get_cost_basis.assert_any_call('GOOG')
 
     # Assert that the session commit was called
     assert mock_session.commit.called

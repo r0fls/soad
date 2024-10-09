@@ -30,6 +30,13 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
+    def get_cost_basis(self, symbol):
+        """
+        Retrieve the cost basis for a specific position (symbol) from the broker.
+        """
+        pass
+
+    @abstractmethod
     def _get_account_info(self):
         pass
 
@@ -159,7 +166,7 @@ class BaseBroker(ABC):
 
                 # Log after committing changes
                 logger.info('Position updated', extra={'position': position})
-     
+
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
 

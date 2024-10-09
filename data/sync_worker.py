@@ -92,6 +92,22 @@ class PositionService:
         session.add(new_position)
         logger.info(f"Added uncategorized position to DB: {new_position.symbol}")
 
+    async def update_position_cost_basis(self, session, position, broker_instance):
+        """
+        Fetch and update the cost basis for a position.
+        """
+        logger.debug(f'Fetching cost basis for {position.symbol}')
+        try:
+            cost_basis = broker_instance.get_cost_basis(position.symbol)
+            if cost_basis is not None:
+                position.cost_basis = cost_basis
+                logger.info(f'Updated cost basis for {position.symbol}: {cost_basis}')
+                session.add(position)
+            else:
+                logger.error(f'Failed to retrieve cost basis for {position.symbol}')
+        except Exception as e:
+            logger.error(f'Error updating cost basis for {position.symbol}: {e}')
+
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now_naive = self._strip_timezone(timestamp or datetime.now())
         await self._update_prices_and_volatility(session, positions, now_naive)
@@ -101,10 +117,15 @@ class PositionService:
     def _strip_timezone(self, timestamp):
         return timestamp.replace(tzinfo=None)
 
+    async def update_cost_basis(self, session, position):
+        broker_instance = await self.broker_service.get_broker_instance(position.broker)
+        await self.update_position_cost_basis(session, position, broker_instance)
+
     async def _update_prices_and_volatility(self, session, positions, now_naive):
         for position in positions:
             try:
                 await self._update_position_price(session, position, now_naive)
+                await self.update_cost_basis(session, position)
             except Exception:
                 logger.exception(f"Error processing position {position.symbol}")
 
@@ -286,6 +307,8 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
         logger.info('Session started')
         await _fetch_and_update_positions(session, position_service, now)
         await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
+        # commit anything we forgot about
+        await session.commit()
     logger.info('Sync worker completed an iteration')
 
 
