@@ -14,19 +14,19 @@ class BrokerService:
     def __init__(self, brokers):
         self.brokers = brokers
 
-    def get_broker_instance(self, broker_name):
+    async def get_broker_instance(self, broker_name):
         logger.debug(f'Getting broker instance for {broker_name}')
-        return self._fetch_broker_instance(broker_name)
+        return await self._fetch_broker_instance(broker_name)
 
-    def _fetch_broker_instance(self, broker_name):
+    async def _fetch_broker_instance(self, broker_name):
         return self.brokers[broker_name]
 
     async def get_latest_price(self, broker_name, symbol):
-        broker_instance = self.get_broker_instance(broker_name)
+        broker_instance = await self.get_broker_instance(broker_name)
         return await self._fetch_price(broker_instance, symbol)
 
     async def get_account_info(self, broker_name):
-        broker_instance = self.get_broker_instance(broker_name)
+        broker_instance = await self.get_broker_instance(broker_name)
         return await broker_instance.get_account_info()
 
     async def _fetch_price(self, broker_instance, symbol):
@@ -48,7 +48,7 @@ class PositionService:
         logger.info(f"Reconciliation for broker {broker} completed.")
 
     async def _get_positions(self, session, broker):
-        broker_instance = self.broker_service.get_broker_instance(broker)
+        broker_instance = await self.broker_service.get_broker_instance(broker)
         broker_positions = broker_instance.get_positions()
         db_positions = await self._fetch_db_positions(session, broker)
         return broker_positions, db_positions
@@ -71,9 +71,24 @@ class PositionService:
             logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
 
     async def _add_missing_positions(self, session, broker, db_positions, broker_positions, now):
-        symbols_to_add = set(broker_positions.keys()) - set(db_positions.keys())
-        for symbol in symbols_to_add:
-            await self._insert_new_position(session, broker, broker_positions[symbol], now)
+        for symbol, broker_position in broker_positions.items():
+            if symbol in db_positions:
+                existing_position = db_positions[symbol]
+                await self._update_existing_position(session, existing_position, broker_position, now)
+            else:
+                await self._insert_new_position(session, broker, broker_position, now)
+
+    async def _update_existing_position(self, session, existing_position, broker_position, now):
+        # Select the position from the database and update its quantity and latest price
+        position = await session.execute(
+                select(Position).filter_by(id=existing_position.id)
+            )
+        position.quantity = broker_position['quantity']
+        position.latest_price = broker_position['latest_price']
+        position.last_updated = now
+        session.add(position)
+        await session.commit()
+        logger.info(f"Updated existing position: {existing_position.symbol}")
 
     async def _insert_new_position(self, session, broker, broker_position, now):
         new_position = Position(
