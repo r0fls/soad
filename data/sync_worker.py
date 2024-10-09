@@ -79,10 +79,14 @@ class PositionService:
                 await self._insert_new_position(session, broker, broker_position, now)
 
     async def _update_existing_position(self, session, existing_position, broker_position, now):
-        existing_position.quantity = broker_position['quantity']
-        existing_position.latest_price = broker_position['latest_price']
-        existing_position.last_updated = now
-        session.add(existing_position)
+        # Select the position from the database and update its quantity and latest price
+        position = await session.execute(
+                select(Position).filter_by(id=existing_position.id)
+            )
+        position.quantity = broker_position['quantity']
+        position.latest_price = broker_position['latest_price']
+        position.last_updated = now
+        session.add(position)
         await session.commit()
         logger.info(f"Updated existing position: {existing_position.symbol}")
 
