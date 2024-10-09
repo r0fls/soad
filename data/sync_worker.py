@@ -44,62 +44,53 @@ class PositionService:
         broker_positions, db_positions = await self._get_positions(session, broker)
         await self._remove_db_positions(session, broker, db_positions, broker_positions)
         await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
+        session.add_all(db_positions.values())  # Add updated positions to the session
         await session.commit()
         logger.info(f"Reconciliation for broker {broker} completed.")
 
     async def _get_positions(self, session, broker):
         broker_instance = await self.broker_service.get_broker_instance(broker)
-        broker_positions = await broker_instance.get_positions()
+        broker_positions = broker_instance.get_positions()
         db_positions = await self._fetch_db_positions(session, broker)
         return broker_positions, db_positions
 
     async def _fetch_db_positions(self, session, broker):
-        async with session.begin():  # Async block for session management
-            db_positions_result = await session.execute(select(Position).filter_by(broker=broker))
-            return {pos.symbol: pos for pos in db_positions_result.scalars().all()}
+        db_positions_result = await session.execute(select(Position).filter_by(broker=broker))
+        return {pos.symbol: pos for pos in db_positions_result.scalars().all()}
 
     async def _remove_db_positions(self, session, broker, db_positions, broker_positions):
         broker_symbols = set(broker_positions.keys())
         db_symbols = set(db_positions.keys())
         symbols_to_remove = db_symbols - broker_symbols
-        await self._execute_position_removal(session, broker, symbols_to_remove)
-
-    async def _execute_position_removal(self, session, broker, symbols_to_remove):
         if symbols_to_remove:
-            async with session.begin():  # Ensure session is active for DB operation
-                await session.execute(
-                    sqlalchemy.delete(Position).where(Position.broker == broker, Position.symbol.in_(symbols_to_remove))
-                )
+            await session.execute(
+                sqlalchemy.delete(Position).where(Position.broker == broker, Position.symbol.in_(symbols_to_remove))
+            )
             logger.info(f"Removed positions from DB for broker {broker}: {symbols_to_remove}")
 
     async def _add_missing_positions(self, session, broker, db_positions, broker_positions, now):
         for symbol, broker_position in broker_positions.items():
             if symbol in db_positions:
                 existing_position = db_positions[symbol]
-                await self._update_existing_position(session, existing_position, broker_position, now)
+                self._update_existing_position(existing_position, broker_position, now)
             else:
-                await self._insert_new_position(session, broker, broker_position, now)
+                self._insert_new_position(session, broker, broker_position, now)
 
-    async def _update_existing_position(self, session, existing_position, broker_position, now):
-        async with session.begin():  # Async context for session updates
-            existing_position.quantity = broker_position['quantity']
-            existing_position.latest_price = broker_position['latest_price']
-            existing_position.last_updated = now
-            session.add(existing_position)
+    def _update_existing_position(self, existing_position, broker_position, now):
+        existing_position.quantity = broker_position['quantity']
+        existing_position.last_updated = now
         logger.info(f"Updated existing position: {existing_position.symbol}")
 
-    async def _insert_new_position(self, session, broker, broker_position, now):
+    def _insert_new_position(self, session, broker, broker_position, now):
         new_position = Position(
             broker=broker,
             strategy='uncategorized',
             symbol=broker_position['symbol'],
             quantity=broker_position['quantity'],
-            latest_price=broker_position['latest_price'],
             last_updated=now,
         )
-        async with session.begin():  # Async context for session inserts
-            session.add(new_position)
-        logger.info(f"Added uncategorized position to DB: {new_position}")
+        session.add(new_position)
+        logger.info(f"Added uncategorized position to DB: {new_position.symbol}")
 
     async def update_position_prices_and_volatility(self, session, positions, timestamp):
         now_naive = self._strip_timezone(timestamp or datetime.now())
@@ -144,8 +135,7 @@ class PositionService:
             logger.debug(f'Updated volatility for {position.symbol} to {volatility}')
         else:
             logger.error(f'Could not calculate volatility for {underlying_symbol}')
-        async with session.begin():  # Ensure session is active for updates
-            session.add(position)
+        session.add(position)
 
     @staticmethod
     def _get_underlying_symbol(position):
@@ -172,13 +162,14 @@ class BalanceService:
         strategies = await self._get_strategies(session, broker)
         await self._update_each_strategy_balance(session, broker, strategies, timestamp)
         await self.update_uncategorized_balances(session, broker, timestamp)
+        await session.commit()
+        logger.info(f"Updated all strategy balances for broker {broker}")
 
     async def _get_strategies(self, session, broker):
-        async with session.begin():
-            strategies_result = await session.execute(
-                select(Balance.strategy).filter_by(broker=broker).distinct().where(Balance.strategy != 'uncategorized')
-            )
-            return strategies_result.scalars().all()
+        strategies_result = await session.execute(
+            select(Balance.strategy).filter_by(broker=broker).distinct().where(Balance.strategy != 'uncategorized')
+        )
+        return strategies_result.scalars().all()
 
     async def _update_each_strategy_balance(self, session, broker, strategies, timestamp):
         for strategy in strategies:
@@ -188,26 +179,24 @@ class BalanceService:
         cash_balance = await self._get_cash_balance(session, broker, strategy)
         positions_balance = await self._calculate_positions_balance(session, broker, strategy)
 
-        await self._insert_or_update_balance(session, broker, strategy, 'cash', cash_balance, timestamp)
-        await self._insert_or_update_balance(session, broker, strategy, 'positions', positions_balance, timestamp)
+        self._insert_or_update_balance(session, broker, strategy, 'cash', cash_balance, timestamp)
+        self._insert_or_update_balance(session, broker, strategy, 'positions', positions_balance, timestamp)
 
         total_balance = cash_balance + positions_balance
-        await self._insert_or_update_balance(session, broker, strategy, 'total', total_balance, timestamp)
+        self._insert_or_update_balance(session, broker, strategy, 'total', total_balance, timestamp)
 
     async def _get_cash_balance(self, session, broker, strategy):
-        async with session.begin():
-            balance_result = await session.execute(
-                select(Balance).filter_by(broker=broker, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).limit(1)
-            )
-            balance = balance_result.scalar()
-            return balance.balance if balance else 0
+        balance_result = await session.execute(
+            select(Balance).filter_by(broker=broker, strategy=strategy, type='cash').order_by(Balance.timestamp.desc()).limit(1)
+        )
+        balance = balance_result.scalar()
+        return balance.balance if balance else 0
 
     async def _calculate_positions_balance(self, session, broker, strategy):
-        async with session.begin():
-            positions_result = await session.execute(
-                select(Position).filter_by(broker=broker, strategy=strategy)
-            )
-            positions = positions_result.scalars().all()
+        positions_result = await session.execute(
+            select(Position).filter_by(broker=broker, strategy=strategy)
+        )
+        positions = positions_result.scalars().all()
 
         total_positions_value = 0
         for position in positions:
@@ -217,7 +206,7 @@ class BalanceService:
 
         return total_positions_value
 
-    async def _insert_or_update_balance(self, session, broker, strategy, balance_type, balance_value, timestamp=None):
+    def _insert_or_update_balance(self, session, broker, strategy, balance_type, balance_value, timestamp=None):
         timestamp = timestamp or datetime.now()
         new_balance_record = Balance(
             broker=broker,
@@ -226,8 +215,7 @@ class BalanceService:
             balance=balance_value,
             timestamp=timestamp
         )
-        async with session.begin():
-            session.add(new_balance_record)
+        session.add(new_balance_record)
         logger.debug(f"Updated {balance_type} balance for strategy {strategy}: {balance_value}")
 
     async def update_uncategorized_balances(self, session, broker, timestamp):
@@ -237,7 +225,7 @@ class BalanceService:
         uncategorized_balance = max(0, total_value - categorized_balance_sum)
         logger.debug(f"Calculated uncategorized balance for broker {broker}: {uncategorized_balance}")
 
-        await self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
+        self._insert_uncategorized_balance(session, broker, uncategorized_balance, timestamp)
 
     async def _get_account_balance_info(self, session, broker):
         account_info = await self.broker_service.get_account_info(broker)
@@ -245,7 +233,7 @@ class BalanceService:
         categorized_balance_sum = await self._sum_all_strategy_balances(session, broker)
         return total_value, categorized_balance_sum
 
-    async def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
+    def _insert_uncategorized_balance(self, session, broker, uncategorized_balance, timestamp):
         new_balance_record = Balance(
             broker=broker,
             strategy='uncategorized',
@@ -253,14 +241,12 @@ class BalanceService:
             balance=uncategorized_balance,
             timestamp=timestamp
         )
-        async with session.begin():
-            session.add(new_balance_record)
+        session.add(new_balance_record)
         logger.debug(f"Updated uncategorized balance for broker {broker}: {uncategorized_balance}")
 
     async def _sum_all_strategy_balances(self, session, broker):
         strategies = await self._get_strategies(session, broker)
-        balance_sum = await self._sum_each_strategy_balance(session, broker, strategies)
-        return balance_sum
+        return await self._sum_each_strategy_balance(session, broker, strategies)
 
     async def _sum_each_strategy_balance(self, session, broker, strategies):
         total_balance = 0
@@ -304,10 +290,9 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
 
 
 async def _fetch_and_update_positions(session, position_service, now):
-    async with session.begin():
-        positions = await session.execute(select(Position))
-        logger.info('Positions fetched')
-        await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
+    positions = await session.execute(select(Position))
+    logger.info('Positions fetched')
+    await position_service.update_position_prices_and_volatility(session, positions.scalars(), now)
 
 
 async def _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now):
