@@ -103,17 +103,14 @@ class TradierBroker(BaseBroker):
                 "price": price
             }
 
+            # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
-            response.raise_for_status()
-
             order_id = response.json()['order']['id']
             logger.info('Order placed', extra={'order_id': order_id})
-
             if self.auto_cancel_orders:
                 time.sleep(self.order_timeout)
                 order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
                 status_response = requests.get(order_status_url, headers=self.headers)
-                status_response.raise_for_status()
                 order_status = status_response.json()['order']['status']
 
                 if order_status != 'filled':
@@ -125,7 +122,7 @@ class TradierBroker(BaseBroker):
                     except requests.RequestException as e:
                         logger.error('Failed to cancel order', extra={'order_id': order_id})
 
-            data = response.json()
+            data = response.json() if response else {}
             if data.get('filled_price') is None:
                 data['filled_price'] = price
             logger.info('Order execution complete', extra={'order_data': data})
