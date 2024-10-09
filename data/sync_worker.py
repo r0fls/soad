@@ -14,19 +14,19 @@ class BrokerService:
     def __init__(self, brokers):
         self.brokers = brokers
 
-    async def get_broker_instance(self, broker_name):
+    def get_broker_instance(self, broker_name):
         logger.debug(f'Getting broker instance for {broker_name}')
-        return await self._fetch_broker_instance(broker_name)
+        return self._fetch_broker_instance(broker_name)
 
-    async def _fetch_broker_instance(self, broker_name):
+    def _fetch_broker_instance(self, broker_name):
         return self.brokers[broker_name]
 
     async def get_latest_price(self, broker_name, symbol):
-        broker_instance = await self.get_broker_instance(broker_name)
+        broker_instance = self.get_broker_instance(broker_name)
         return await self._fetch_price(broker_instance, symbol)
 
     async def get_account_info(self, broker_name):
-        broker_instance = await self.get_broker_instance(broker_name)
+        broker_instance = self.get_broker_instance(broker_name)
         return await broker_instance.get_account_info()
 
     async def _fetch_price(self, broker_instance, symbol):
@@ -48,7 +48,7 @@ class PositionService:
         logger.info(f"Reconciliation for broker {broker} completed.")
 
     async def _get_positions(self, session, broker):
-        broker_instance = await self.broker_service.get_broker_instance(broker)
+        broker_instance = self.broker_service.get_broker_instance(broker)
         broker_positions = broker_instance.get_positions()
         db_positions = await self._fetch_db_positions(session, broker)
         return broker_positions, db_positions
