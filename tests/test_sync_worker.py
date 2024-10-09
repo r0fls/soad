@@ -146,6 +146,7 @@ def test_strip_timezone(position_service):
     timestamp_naive = position_service._strip_timezone(timestamp_with_tz)
     assert timestamp_naive.tzinfo is None
 
+@pytest.mark.asyncio
 async def test_fetch_broker_instance(broker_service):
     broker_instance = await broker_service._fetch_broker_instance('mock_broker')
     assert broker_instance == broker_service.brokers['mock_broker']

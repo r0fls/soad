@@ -14,6 +14,9 @@ class MockBroker(BaseBroker):
     async def connect(self):
         pass
 
+    async def get_cost_basis(self, symbol):
+        return 1500.0
+
     async def get_positions(self):
         return ['AAPL', 'GOOGL']
 
