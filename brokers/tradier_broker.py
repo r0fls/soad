@@ -254,20 +254,17 @@ class TradierBroker(BaseBroker):
     def get_cost_basis(self, symbol):
         logger.info(f'Retrieving cost basis for symbol {symbol} from Tradier')
         try:
-            url = f"{self.base_url}/accounts/{self.account_id}/gainloss"
-            params = {
-                "symbol": symbol
-            }
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            gain_loss_data = response.json().get('gainloss')
-            if gain_loss_data:
-                cost_basis = gain_loss_data[0].get('cost_basis', None)  # Assuming first entry is for the symbol
-                logger.info(f"Cost basis for {symbol}: {cost_basis}")
-                return cost_basis
-            else:
-                logger.warning(f"No gain/loss data found for {symbol}")
+            positions = self.get_positions()
+            if not positions:
+                logger.error(f"No positions found for symbol {symbol}")
                 return None
+            position = positions.get(symbol)
+            if not position:
+                logger.error(f"No position found for symbol {symbol}")
+                return None
+            cost_basis = position.get('cost_basis')
+            logger.info(f"Cost basis for {symbol} is {cost_basis}")
+            return cost_basis
         except requests.RequestException as e:
             logger.error(f"Failed to retrieve cost basis for {symbol}: {str(e)}")
             return None
