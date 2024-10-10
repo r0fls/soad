@@ -69,17 +69,4 @@ class ConstantPercentageStrategy(BaseStrategy):
                 await self.place_order(stock, quantity, 'sell')
 
     async def should_own(self, symbol, current_price):
-        async with self.broker.Session() as session:
-            result = await session.execute(
-                select(Balance).filter_by(
-                    strategy=self.strategy_name,
-                    broker=self.broker.broker_name,
-                    type='cash'
-                )
-            )
-            balance = result.scalars().first()
-        allocation = self.stock_allocations.get(symbol, 0)
-        total_balance = balance.balance
-        target_investment_balance = total_balance * (1 - self.cash_percentage)
-        target_quantity = target_investment_balance * allocation / current_price
-        return target_quantity
+        pass
