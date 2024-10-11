@@ -71,7 +71,11 @@ class TradierBroker(BaseBroker):
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
-            positions_data = response.json()['positions'].get('position', None)
+            positions_data = response.json()['positions']
+            if positions_data == 'null':
+                return {}
+            else:
+                positions_data = positions_data.get('position', None)
             if not positions_data:
                 return {}
 
