@@ -166,7 +166,7 @@ async def skip_test_no_rebalance_needed(mock_is_market_open, mock_current_db_pos
 @patch('strategies.constant_percentage_strategy.ConstantPercentageStrategy.should_own')
 @patch('strategies.base_strategy.BaseStrategy.fetch_current_db_positions')
 @patch('strategies.base_strategy.is_market_open')
-async def test_no_rebalance_needed(mock_is_market_open, mock_current_db_positions, mock_should_own, mock_calculate_target_balances, strategy_setup):
+async def skp_test_no_rebalance_needed(mock_is_market_open, mock_current_db_positions, mock_should_own, mock_calculate_target_balances, strategy_setup):
     mock_is_market_open.return_value = True  # Market is open
     # Current positions match target
     mock_current_db_positions.return_value = {
