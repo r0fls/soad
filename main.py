@@ -37,7 +37,7 @@ async def initialize_database(engine):
         await init_db(engine)
         logger.info('Database initialized successfully')
     except Exception as e:
-        logger.error('Failed to initialize database', extra={'error': str(e)})
+        logger.error('Failed to initialize database', extra={'error': str(e)}, exc_info=True)
         raise
 
 async def initialize_system_components(config):
@@ -48,7 +48,7 @@ async def initialize_system_components(config):
         logger.info('Strategies initialized successfully')
         return brokers, strategies
     except Exception as e:
-        logger.error('Failed to initialize system components', extra={'error': str(e)})
+        logger.error('Failed to initialize system components', extra={'error': str(e)}, exc_info=True)
         raise
 
 async def initialize_brokers_and_strategies(config):
@@ -58,13 +58,13 @@ async def initialize_brokers_and_strategies(config):
             try:
                 DBManager(engine).rename_strategy(strategy['broker'], strategy['old_strategy_name'], strategy['new_strategy_name'])
             except Exception as e:
-                logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy})
+                logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy}, exc_info=True)
                 raise
     # Initialize the brokers and strategies
     try:
         brokers, strategies = await initialize_system_components(config)
     except Exception as e:
-        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        logger.error('Failed to initialize brokers', extra={'error': str(e)}, exc_info=True)
         return
 
     # Initialize the strategies
@@ -72,7 +72,7 @@ async def initialize_brokers_and_strategies(config):
         strategies = await initialize_strategies(brokers, config)
         logger.info('Strategies initialized successfully')
     except Exception as e:
-        logger.error('Failed to initialize strategies', extra={'error': str(e)})
+        logger.error('Failed to initialize strategies', extra={'error': str(e)}, exc_info=True)
         return
     return brokers, strategies
 
@@ -85,7 +85,7 @@ async def start_trading_system(config_path):
         config = parse_config(config_path)
         logger.info('Configuration parsed successfully')
     except Exception as e:
-        logger.error('Failed to parse configuration', extra={'error': str(e)})
+        logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
         return
 
     # Setup the database engine
@@ -117,8 +117,12 @@ async def start_trading_system(config_path):
                     last_rebalances[strategy_name] = now
                     logger.info(f'Strategy {strategy_name} rebalanced successfully', extra={'time': now})
                 except Exception as e:
-                    # Try to reinitalize the brokers and strategies
-                    logger.error(f'Error during rebalancing strategy {strategy_name}', extra={'error': str(e)})
+                    logger.error(f"Error during rebalancing strategy {strategy_name}",
+                                 extra={
+                                     'error': str(e),
+                                     'strategy_name': strategy_name,
+                                     'last_rebalance': last_rebalances[strategy_name],
+                                 }, exc_info=True)
                     brokers, strategies = await initialize_brokers_and_strategies(config)
         await asyncio.sleep(60)  # Check every minute
     logger.info('Trading system finished 24 hours of trading')
@@ -133,7 +137,7 @@ async def start_api_server(config_path=None, local_testing=False):
             config = parse_config(config_path)
             logger.info('Configuration parsed successfully for API server')
         except Exception as e:
-            logger.error('Failed to parse configuration for API server', extra={'error': str(e)})
+            logger.error('Failed to parse configuration for API server', extra={'error': str(e)}, exc_info=True)
             return
 
     # Setup the database engine
@@ -151,7 +155,7 @@ async def start_api_server(config_path=None, local_testing=False):
         logger.info('API server created successfully')
         app.run(host="0.0.0.0", port=8000, debug=True)
     except Exception as e:
-        logger.error('Failed to start API server', extra={'error': str(e)})
+        logger.error('Failed to start API server', extra={'error': str(e)}, exc_info=True)
 
 async def start_sync_worker(config_path):
     logger.info('Starting sync worker', extra={'config_path': config_path})
@@ -161,7 +165,7 @@ async def start_sync_worker(config_path):
         config = parse_config(config_path)
         logger.info('Configuration parsed successfully')
     except Exception as e:
-        logger.error('Failed to parse configuration', extra={'error': str(e)})
+        logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
         return
 
     # Setup the database engine
@@ -192,7 +196,7 @@ async def start_sync_worker(config_path):
                 logger.info('Market is closed, sleeping for 30 minutes')
                 await asyncio.sleep(60 * 30)
         except Exception as e:
-            logger.error('Failed to start sync worker, trying to initialize brokers again', extra={'error': str(e)})
+            logger.error('Failed to start sync worker, trying to initialize brokers again', extra={'error': str(e)}, exc_info=True)
             brokers = initialize_brokers(config)
 
 async def main():
@@ -220,7 +224,7 @@ async def main():
         try:
             await start_sync_worker(args.config)
         except Exception as e:
-            logger.error('Error in sync worker', extra={'error': str(e)})
+            logger.error('Error in sync worker', extra={'error': str(e)}, exc_info=True)
             await start_sync_worker(args.config)
 
 if __name__ == "__main__":
