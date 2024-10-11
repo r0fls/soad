@@ -194,7 +194,7 @@ class BaseStrategy(ABC):
                             f"Created uncategorized position for {symbol} with quantity {data['quantity'] - target_quantity} and price {current_price}",
                             extra={'strategy_name': self.strategy_name})
 
-            db_positions = await self.get_db_positions()
+            db_positions = await self.current_positions()
             logger.debug(f"DB positions: {db_positions}", extra={'strategy_name': self.strategy_name})
 
             broker_symbols = set(broker_positions.keys())
@@ -207,24 +207,8 @@ class BaseStrategy(ABC):
             await session.commit()
             logger.debug("Positions synced with broker", extra={'strategy_name': self.strategy_name})
 
-    async def get_db_positions(self):
-        async with self.broker.Session() as session:
-            result = await session.execute(
-                select(Position).filter_by(
-                    strategy=self.strategy_name,
-                    broker=self.broker.broker_name
-                )
-            )
-            return result.scalars().all()
-
     async def should_own(self, symbol, current_price):
         pass
-
-    def get_current_positions(self):
-        positions = self.broker.get_positions()
-        positions_dict = {position: positions[position]['quantity'] for position in positions}
-        logger.debug(f"Retrieved current positions: {positions_dict}", extra={'strategy_name': self.strategy_name})
-        return positions_dict
 
     async def get_account_info(self):
         account_info = await self.broker.get_account_info()
