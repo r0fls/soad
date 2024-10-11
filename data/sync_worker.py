@@ -307,8 +307,14 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
     now = datetime.now()
     async with Session() as session:
         logger.info('Session started')
-        await _fetch_and_update_positions(session, position_service, now)
-        await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
+        try:
+            await _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now)
+        except Exception as e:
+            logger.exception(f'Error reconciling brokers and updating balances: {e}')
+        try:
+            await _fetch_and_update_positions(session, position_service, now)
+        except Exception as e:
+            logger.exception(f'Error fetching and updating positions: {e}')
         # commit anything we forgot about
         await session.commit()
     logger.info('Sync worker completed an iteration')
