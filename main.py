@@ -217,7 +217,11 @@ async def main():
     elif args.mode == 'sync':
         if not args.config:
             parser.error('--config is required when mode is "sync"')
-        await start_sync_worker(args.config)
+        try:
+            await start_sync_worker(args.config)
+        except Exception as e:
+            logger.error('Error in sync worker', extra={'error': str(e)})
+            await start_sync_worker(args.config)
 
 if __name__ == "__main__":
     asyncio.run(main())
