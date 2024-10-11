@@ -43,6 +43,7 @@ class PositionService:
         now = timestamp or datetime.now()
         broker_positions, db_positions = await self._get_positions(session, broker)
         await self._remove_db_positions(session, broker, db_positions, broker_positions)
+        broker_positions, db_positions = await self._get_positions(session, broker)
         await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
         session.add_all(db_positions.values())  # Add updated positions to the session
         await session.commit()
