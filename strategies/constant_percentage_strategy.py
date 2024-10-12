@@ -55,7 +55,7 @@ class ConstantPercentageStrategy(BaseStrategy):
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
             current_position = 0
-            for positions in current_positions:
+            for position in current_positions:
                 if position.symbol == stock:
                     current_position = position.quantity
             current_price = await self.broker.get_current_price(stock) if asyncio.iscoroutinefunction(self.broker.get_current_price) else self.broker.get_current_price(stock)
