@@ -103,8 +103,10 @@ class BaseBroker(ABC):
             logger.error('Failed to check if bought today', extra={'error': str(e)})
             return False
 
-    async def update_positions(self, trade, session):
+    async def update_positions(self, trade_id, session):
         '''Update the positions based on the trade'''
+        result = await session.execute(select(Trade).filter_by(id=trade_id))
+        trade = result.scalars().first()
         logger.info('Updating positions', extra={'trade': trade})
 
         if trade.quantity == 0:
@@ -208,14 +210,15 @@ class BaseBroker(ABC):
 
             async with self.Session() as session:
                 session.add(trade)
+                await session.flush()
+                await self.update_positions(trade.id, session)
                 await session.commit()
-                await self.update_positions(trade, session)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
-                        broker=self.broker_name, strategy=strategy, type='cash'
-                    ).order_by(Balance.timestamp.desc())
-                )
+                        select(Balance).filter_by(
+                            broker=self.broker_name, strategy=strategy, type='cash'
+                        ).order_by(Balance.timestamp.desc())
+
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
                     multiplier = futures_contract_size(symbol)
@@ -279,14 +282,14 @@ class BaseBroker(ABC):
 
             async with self.Session() as session:
                 session.add(trade)
+                await session.flush()
+                await self.update_positions(trade.id, session)
                 await session.commit()
-                await self.update_positions(trade, session)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
-                        broker=self.broker_name, strategy=strategy, type='cash'
-                    ).order_by(Balance.timestamp.desc())
-                )
+                        select(Balance).filter_by(
+                            broker=self.broker_name, strategy=strategy, type='cash'
+                        ).order_by(Balance.timestamp.desc())
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
                     order_cost = trade.executed_price * quantity * OPTIONS_CONTRACT_SIZE
@@ -343,11 +346,12 @@ class BaseBroker(ABC):
 
             async with self.Session() as session:
                 session.add(trade)
+                await session.flush()
+                await self.update_positions(trade.id, session)
                 await session.commit()
-                await self.update_positions(trade, session)
 
                 latest_balance = await session.execute(
-                    session.query(Balance).filter_by(
+                    select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
                     ).order_by(Balance.timestamp.desc())
                 )

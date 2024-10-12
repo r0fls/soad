@@ -50,11 +50,14 @@ class ConstantPercentageStrategy(BaseStrategy):
 
         target_cash_balance, target_investment_balance = self.calculate_target_balances(total_balance, self.cash_percentage)
 
-        current_positions = self.get_current_positions()
+        current_positions = await self.current_positions()
 
         for stock, allocation in self.stock_allocations.items():
             target_balance = target_investment_balance * allocation
-            current_position = current_positions.get(stock, 0)
+            current_position = 0
+            for positions in current_positions:
+                if position.symbol == stock:
+                    current_position = position.quantity
             current_price = await self.broker.get_current_price(stock) if asyncio.iscoroutinefunction(self.broker.get_current_price) else self.broker.get_current_price(stock)
             target_quantity = target_balance // current_price
             # If we own less than the target quantity plus or minus the buffer, buy more
