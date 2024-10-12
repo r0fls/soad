@@ -218,7 +218,7 @@ class BaseBroker(ABC):
                         select(Balance).filter_by(
                             broker=self.broker_name, strategy=strategy, type='cash'
                         ).order_by(Balance.timestamp.desc())
-
+                )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
                     multiplier = futures_contract_size(symbol)
@@ -290,6 +290,7 @@ class BaseBroker(ABC):
                         select(Balance).filter_by(
                             broker=self.broker_name, strategy=strategy, type='cash'
                         ).order_by(Balance.timestamp.desc())
+                )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
                     order_cost = trade.executed_price * quantity * OPTIONS_CONTRACT_SIZE
