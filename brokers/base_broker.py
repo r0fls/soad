@@ -131,9 +131,9 @@ class BaseBroker(ABC):
                 logger.info('Processing buy order', extra={'trade': trade})
                 if position:
                     logger.debug(f"Updating existing position: {position}")
-                    position.cost_basis += trade.executed_price * trade.quantity
+                    position.cost_basis += float(trade.executed_price) * float(trade.quantity)
                     position.quantity += trade.quantity
-                    position.latest_price = trade.executed_price
+                    position.latest_price = float(trade.executed_price)
                     position.timestamp = datetime.now()
                 else:
                     logger.debug(f"Creating new position for symbol: {trade.symbol}")
@@ -142,8 +142,8 @@ class BaseBroker(ABC):
                         strategy=trade.strategy,
                         symbol=trade.symbol,
                         quantity=trade.quantity,
-                        latest_price=trade.executed_price,
-                        cost_basis=trade.executed_price * trade.quantity,
+                        latest_price=float(trade.executed_price),
+                        cost_basis=float(trade.executed_price) * float(trade.quantity),
                     )
                     session.add(position)
 
@@ -160,7 +160,7 @@ class BaseBroker(ABC):
                         cost_per_share = position.cost_basis / position.quantity
                         position.cost_basis -= trade.quantity * cost_per_share
                         position.quantity -= trade.quantity
-                        position.latest_price = trade.executed_price
+                        position.latest_price = float(trade.executed_price)
                     session.add(position)
 
             await session.commit()
