@@ -82,8 +82,8 @@ class DBManager:
                 logger.info('Calculating profit/loss', extra={'trade': trade})
 
                 # Fetch current price
-                current_price = trade.executed_price
-                logger.info(f"Current price fetched: {current_price}", extra={'trade': trade})
+                executed_price = float(trade.executed_price)
+                logger.info(f"Executed price fetched: {executed_price}", extra={'trade': trade})
                 if current_price is None:
                     logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
                     return None
@@ -100,7 +100,7 @@ class DBManager:
                     logger.info(f"Position fetched: {position}", extra={'trade': trade})
 
                     if position and position.quantity == trade.quantity:
-                        profit_loss = (trade.executed_price * trade.quantity - position.cost_basis)
+                        profit_loss = (float(trade.executed_price) * trade.quantity - float(position.cost_basis))
                         logger.info(f"Full sell detected, profit/loss calculated as: {profit_loss}", extra={'trade': trade})
                     else:
                         profit_loss = await self.calculate_partial_profit_loss(trade, position)
@@ -126,7 +126,7 @@ class DBManager:
             profit_loss = None
             logger.info('Calculating partial profit/loss', extra={'trade': trade, 'position': position})
             if trade.order_type.lower() == 'sell':
-                profit_loss = (trade.executed_price - (position.cost_basis / position.quantity)) * trade.quantity
+                profit_loss = (float(trade.executed_price) - (float(position.cost_basis) / position.quantity)) * trade.quantity
             logger.info('Partial profit/loss calculated', extra={'trade': trade, 'position': position, 'profit_loss': profit_loss})
             return profit_loss
         except Exception as e:

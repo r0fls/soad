@@ -326,7 +326,7 @@ class BaseBroker(ABC):
             else:
                 response = self._place_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
-            executed_price = response.get('filled_price', price)
+            executed_price = float(response.get('filled_price', price))
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
