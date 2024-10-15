@@ -204,7 +204,7 @@ class BaseBroker(ABC):
                 success='yes'
             )
             if order_type == 'sell':
-                profit_loss = self.db_manager.calculate_profit_loss(trade)
+                profit_loss = await self.db_manager.calculate_profit_loss(trade)
                 logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
                 trade.profit_loss = profit_loss
 
@@ -276,7 +276,7 @@ class BaseBroker(ABC):
                 success='yes'
             )
             if order_type == 'sell':
-                profit_loss = self.db_manager.calculate_profit_loss(trade)
+                profit_loss = await self.db_manager.calculate_profit_loss(trade)
                 logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
                 trade.profit_loss = profit_loss
 
@@ -341,7 +341,7 @@ class BaseBroker(ABC):
                 success='yes'
             )
             if order_type == 'sell':
-                profit_loss = self.db_manager.calculate_profit_loss(trade)
+                profit_loss = await self.db_manager.calculate_profit_loss(trade)
                 logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
                 trade.profit_loss = profit_loss
 
@@ -435,7 +435,7 @@ class BaseBroker(ABC):
 
             executed_price = order_info.get('filled_price', trade.price)
             trade.executed_price = executed_price
-            profit_loss = self.db_manager.calculate_profit_loss(trade)
+            profit_loss = await self.db_manager.calculate_profit_loss(trade)
             success = "success" if profit_loss > 0 else "failure"
 
             trade.executed_price = executed_price
