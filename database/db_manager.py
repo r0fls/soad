@@ -82,8 +82,8 @@ class DBManager:
                 logger.info('Calculating profit/loss', extra={'trade': trade})
 
                 # Fetch current price
-                executed_price = float(trade.executed_price)
-                logger.info(f"Executed price fetched: {executed_price}", extra={'trade': trade})
+                current_price = float(trade.executed_price)
+                logger.info(f"Executed price fetched: {current_price}", extra={'trade': trade})
                 if current_price is None:
                     logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
                     return None
