@@ -225,7 +225,7 @@ class BaseBroker(ABC):
                     if multiplier == 1:
                         logger.error(f'Contract {symbol} not supported. Invalid symbol for future option.', extra={'symbol': symbol})
                         return None
-                    order_cost = trade.executed_price * quantity * multiplier
+                    order_cost = price * quantity * multiplier
 
                     new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
@@ -293,7 +293,7 @@ class BaseBroker(ABC):
                 )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
-                    order_cost = trade.executed_price * quantity * OPTIONS_CONTRACT_SIZE
+                    order_cost = price * quantity * OPTIONS_CONTRACT_SIZE
 
                     new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
@@ -326,12 +326,12 @@ class BaseBroker(ABC):
             else:
                 response = self._place_order(symbol, quantity, order_type, price)
             logger.info('Order placed successfully', extra={'response': response})
-
+            executed_price = response.get('filled_price', price)
             trade = Trade(
                 symbol=symbol,
                 quantity=quantity,
                 price=response.get('filled_price', price),
-                executed_price=response.get('filled_price', price),
+                executed_price=executed_price,
                 order_type=order_type,
                 status='filled',
                 timestamp=datetime.now(),
@@ -358,7 +358,7 @@ class BaseBroker(ABC):
                 )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
-                    order_cost = trade.executed_price * quantity
+                    order_cost = executed_price * quantity
 
                     new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
