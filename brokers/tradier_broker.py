@@ -111,7 +111,7 @@ class TradierBroker(BaseBroker):
 
             # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
-            order_json  response.json()
+            order_json = response.json()
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
@@ -174,7 +174,7 @@ class TradierBroker(BaseBroker):
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
             response.raise_for_status()
 
-            order_json  response.json()
+            order_json = response.json()
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
