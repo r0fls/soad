@@ -111,9 +111,11 @@ class TradierBroker(BaseBroker):
 
             # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
-            order_id = response.json()['order']['id']
+            order_json  response.json()
+            order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
-            if self.auto_cancel_orders:
+
+            if self.auto_cancel_orders and order_id is not None:
                 time.sleep(self.order_timeout)
                 order_status_url = f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
                 status_response = requests.get(order_status_url, headers=self.headers)
@@ -128,7 +130,7 @@ class TradierBroker(BaseBroker):
                     except requests.RequestException as e:
                         logger.error('Failed to cancel order', extra={'order_id': order_id})
 
-            data = response.json() if response else {}
+            data = order_json or {}
             if data.get('filled_price') is None:
                 data['filled_price'] = price
             logger.info('Order execution complete', extra={'order_data': data})
@@ -172,7 +174,8 @@ class TradierBroker(BaseBroker):
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
             response.raise_for_status()
 
-            order_id = response.json()['order']['id']
+            order_json  response.json()
+            order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
             if self.auto_cancel_orders:
@@ -192,7 +195,7 @@ class TradierBroker(BaseBroker):
                     except requests.RequestException as e:
                         logger.error('Failed to cancel order', extra={'order_id': order_id})
 
-            data = response.json()
+            data = order_json or {}
             if data.get('filled_price') is None:
                 data['filled_price'] = price
             logger.info('Order execution complete', extra={'order_data': data})
