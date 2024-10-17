@@ -102,8 +102,8 @@ class TradierBroker(BaseBroker):
             order_data = {
                 "class": "equity",
                 "symbol": symbol,
-                "quantity": quantity,
                 "side": order_type,
+                "quantity": quantity,
                 "type": "limit",
                 "duration": "day",
                 "price": price
@@ -111,11 +111,18 @@ class TradierBroker(BaseBroker):
 
             # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
-            response.raise_for_status()
-            order_json = response.json()
-            if order_json is None:
-                logger.error('Null response from order placement. The order may not have been placed.')
-                return {}
+            if response.status_code != 200:
+                # Assume the order worked anyway because
+                # the response is not always correct (Tradier confusing)
+                logger.error('Failed to place order', extra={'response': response.text})
+            # TODO: refactor/remove
+            try:
+                order_json = response.json()
+            except Exception as e:
+                # Again, Tradier is weird...
+                logger.error('Failed to parse order response', extra={'error': str(e)})
+                order_json = {}
+
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
@@ -177,12 +184,19 @@ class TradierBroker(BaseBroker):
             }
 
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
-            response.raise_for_status()
+            if response.status_code != 200:
+                # Assume the order worked anyway because
+                # the response is not always correct (Tradier confusing)
+                logger.error('Failed to place order', extra={'response': response.text})
 
-            order_json = response.json()
-            if order_json is None:
-                logger.error('Null response from order placement. The order may not have been placed.')
-                return {}
+            # TODO: refactor/remove
+            try:
+                order_json = response.json()
+            except Exception as e:
+                # Again, Tradier is weird...
+                logger.error('Failed to parse order response', extra={'error': str(e)})
+                order_json = {}
+
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
