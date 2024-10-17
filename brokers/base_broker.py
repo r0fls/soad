@@ -129,9 +129,9 @@ class BaseBroker(ABC):
                 if position:
                     logger.debug(f"Updating existing position: {position}")
                     if is_option(trade.symbol):
-                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * OPTIONS_CONTRACT_SIZE
-                    if is_future_option(trade.symbol):
-                        multiplier = futures_contract_size(symbol)
+                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * OPTION_MULTIPLIER
+                    if is_futures_symbol(trade.symbol):
+                        multiplier = futures_contract_size(trade.symbol)
                         position.cost_basis += float(trade.executed_price) * float(trade.quantity) * multiplier
                     else:
                         position.cost_basis += float(trade.executed_price) * float(trade.quantity)
@@ -296,7 +296,7 @@ class BaseBroker(ABC):
                 )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
-                    order_cost = price * quantity * OPTIONS_CONTRACT_SIZE
+                    order_cost = price * quantity * OPTION_MULTIPLIER
 
                     new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
