@@ -83,24 +83,10 @@ async def test_get_latest_price_async(mock_logger, broker_service):
     assert price == 100
     mock_broker.get_current_price.assert_awaited_once_with('AAPL')
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
-async def skip_test_update_position_price(mock_logger, position_service):
-    mock_session = AsyncMock(AsyncSession)
-    mock_position = Position(symbol='AAPL', broker='mock_broker', quantity=10)
-    # Mocking external dependencies
-    position_service.broker_service.get_latest_price = AsyncMock(return_value=150)
-    position_service._get_underlying_symbol = MagicMock(return_value='AAPL')
-    position_service._calculate_historical_volatility = AsyncMock(return_value=0.2)
-    await position_service._update_position_price(mock_session, mock_position, datetime.now())
-    assert mock_position.latest_price == 150
-    assert mock_position.underlying_volatility == 0.2
-    assert mock_session.commit.called
-
-
-@pytest.mark.asyncio
-@patch('data.sync_worker.logger')
-async def skip_test_update_strategy_balance(mock_logger, balance_service):
+async def test_update_strategy_balance(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
     mock_session.execute.side_effect = [
         AsyncMock(scalar=MagicMock(return_value=None)),  # Cash balance query
@@ -110,9 +96,10 @@ async def skip_test_update_strategy_balance(mock_logger, balance_service):
     assert mock_session.add.called  # Check that session.add was called to add a new balance record
     assert mock_session.commit.called
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
-async def skip_test_update_uncategorized_balances(mock_logger, balance_service):
+async def test_update_uncategorized_balances(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
     balance_service.broker_service.get_account_info = AsyncMock(return_value={'value': 1000})
     balance_service._sum_all_strategy_balances = AsyncMock(return_value=800)
@@ -121,7 +108,7 @@ async def skip_test_update_uncategorized_balances(mock_logger, balance_service):
     assert mock_session.commit.called  # Ensure the session was committed
 
 @pytest.mark.asyncio
-async def skip_test_get_positions(position_service):
+async def test_get_positions(position_service):
     mock_session = AsyncMock(AsyncSession)
 
     mock_broker_positions = {'AAPL': 'mock_position'}
@@ -167,8 +154,9 @@ async def test_fetch_price(broker_service):
     price = await broker_service._fetch_price(mock_broker, 'AAPL')
     assert price == 100
 
+@pytest.mark.skip
 @pytest.mark.asyncio
-async def skip_test_insert_new_position():
+async def test_insert_new_position():
     # Mock the session and broker position
     mock_session = AsyncMock(spec=AsyncSession)
     mock_broker_position = {
@@ -196,9 +184,10 @@ async def skip_test_insert_new_position():
     # Verify that commit was called
     mock_session.commit.assert_awaited_once()
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
-async def skip_test_insert_or_update_balance(mock_logger, balance_service):
+async def test_insert_or_update_balance(mock_logger, balance_service):
     mock_session = AsyncMock(AsyncSession)
     await balance_service._insert_or_update_balance(mock_session, 'mock_broker', 'strategy1', 1000, datetime.now())
     assert mock_session.add.called  # Ensure a new balance record was added
@@ -213,7 +202,7 @@ async def test_get_async_engine():
 
 @pytest.mark.asyncio
 @patch('data.sync_worker.logger')
-async def skip_test_fetch_and_update_positions(mock_logger):
+async def test_fetch_and_update_positions(mock_logger):
     mock_session = AsyncMock()
     mock_position_service = AsyncMock()
     mock_positions = AsyncMock()
@@ -245,8 +234,9 @@ async def test_reconcile_brokers_and_update_balances(mock_logger):
     mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker2', mock_now)
 
 # TODO: Fix this test or refactor
+@pytest.mark.skip
 @pytest.mark.asyncio
-async def skip_test_update_strategy_and_uncategorized_balances():
+async def test_update_strategy_and_uncategorized_balances():
     # Mock broker_service
     mock_broker_service = MagicMock()
     mock_broker_service.get_account_info.return_value = {'value': 30000}
@@ -312,8 +302,9 @@ async def skip_test_update_strategy_and_uncategorized_balances():
     # Ensure the session commits were called
     assert mock_session.commit.call_count == 3
 
+@pytest.mark.skip
 @pytest.mark.asyncio
-async def skip_test_insert_or_update_position():
+async def test_insert_or_update_position():
     # Mock the session and broker position
     mock_session = AsyncMock(spec=AsyncSession)
     mock_broker_position_existing = {
