@@ -8,10 +8,7 @@ from database.db_manager import DBManager
 from database.models import Trade, AccountInfo, Position, Balance
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import futures_contract_size
-
-# The contract size for options is 100 shares
-OPTIONS_CONTRACT_SIZE = 100
+from utils.utils import is_option, OPTION_MULTIPLIER, is_futures_symbol, futures_contract_size
 
 class BaseBroker(ABC):
     def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
@@ -131,7 +128,13 @@ class BaseBroker(ABC):
                 logger.info('Processing buy order', extra={'trade': trade})
                 if position:
                     logger.debug(f"Updating existing position: {position}")
-                    position.cost_basis += float(trade.executed_price) * float(trade.quantity)
+                    if is_option(trade.symbol):
+                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * OPTIONS_CONTRACT_SIZE
+                    if is_future_option(trade.symbol):
+                        multiplier = futures_contract_size(symbol)
+                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * multiplier
+                    else:
+                        position.cost_basis += float(trade.executed_price) * float(trade.quantity)
                     position.quantity += trade.quantity
                     position.latest_price = float(trade.executed_price)
                     position.timestamp = datetime.now()
