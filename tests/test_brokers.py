@@ -97,14 +97,14 @@ async def test_has_bought_today(session, broker):
 
 
 @pytest.mark.asyncio
-async def skip_test_update_positions_buy(session, broker):
+async def test_update_positions_buy(session, broker):
     trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade)
     await session.commit()
     await session.refresh(trade)
 
-    await broker.update_positions(trade)
+    await broker.update_positions(trade.id, session)
 
     result = await session.execute(select(Position).filter_by(symbol="AAPL"))
     position = result.scalars().first()
@@ -116,7 +116,7 @@ async def skip_test_update_positions_buy(session, broker):
 
 
 @pytest.mark.asyncio
-async def skip_test_update_positions_sell(session, broker):
+async def test_update_positions_sell(session, broker):
     position = Position(symbol="AAPL", broker="dummy_broker", quantity=10, latest_price=150.0, cost_basis=1500.0)
     async with session.begin():
         session.add(position)
@@ -128,7 +128,7 @@ async def skip_test_update_positions_sell(session, broker):
     await session.commit()
     await session.refresh(trade)
 
-    await broker.update_positions(trade)
+    await broker.update_positions(trade.id, session)
 
     result = await session.execute(select(Position).filter_by(symbol="AAPL"))
     position = result.scalars().first()
@@ -137,7 +137,7 @@ async def skip_test_update_positions_sell(session, broker):
     assert position.cost_basis == 750.0
 
 @pytest.mark.asyncio
-async def skip_test_multiple_buys_update_cost_basis(session, broker):
+async def test_multiple_buys_update_cost_basis(session, broker):
     # First buy trade
     trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
 
@@ -146,7 +146,7 @@ async def skip_test_multiple_buys_update_cost_basis(session, broker):
     await session.refresh(trade1)
 
     # Update the position after the first trade
-    await broker.update_positions(trade1)
+    await broker.update_positions(trade1.id, session)
 
     # Verify the position after the first trade
     result = await session.execute(select(Position).filter_by(symbol="AAPL"))
@@ -164,7 +164,7 @@ async def skip_test_multiple_buys_update_cost_basis(session, broker):
     await session.refresh(trade2)
 
     # Update the position after the second trade
-    await broker.update_positions(trade2)
+    await broker.update_positions(trade2.id, session)
 
     # Verify the position after the second trade
     result = await session.execute(select(Position).filter_by(symbol="AAPL"))
@@ -176,20 +176,20 @@ async def skip_test_multiple_buys_update_cost_basis(session, broker):
     assert position.cost_basis == 2300.0
 
 @pytest.mark.asyncio
-async def skip_test_full_sell_removes_position(session, broker):
+async def test_full_sell_removes_position(session, broker):
     trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     session.add(trade1)
     await session.commit()
     await session.refresh(trade1)
 
-    await broker.update_positions(trade1)
+    await broker.update_positions(trade1.id, session)
 
     trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     session.add(trade2)
     await session.commit()
     await session.refresh(trade2)
 
-    await broker.update_positions(trade2)
+    await broker.update_positions(trade2.id, session)
 
     position = await session.execute(select(Position).filter_by(symbol="AAPL"))
 
@@ -198,14 +198,14 @@ async def skip_test_full_sell_removes_position(session, broker):
 
 
 @pytest.mark.asyncio
-async def skip_test_edge_case_zero_quantity(session, broker):
+async def test_edge_case_zero_quantity(session, broker):
     trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade)
     await session.commit()
     await session.refresh(trade)
 
-    await broker.update_positions(trade)
+    await broker.update_positions(trade.id, session)
 
     result = await session.execute(select(Position).filter_by(symbol="AAPL"))
     position = result.scalars().first()
