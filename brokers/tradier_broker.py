@@ -12,8 +12,8 @@ class TradierBroker(BaseBroker):
                 "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json"
         }
-        self.order_timeout = 1
-        self.auto_cancel_orders = True
+        self.order_timeout = kwargs.get('order_timeout', 5)
+        self.auto_cancel_orders = kwargs.get('auto_cancel_orders', False)
         logger.info('Initialized TradierBroker', extra={'base_url': self.base_url})
         self._get_account_info()
 
@@ -111,7 +111,11 @@ class TradierBroker(BaseBroker):
 
             # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)
+            response.raise_for_status()
             order_json = response.json()
+            if order_json is None:
+                logger.error('Null response from order placement. The order may not have been placed.')
+                return {}
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
@@ -135,8 +139,9 @@ class TradierBroker(BaseBroker):
                 data['filled_price'] = price
             logger.info('Order execution complete', extra={'order_data': data})
             return data
-        except requests.RequestException as e:
+        except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
+            return {}
 
     def _place_future_option_order(self, symbol, quantity, order_type, price=None):
         logger.error('Future options not supported by Tradier', extra={'symbol': symbol})
@@ -175,6 +180,9 @@ class TradierBroker(BaseBroker):
             response.raise_for_status()
 
             order_json = response.json()
+            if order_json is None:
+                logger.error('Null response from order placement. The order may not have been placed.')
+                return {}
             order_id = order_json.get('order', {}).get('id', None)
             logger.info('Order placed', extra={'order_id': order_id})
 
@@ -200,8 +208,9 @@ class TradierBroker(BaseBroker):
                 data['filled_price'] = price
             logger.info('Order execution complete', extra={'order_data': data})
             return data
-        except requests.RequestException as e:
+        except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
+            return {}
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
