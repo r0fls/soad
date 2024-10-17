@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 from datetime import datetime
 from utils.logger import logger
-from utils.utils import is_option, extract_option_details
+from utils.utils import is_option, extract_option_details, is_futures_symbol, futures_contract_size
 from database.models import Position, Balance
 import yfinance as yf
 import sqlalchemy
@@ -225,6 +225,10 @@ class BalanceService:
         total_positions_value = 0
         for position in positions:
             latest_price = await self.broker_service.get_latest_price(broker, position.symbol)
+            if is_option(position.symbol):
+                latest_price = latest_price * position.quantity * 100
+            elif is_futures_symbol(position.symbol):
+                latest_price = latest_price * position.quantity * futures_contract_size(position.symbol)
             position_value = latest_price * position.quantity
             total_positions_value += position_value
 
