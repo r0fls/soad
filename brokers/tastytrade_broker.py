@@ -343,10 +343,15 @@ class TastytradeBroker(BaseBroker):
 
             for position in positions_data:
                 if position['symbol'] == symbol:
-                    cost_basis = position.get('average-open-price')
-                    logger.info(f"Cost basis for {symbol}: {cost_basis}")
-                    return cost_basis
-
+                    open_price = position.get('average-open-price')
+                    quantity = position.get('quantity')
+                    if open_price and quantity:
+                        cost_basis = open_price * quantity
+                        logger.info(f"Cost basis for {symbol}: {cost_basis}")
+                        return cost_basis
+                    else:
+                        logger.warning(f"Cost basis not found for {symbol}")
+                        return None
             logger.warning(f"No position found for {symbol}")
             return None
         except requests.RequestException as e:
