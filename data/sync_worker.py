@@ -42,12 +42,30 @@ class PositionService:
     async def reconcile_positions(self, session, broker, timestamp=None):
         now = timestamp or datetime.now()
         broker_positions, db_positions = await self._get_positions(session, broker)
+        await self._remove_excess_uncategorized_positions(session, broker, db_positions, broker_positions)
         await self._remove_db_positions(session, broker, db_positions, broker_positions)
         broker_positions, db_positions = await self._get_positions(session, broker)
         await self._add_missing_positions(session, broker, db_positions, broker_positions, now)
         session.add_all(db_positions.values())  # Add updated positions to the session
         await session.commit()
         logger.info(f"Reconciliation for broker {broker} completed.")
+
+    async def _remove_excess_uncategorized_positions(self, session, broker, db_positions, broker_positions):
+        """
+        Removes excess uncategorized positions if more shares or contracts exist in DB than in the broker.
+        """
+        for symbol, db_position in db_positions.items():
+            if db_position.strategy == 'uncategorized' and symbol in broker_positions:
+                broker_position = broker_positions[symbol]
+                # Compare quantities between DB and broker
+                db_quantity = db_position.quantity
+                broker_quantity = broker_position['quantity']
+                if db_quantity > broker_quantity:
+                    excess_quantity = db_quantity - broker_quantity
+                    logger.info(f"Removing excess quantity {excess_quantity} for {symbol} in uncategorized positions.")
+                    # Update the DB position quantity to match broker
+                    db_position.quantity = broker_quantity
+                    session.add(db_position)
 
     async def _get_positions(self, session, broker):
         broker_instance = await self.broker_service.get_broker_instance(broker)
