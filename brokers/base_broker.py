@@ -157,7 +157,6 @@ class BaseBroker(ABC):
                         logger.info('Deleting sold position', extra={'position': position})
                         await session.delete(position)
                         await session.commit()
-                        logger.debug(f"Position after sell: {position}")
                     elif position.quantity > trade.quantity:
                         logger.debug(f"Reducing quantity of position: {position}")
                         cost_per_share = position.cost_basis / position.quantity
