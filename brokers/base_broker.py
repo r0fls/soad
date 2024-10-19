@@ -176,92 +176,41 @@ class BaseBroker(ABC):
 
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
-        '''Place an order for a future option'''
-        logger.info('Placing order', extra={
-                    'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
-        try:
-            if asyncio.iscoroutinefunction(self._place_future_option_order):
-                response = await self._place_future_option_order(symbol, quantity, order_type, price)
-            else:
-                response = self._place_future_option_order(
-                    symbol, quantity, order_type, price)
-            logger.info('Order placed successfully', extra={'response': response})
-
-            if not price:
-                price = getattr(getattr(response, 'order', None), 'price', None)
-
-            if price is None:
-                logger.error('Price not found in response, not tracking this trade', extra={'response': response})
-
-            trade = Trade(
-                symbol=symbol,
-                quantity=quantity,
-                price=price,
-                executed_price=price,
-                order_type=order_type,
-                status='filled',
-                timestamp=datetime.now(),
-                broker=self.broker_name,
-                strategy=strategy,
-                profit_loss=0,
-                success='yes'
-            )
-            if order_type == 'sell':
-                profit_loss = await self.db_manager.calculate_profit_loss(trade)
-                logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
-                trade.profit_loss = profit_loss
-
-            async with self.Session() as session:
-                session.add(trade)
-                await session.flush()
-                await self.update_positions(trade.id, session)
-                await session.commit()
-
-                latest_balance = await session.execute(
-                        select(Balance).filter_by(
-                            broker=self.broker_name, strategy=strategy, type='cash'
-                        ).order_by(Balance.timestamp.desc())
-                )
-                latest_balance = latest_balance.scalars().first()
-                if latest_balance:
-                    multiplier = futures_contract_size(symbol)
-                    if multiplier == 1:
-                        logger.error(f'Contract {symbol} not supported. Invalid symbol for future option.', extra={'symbol': symbol})
-                        return None
-                    order_cost = price * quantity * multiplier
-
-                    new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
-
-                    new_balance = Balance(
-                        broker=self.broker_name,
-                        strategy=strategy,
-                        type='cash',
-                        balance=new_balance_amount,
-                        timestamp=datetime.now()
-                    )
-                    session.add(new_balance)
-                    await session.commit()
-            return response
-        except Exception as e:
-            logger.error('Failed to place order', extra={'error': str(e)})
-            return None
+        multiplier = futures_contract_size(symbol)
+        return await self._place_order_generic(
+            symbol, quantity, order_type, strategy, price, multiplier, self._place_future_option_order
+        )
 
     async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
-        '''Place an order for an option'''
+        multiplier = OPTION_MULTIPLIER
+        return await self._place_order_generic(
+            symbol, quantity, order_type, strategy, price, multiplier, self._place_option_order
+        )
+
+    async def place_order(self, symbol, quantity, order_type, strategy, price=None):
+        multiplier = 1  # Regular stock orders don't have a multiplier
+        return await self._place_order_generic(
+            symbol, quantity, order_type, strategy, price, multiplier, self._place_order
+        )
+
+
+    async def _place_order_generic(self, symbol, quantity, order_type, strategy, price, multiplier, order_func):
+        '''Generic method to place an order and update database'''
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
-
         if self.prevent_day_trading and order_type == 'sell' and await self.has_bought_today(symbol):
             logger.error('Day trading is not allowed. Cannot sell positions opened today.', extra={'symbol': symbol})
             return None
 
         try:
-            if asyncio.iscoroutinefunction(self._place_option_order):
-                response = await self._place_option_order(symbol, quantity, order_type, price)
+            if asyncio.iscoroutinefunction(order_func):
+                response = await order_func(symbol, quantity, order_type, price)
             else:
-                response = self._place_option_order(symbol, quantity, order_type, price)
+                response = order_func(symbol, quantity, order_type, price)
+
             logger.info('Order placed successfully', extra={'response': response})
 
+            # Extract price if not given
             if not price:
                 price = response.get('filled_price', None)
 
@@ -278,82 +227,21 @@ class BaseBroker(ABC):
                 profit_loss=0,
                 success='yes'
             )
+
+            # Calculate profit/loss if it's a sell order
             if order_type == 'sell':
                 profit_loss = await self.db_manager.calculate_profit_loss(trade)
                 logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
                 trade.profit_loss = profit_loss
 
+            # Update the trade and positions in the database
             async with self.Session() as session:
                 session.add(trade)
                 await session.flush()
                 await self.update_positions(trade.id, session)
                 await session.commit()
 
-                latest_balance = await session.execute(
-                        select(Balance).filter_by(
-                            broker=self.broker_name, strategy=strategy, type='cash'
-                        ).order_by(Balance.timestamp.desc())
-                )
-                latest_balance = latest_balance.scalars().first()
-                if latest_balance:
-                    order_cost = price * quantity * OPTION_MULTIPLIER
-
-                    new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
-
-                    new_balance = Balance(
-                        broker=self.broker_name,
-                        strategy=strategy,
-                        type='cash',
-                        balance=new_balance_amount,
-                        timestamp=datetime.now()
-                    )
-                    session.add(new_balance)
-                    await session.commit()
-            return response
-        except Exception as e:
-            logger.error('Failed to place order', extra={'error': str(e)})
-            return None
-
-    async def place_order(self, symbol, quantity, order_type, strategy, price=None):
-        '''Place an order for a stock'''
-        logger.info('Placing order', extra={
-                    'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
-
-        if self.prevent_day_trading and order_type == 'sell' and await self.has_bought_today(symbol):
-            logger.error('Day trading is not allowed. Cannot sell positions opened today.', extra={'symbol': symbol})
-            return None
-
-        try:
-            if asyncio.iscoroutinefunction(self._place_order):
-                response = await self._place_order(symbol, quantity, order_type, price)
-            else:
-                response = self._place_order(symbol, quantity, order_type, price)
-            logger.info('Order placed successfully', extra={'response': response})
-            executed_price = float(response.get('filled_price', price))
-            trade = Trade(
-                symbol=symbol,
-                quantity=quantity,
-                price=response.get('filled_price', price),
-                executed_price=executed_price,
-                order_type=order_type,
-                status='filled',
-                timestamp=datetime.now(),
-                broker=self.broker_name,
-                strategy=strategy,
-                profit_loss=0,
-                success='yes'
-            )
-            if order_type == 'sell':
-                profit_loss = await self.db_manager.calculate_profit_loss(trade)
-                logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
-                trade.profit_loss = profit_loss
-
-            async with self.Session() as session:
-                session.add(trade)
-                await session.flush()
-                await self.update_positions(trade.id, session)
-                await session.commit()
-
+                # Update balance
                 latest_balance = await session.execute(
                     select(Balance).filter_by(
                         broker=self.broker_name, strategy=strategy, type='cash'
@@ -361,8 +249,7 @@ class BaseBroker(ABC):
                 )
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
-                    order_cost = executed_price * quantity
-
+                    order_cost = price * quantity * multiplier
                     new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
                     new_balance = Balance(
@@ -374,6 +261,7 @@ class BaseBroker(ABC):
                     )
                     session.add(new_balance)
                     await session.commit()
+
             return response
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})
