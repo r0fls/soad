@@ -357,3 +357,117 @@ async def test_insert_or_update_position():
 
     # Ensure session.commit() is called once after updating both positions
     assert mock_session.commit.await_count == 2
+
+@pytest.mark.asyncio
+async def test_remove_excess_uncategorized_positions_no_categorized():
+    # Mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock broker and DB positions
+    db_positions = {
+        'AAPL': Position(symbol='AAPL', strategy='uncategorized', quantity=100),
+    }
+    broker_positions = {
+        'AAPL': {'quantity': 80}
+    }
+
+    # Create PositionService instance
+    position_service = PositionService(AsyncMock())
+
+    # Call the function
+    await position_service._remove_excess_uncategorized_positions(mock_session, 'mock_broker', db_positions, broker_positions)
+
+    # Ensure the quantity is updated correctly
+    assert db_positions['AAPL'].quantity == 80
+    mock_session.add.assert_called_once_with(db_positions['AAPL'])
+
+@pytest.mark.asyncio
+async def test_remove_excess_uncategorized_positions_with_categorized():
+    # Mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock broker and DB positions
+    db_positions = {
+        'AAPL': Position(symbol='AAPL', strategy='uncategorized', quantity=100),
+        'AAPL_cat': Position(symbol='AAPL', strategy='categorized', quantity=20)
+    }
+    broker_positions = {
+        'AAPL': {'quantity': 80}
+    }
+
+    # Create PositionService instance
+    position_service = PositionService(AsyncMock())
+
+    # Call the function
+    await position_service._remove_excess_uncategorized_positions(mock_session, 'mock_broker', db_positions, broker_positions)
+
+    # Ensure the quantity is updated correctly, accounting for categorized position (80 - 20 = 60)
+    assert db_positions['AAPL'].quantity == 60
+    mock_session.add.assert_called_once_with(db_positions['AAPL'])
+
+@pytest.mark.asyncio
+async def test_remove_excess_uncategorized_positions_no_change_needed():
+    # Mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock broker and DB positions
+    db_positions = {
+        'AAPL': Position(symbol='AAPL', strategy='uncategorized', quantity=50),
+        'AAPL_cat': Position(symbol='AAPL', strategy='categorized', quantity=20)
+    }
+    broker_positions = {
+        'AAPL': {'quantity': 70}  # Broker position matches DB (50 uncategorized + 20 categorized)
+    }
+
+    # Create PositionService instance
+    position_service = PositionService(AsyncMock())
+
+    # Call the function
+    await position_service._remove_excess_uncategorized_positions(mock_session, 'mock_broker', db_positions, broker_positions)
+
+    # Ensure no updates were made
+    mock_session.add.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_remove_excess_uncategorized_positions_no_broker_position():
+    # Mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock broker and DB positions
+    db_positions = {
+        'AAPL': Position(symbol='AAPL', strategy='uncategorized', quantity=100)
+    }
+    broker_positions = {}  # No broker position for AAPL
+
+    # Create PositionService instance
+    position_service = PositionService(AsyncMock())
+
+    # Call the function
+    await position_service._remove_excess_uncategorized_positions(mock_session, 'mock_broker', db_positions, broker_positions)
+
+    # Ensure no updates were made since there's no broker position for AAPL
+    mock_session.add.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_remove_excess_uncategorized_positions_negative_net_broker_quantity():
+    # Mock session
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Mock broker and DB positions
+    db_positions = {
+        'AAPL': Position(symbol='AAPL', strategy='uncategorized', quantity=100),
+        'AAPL_cat': Position(symbol='AAPL', strategy='categorized', quantity=90)
+    }
+    broker_positions = {
+        'AAPL': {'quantity': 80}
+    }
+
+    # Create PositionService instance
+    position_service = PositionService(AsyncMock())
+
+    # Call the function
+    await position_service._remove_excess_uncategorized_positions(mock_session, 'mock_broker', db_positions, broker_positions)
+
+    # Since categorized quantity (90) exceeds broker quantity (80), uncategorized position should be set to 0
+    assert db_positions['AAPL'].quantity == 0
+    mock_session.add.assert_called_once_with(db_positions['AAPL'])

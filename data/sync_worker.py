@@ -53,19 +53,45 @@ class PositionService:
     async def _remove_excess_uncategorized_positions(self, session, broker, db_positions, broker_positions):
         """
         Removes excess uncategorized positions if more shares or contracts exist in DB than in the broker.
+        Subtracts the quantity of categorized positions for the same symbol from the broker quantity.
         """
         for symbol, db_position in db_positions.items():
-            if db_position.strategy == 'uncategorized' and symbol in broker_positions:
+            if self._is_uncategorized_position(db_position, symbol, broker_positions):
                 broker_position = broker_positions[symbol]
-                # Compare quantities between DB and broker
-                db_quantity = db_position.quantity
-                broker_quantity = broker_position['quantity']
-                if db_quantity > broker_quantity:
-                    excess_quantity = db_quantity - broker_quantity
-                    logger.info(f"Removing excess quantity {excess_quantity} for {symbol} in uncategorized positions.")
-                    # Update the DB position quantity to match broker
-                    db_position.quantity = broker_quantity
-                    session.add(db_position)
+                categorized_quantity = self._get_categorized_quantity(db_positions, symbol)
+                net_broker_quantity = self._calculate_net_broker_quantity(broker_position['quantity'], categorized_quantity)
+                await self._adjust_uncategorized_position(session, db_position, net_broker_quantity, symbol)
+
+    def _is_uncategorized_position(self, db_position, symbol, broker_positions):
+        """
+        Checks if the position is uncategorized and exists in broker positions.
+        """
+        return db_position.strategy == 'uncategorized' and symbol in broker_positions
+
+    def _get_categorized_quantity(self, db_positions, symbol):
+        """
+        Calculates the total quantity for categorized positions for the given symbol.
+        """
+        return sum(
+            pos.quantity for pos in db_positions.values()
+            if pos.symbol == symbol and pos.strategy != 'uncategorized'
+        )
+
+    def _calculate_net_broker_quantity(self, broker_quantity, categorized_quantity):
+        """
+        Subtracts categorized quantity from broker quantity to get the net broker quantity.
+        """
+        return max(broker_quantity - categorized_quantity, 0)
+
+    async def _adjust_uncategorized_position(self, session, db_position, net_broker_quantity, symbol):
+        """
+        Adjusts the uncategorized position's quantity if it exceeds the net broker quantity.
+        """
+        if db_position.quantity > net_broker_quantity:
+            excess_quantity = max(db_position.quantity - net_broker_quantity, 0)
+            logger.info(f"Removing excess quantity {excess_quantity} for {symbol} in uncategorized positions.")
+            db_position.quantity = net_broker_quantity
+            session.add(db_position)
 
     async def _get_positions(self, session, broker):
         broker_instance = await self.broker_service.get_broker_instance(broker)
