@@ -25,7 +25,7 @@ def create_api_database_engine(config, local_testing=False):
 
 def create_database_engine(config, local_testing=False):
     if local_testing:
-        return create_async_engine('sqlite:///trading.db')
+        return create_async_engine('sqlite+aiosqlite:///trading.db')
     if type(config) == str:
         return create_async_engine(config)
     if 'database' in config and 'url' in config['database']:
@@ -145,7 +145,7 @@ async def start_api_server(config_path=None, local_testing=False):
     logger.info('Database engine created for API server', extra={'db_url': engine.url})
 
     # Initialize the database
-    async_db_url = os.environ.get("ASYNC_DATABASE_URL", 'sqlite:///default_trading_system.db')
+    async_db_url = os.environ.get("ASYNC_DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db')
     async_db_engine = create_database_engine(async_db_url, local_testing)
     await initialize_database(async_db_engine)
 
