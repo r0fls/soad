@@ -9,7 +9,7 @@ from database.models import Position, Balance
 import yfinance as yf
 import sqlalchemy
 
-UPDATE_UNCATEGORIZED_POSITIONS = True
+UPDATE_UNCATEGORIZED_POSITIONS = False
 TIMEOUT_DURATION = 120
 
 class BrokerService:
