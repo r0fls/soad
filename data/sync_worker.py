@@ -9,7 +9,7 @@ from database.models import Position, Balance
 import yfinance as yf
 import sqlalchemy
 
-UPDATE_UNCATEGORIZED_POSITIONS = False
+UPDATE_UNCATEGORIZED_POSITIONS = True
 
 class BrokerService:
     def __init__(self, brokers):
@@ -57,7 +57,7 @@ class PositionService:
         Subtracts the quantity of categorized positions for the same symbol from the broker quantity.
         """
         for symbol, db_position in db_positions.items():
-            if self._is_uncategorized_position(db_position, symbol, broker_positions):
+            if self._is_uncategorized_position(db_position):
                 broker_position = broker_positions[symbol]
                 categorized_quantity = self._get_categorized_quantity(db_positions, symbol)
                 net_broker_quantity = self._calculate_net_broker_quantity(broker_position['quantity'], categorized_quantity)
@@ -67,7 +67,7 @@ class PositionService:
         """
         Checks if the position is uncategorized and exists in broker positions.
         """
-        return db_position.strategy == 'uncategorized' and symbol in broker_positions
+        return db_position.strategy == 'uncategorized'
 
     def _get_categorized_quantity(self, db_positions, symbol):
         """

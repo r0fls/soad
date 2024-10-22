@@ -163,7 +163,8 @@ async def start_sync_worker(config_path):
     # Parse the configuration file
     try:
         config = parse_config(config_path)
-        if config.get("update_uncateorized_positions", False):
+        # TODO: should this default to False instead?
+        if config.get("update_uncateorized_positions"):
             sync_worker.UPDATE_UNCATEGORIZED_POSITIONS = True
         logger.info('Configuration parsed successfully')
     except Exception as e:
