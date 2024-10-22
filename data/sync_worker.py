@@ -59,12 +59,17 @@ class PositionService:
         """
         for symbol, db_position in db_positions.items():
             if self._is_uncategorized_position(db_position):
-                broker_position = broker_positions[symbol]
+                broker_position = broker_positions.get(symbol)
+                if not broker_position:
+                    # Delete uncategorized positions that no longer exist in the broker
+                    session.delete(db_position)
+                    logger.info(f"Removed uncategorized position from DB: {symbol}")
+                    continue
                 categorized_quantity = self._get_categorized_quantity(db_positions, symbol)
                 net_broker_quantity = self._calculate_net_broker_quantity(broker_position['quantity'], categorized_quantity)
                 await self._adjust_uncategorized_position(session, db_position, net_broker_quantity, symbol)
 
-    def _is_uncategorized_position(self, db_position, symbol, broker_positions):
+    def _is_uncategorized_position(self, db_position):
         """
         Checks if the position is uncategorized and exists in broker positions.
         """

@@ -77,6 +77,8 @@ async def initialize_brokers_and_strategies(config):
     return brokers, strategies
 
 # TODO: fix the need to restart to refresh the tastytrade token
+# TODO: refactor/redesign to allow strategies that are not discretely rebalanced
+#       (i.e. streaming via websockets)
 async def start_trading_system(config_path):
     logger.info('Starting the trading system', extra={'config_path': config_path})
 
@@ -99,31 +101,34 @@ async def start_trading_system(config_path):
     brokers, strategies = await initialize_brokers_and_strategies(config)
 
     # Execute the strategies loop
-    rebalance_intervals = { s: timedelta(minutes=strategies[s].rebalance_interval_minutes) for s in strategies }
+    rebalance_intervals = {s: timedelta(minutes=strategies[s].rebalance_interval_minutes) for s in strategies}
     last_rebalances = {s: datetime.min for s in strategies}
     logger.info('Entering the strategies execution loop')
 
-    # TODO: fix the need to restart to refresh the tastytrade token
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=24)
 
-    # TODO: fix the need to restart to refresh the tastytrade token
     while datetime.now() < end_time:
         now = datetime.now()
+        # Collect all the strategies that need rebalancing
+        strategies_to_rebalance = []
         for strategy_name, strategy in strategies.items():
             if now - last_rebalances[strategy_name] >= rebalance_intervals[strategy_name]:
-                try:
-                    await strategy.rebalance()
+                strategies_to_rebalance.append((strategy_name, strategy))
+        if strategies_to_rebalance:
+            try:
+                # Perform all rebalances concurrently
+                await asyncio.gather(
+                    *[strategy.rebalance() for _, strategy in strategies_to_rebalance]
+                )
+                for strategy_name, _ in strategies_to_rebalance:
                     last_rebalances[strategy_name] = now
                     logger.info(f'Strategy {strategy_name} rebalanced successfully', extra={'time': now})
-                except Exception as e:
-                    logger.error(f"Error during rebalancing strategy {strategy_name}",
-                                 extra={
-                                     'error': str(e),
-                                     'strategy_name': strategy_name,
-                                     'last_rebalance': last_rebalances[strategy_name],
-                                 }, exc_info=True)
-                    brokers, strategies = await initialize_brokers_and_strategies(config)
+            except Exception as e:
+                logger.error(f"Error during rebalancing strategies",
+                             extra={'error': str(e), 'strategy': strategy_name}, exc_info=True)
+                brokers, strategies = await initialize_brokers_and_strategies(config)
+
         await asyncio.sleep(60)  # Check every minute
     logger.info('Trading system finished 24 hours of trading')
 
