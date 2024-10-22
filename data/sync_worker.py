@@ -10,6 +10,7 @@ import yfinance as yf
 import sqlalchemy
 
 UPDATE_UNCATEGORIZED_POSITIONS = True
+TIMEOUT_DURATION = 120
 
 class BrokerService:
     def __init__(self, brokers):
@@ -333,7 +334,7 @@ class BalanceService:
         return total_balance
 
 
-async def start(engine, brokers):
+async def start(engine, brokers, timeout_duration=TIMEOUT_DURATION):
     async_engine = await _get_async_engine(engine)
     Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
 
@@ -341,7 +342,7 @@ async def start(engine, brokers):
     position_service = PositionService(broker_service)
     balance_service = BalanceService(broker_service)
 
-    await _run_sync_worker_iteration(Session, position_service, balance_service, brokers)
+    await _run_sync_worker_iteration(Session, position_service, balance_service, brokers, timeout_duration=timeout_duration)
 
 
 async def _get_async_engine(engine):

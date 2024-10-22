@@ -166,6 +166,8 @@ async def start_sync_worker(config_path):
         # TODO: should this default to False instead?
         if config.get("update_uncateorized_positions"):
             sync_worker.UPDATE_UNCATEGORIZED_POSITIONS = True
+        if config.get("timeout_duration"):
+            sync_worker.TIMEOUT_DURATION = config.get("timeout_duration")
         logger.info('Configuration parsed successfully')
     except Exception as e:
         logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
