@@ -350,8 +350,14 @@ async def _get_async_engine(engine):
         return engine
     raise ValueError("Invalid engine type. Expected a connection string or an AsyncEngine object.")
 
+async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers, timeout_duration):
+    try:
+        await asyncio.wait_for(_run_sync_worker_iteration_logic(Session, position_service, balance_service, brokers), timeout=timeout_duration)
+    except asyncio.TimeoutError:
+        logger.error('Iteration exceeded the maximum allowed time. Forcing restart.')
+        raise
 
-async def _run_sync_worker_iteration(Session, position_service, balance_service, brokers):
+async def _run_sync_worker_iteration_logic(Session, position_service, balance_service, brokers):
     logger.info('Starting sync worker iteration')
     now = datetime.now()
     async with Session() as session:
@@ -367,7 +373,6 @@ async def _run_sync_worker_iteration(Session, position_service, balance_service,
         # commit anything we forgot about
         await session.commit()
     logger.info('Sync worker completed an iteration')
-
 
 async def _fetch_and_update_positions(session, position_service, now):
     positions = await session.execute(select(Position))

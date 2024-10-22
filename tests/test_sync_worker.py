@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import pytest
+import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock, ANY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -471,3 +472,38 @@ async def test_remove_excess_uncategorized_positions_negative_net_broker_quantit
     # Since categorized quantity (90) exceeds broker quantity (80), uncategorized position should be set to 0
     assert db_positions['AAPL'].quantity == 0
     mock_session.add.assert_called_once_with(db_positions['AAPL'])
+
+
+@pytest.mark.asyncio
+@patch('data.sync_worker.logger')
+async def test_run_sync_worker_iteration_timeout(mock_logger):
+    # Mock services and session
+    mock_session_factory = MagicMock()  # Mock the Session factory
+    mock_session = AsyncMock()  # Mock the actual session object
+    # Ensure the mock session works with 'async with'
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    # When the session is called, return the async mock session
+    mock_session_factory.return_value = mock_session
+    mock_position_service = AsyncMock()
+    mock_balance_service = AsyncMock()
+    mock_brokers = ['mock_broker']
+    # Set a very short timeout for testing
+    short_timeout = 0.01  # 10 milliseconds
+
+    # Mock the functions to sleep for a while to trigger the timeout
+    async def slow_reconcile(*args, **kwargs):
+        await asyncio.sleep(0.02)  # 20 milliseconds to trigger timeout
+    mock_position_service.reconcile_positions = AsyncMock(side_effect=slow_reconcile)
+    mock_balance_service.update_all_strategy_balances = AsyncMock()
+
+    # Call the sync worker iteration with the short timeout and assert it raises a TimeoutError
+    with pytest.raises(asyncio.TimeoutError):
+        await _run_sync_worker_iteration(mock_session_factory, mock_position_service, mock_balance_service, mock_brokers, short_timeout)
+
+    # Ensure the logger captured the timeout
+    mock_logger.error.assert_any_call('Iteration exceeded the maximum allowed time. Forcing restart.')
+
+    # Ensure reconcile and update methods were attempted
+    mock_position_service.reconcile_positions.assert_called_once_with(mock_session, 'mock_broker')
+    mock_balance_service.update_all_strategy_balances.assert_not_called()  # Should not reach this due to timeout
