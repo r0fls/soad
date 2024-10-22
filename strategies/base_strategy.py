@@ -40,7 +40,7 @@ class BaseStrategy(ABC):
                     strategy=self.strategy_name,
                     broker=self.broker.broker_name,
                     type='cash'
-                )
+                ).order_by(Balance.timestamp.desc())
             )
             strategy_balance = result.scalar()
 
