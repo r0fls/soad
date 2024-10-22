@@ -11,7 +11,7 @@ from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies
 from utils.logger import logger  # Import the logger
 from utils.utils import is_market_open, is_futures_market_open
-from data.sync_worker import sync_worker  # Import the sync worker
+import data.sync_worker as sync_worker
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 
@@ -163,6 +163,8 @@ async def start_sync_worker(config_path):
     # Parse the configuration file
     try:
         config = parse_config(config_path)
+        if config.get("update_uncateorized_positions", False):
+            sync_worker.UPDATE_UNCATEGORIZED_POSITIONS = True
         logger.info('Configuration parsed successfully')
     except Exception as e:
         logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
@@ -186,7 +188,7 @@ async def start_sync_worker(config_path):
     # Start the sync worker
     while True:
         try:
-            await sync_worker(engine, brokers)
+            await sync_worker.start(engine, brokers)
             logger.info('Sync worker started successfully')
             if is_market_open():
                 await asyncio.sleep(SYNC_WORKER_INTERVAL_SECONDS)

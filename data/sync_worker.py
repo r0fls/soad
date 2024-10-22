@@ -9,6 +9,7 @@ from database.models import Position, Balance
 import yfinance as yf
 import sqlalchemy
 
+UPDATE_UNCATEGORIZED_POSITIONS = False
 
 class BrokerService:
     def __init__(self, brokers):
@@ -119,7 +120,9 @@ class PositionService:
                 existing_position = db_positions[symbol]
                 self._update_existing_position(existing_position, broker_position, now)
             else:
-                await self._insert_new_position(session, broker, broker_position, now)
+                logger.warn(f"Found uncategorized position in broker: {symbol}")
+                if UPDATE_UNCATEGORIZED_POSITIONS:
+                    await self._insert_new_position(session, broker, broker_position, now)
 
     def _update_existing_position(self, existing_position, broker_position, now):
         existing_position.quantity = broker_position['quantity']
@@ -330,7 +333,7 @@ class BalanceService:
         return total_balance
 
 
-async def sync_worker(engine, brokers):
+async def start(engine, brokers):
     async_engine = await _get_async_engine(engine)
     Session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=True)
 

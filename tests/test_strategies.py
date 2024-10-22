@@ -63,7 +63,7 @@ async def test_initialize_starting_balance_existing(strategy):
         strategy=strategy.strategy_name,
         broker=strategy.broker.broker_name,
         type='cash'
-    )
+    ).order_by(Balance.timestamp.desc())
 
     # Verify that execute() was called with the correct query using SQL string comparison
     mock_session.execute.assert_called_once()
@@ -97,7 +97,7 @@ async def test_initialize_starting_balance_new(strategy):
         strategy=strategy.strategy_name,
         broker=strategy.broker.broker_name,
         type='cash'
-    )
+    ).order_by(Balance.timestamp.desc())
 
     # Verify that execute() was called with the correct query using SQL string comparison
     mock_session.execute.assert_called_once()
