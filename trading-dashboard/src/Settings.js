@@ -17,7 +17,6 @@ const AdjustBalance = () => {
           'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
       });
-      // Initialize new_total_balance with total_balance for each item
       const dataWithNewBalance = response.data.map(item => ({
         ...item,
         new_total_balance: item.total_balance
@@ -49,6 +48,27 @@ const AdjustBalance = () => {
     }
   };
 
+  const handleDeleteStrategy = async (broker, strategy) => {
+    if (window.confirm(`Are you sure you want to delete the strategy "${strategy}" for broker "${broker}"?`)) {
+      try {
+        const response = await axiosInstance.post('/delete_strategy', {
+          broker,
+          strategy_name: strategy
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+          }
+        });
+        setResponseMessage(JSON.stringify(response.data));
+        fetchBrokersStrategies();  // Refresh after deletion
+      } catch (error) {
+        console.error('Error deleting strategy:', error);
+        setResponseMessage('Error deleting strategy: ' + error.message);
+      }
+    }
+  };
+
   return (
     <div className="container">
       <h1 className="my-4">Adjust Strategy Balance</h1>
@@ -58,7 +78,7 @@ const AdjustBalance = () => {
             <th>Broker</th>
             <th>Strategy</th>
             <th>Balance</th>
-            <th>Action</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -67,27 +87,44 @@ const AdjustBalance = () => {
               <td>{item.broker}</td>
               <td>{item.strategy}</td>
               <td>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={item.new_total_balance || ''}
-                  onChange={(e) => {
-                    const newBrokersStrategies = brokersStrategies.map((el, idx) => (
-                      idx === index ? { ...el, new_total_balance: e.target.value } : el
-                    ));
-                    setBrokersStrategies(newBrokersStrategies);
-                  }}
-                  required
-                />
+                {/* Disable input for "uncategorized" strategies */}
+                {item.strategy.toLowerCase() === 'uncategorized' ? (
+                  <span>{item.total_balance}</span>
+                ) : (
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={item.new_total_balance || ''}
+                    onChange={(e) => {
+                      const newBrokersStrategies = brokersStrategies.map((el, idx) => (
+                        idx === index ? { ...el, new_total_balance: e.target.value } : el
+                      ));
+                      setBrokersStrategies(newBrokersStrategies);
+                    }}
+                    required
+                  />
+                )}
               </td>
               <td>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleAdjustBalance(item.broker, item.strategy, item.new_total_balance)}
-                  disabled={!item.new_total_balance}
-                >
-                  Adjust Balance
-                </button>
+                {/* Show the Adjust Balance button only for non-uncategorized strategies */}
+                {item.strategy.toLowerCase() !== 'uncategorized' && (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleAdjustBalance(item.broker, item.strategy, item.new_total_balance)}
+                      disabled={!item.new_total_balance}
+                    >
+                      Adjust Balance
+                    </button>
+                    {/* Show delete button only for non-uncategorized strategies */}
+                    <button
+                      className="btn btn-danger ml-2"
+                      onClick={() => handleDeleteStrategy(item.broker, item.strategy)}
+                    >
+                      &#10060; Delete
+                    </button>
+                  </>
+                )}
               </td>
             </tr>
           ))}
