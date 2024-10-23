@@ -529,7 +529,7 @@ async def test_normal_buy_sell(session, broker):
 async def test_normal_sell_buy(session, broker):
     # Sell 10 shares of AAPL
     trade1 = Trade(
-        symbol="AAPL",
+        symbol="COIN",
         quantity=10,
         price=150.0,
         executed_price=150.0,
@@ -545,15 +545,16 @@ async def test_normal_sell_buy(session, broker):
         session.add(trade1)
     await session.commit()
     await session.refresh(trade1)
+    trade1_id = trade1.id
 
     # Update positions after the sell
-    await broker.update_positions(trade1.id, session)
+    await broker.update_positions(trade1_id, session)
     session.commit()
     session.refresh(trade1)
 
     # Buy 5 shares of AAPL
     trade2 = Trade(
-        symbol="AAPL",
+        symbol="COIN",
         quantity=5,
         price=155.0,
         executed_price=155.0,
@@ -578,6 +579,6 @@ async def test_normal_sell_buy(session, broker):
     assert profit_loss == -25.0
 
     # Check the position after the buy
-    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    result = await session.execute(select(Position).filter_by(symbol="COIN"))
     position = result.scalars().first()
     assert position.quantity == -5

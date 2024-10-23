@@ -179,17 +179,6 @@ class BaseBroker(ABC):
                 logger.info('Processing sell order', extra={'trade': trade})
 
                 # Short sales
-                if position is None:
-                    logger.info('Short sale detected', extra={'trade': trade, 'quantity': trade.quantity, 'symbol': trade.symbol})
-                    position = Position(
-                        broker=self.broker_name,
-                        strategy=trade.strategy,
-                        symbol=trade.symbol,
-                        quantity=-trade.quantity,
-                        latest_price=float(trade.executed_price),
-                        cost_basis=float(trade.executed_price) * trade.quantity,
-                    )
-                    session.add(position)
                 if position:
                     cost_per_share = position.cost_basis / position.quantity
                     profit_loss = (float(trade.executed_price) - cost_per_share) * trade.quantity
@@ -205,9 +194,17 @@ class BaseBroker(ABC):
                         session.add(position)
                     trade.profit_loss = profit_loss
                     session.add(trade)
-
-            # Update the trade with the calculated profit/loss
-            session.add(trade)
+                elif position is None:
+                    logger.info('Short sale detected', extra={'trade': trade, 'quantity': trade.quantity, 'symbol': trade.symbol})
+                    position = Position(
+                        broker=self.broker_name,
+                        strategy=trade.strategy,
+                        symbol=trade.symbol,
+                        quantity=-trade.quantity,
+                        latest_price=float(trade.executed_price),
+                        cost_basis=float(trade.executed_price) * trade.quantity,
+                    )
+                    session.add(position)
 
             # Commit the transaction
             await session.commit()
