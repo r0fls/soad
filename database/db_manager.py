@@ -75,6 +75,7 @@ class DBManager:
                 logger.error('Failed to retrieve position', extra={'error': str(e)})
                 return None
 
+
     async def calculate_profit_loss(self, trade):
         async with self.Session() as session:
             try:
@@ -88,10 +89,19 @@ class DBManager:
                     logger.error('Executed price is None, cannot calculate profit/loss', extra={'trade': trade})
                     return None
 
-                # Handling buy trades
+                # Handling buy trades that cover a short position
                 if trade.order_type.lower() == 'buy':
-                    logger.info('Buy order detected, no P/L calculation needed.', extra={'trade': trade})
-                    return profit_loss
+                    position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
+                    if position and position.quantity < 0:  # Detect if this is a short cover
+                        logger.info('Short cover detected, calculating P/L.', extra={'trade': trade})
+
+                        # Calculate P/L for covering short (short sell price - buy price)
+                        cost_per_share = float(position.cost_basis) / abs(position.quantity)
+                        profit_loss = (cost_per_share - current_price) * abs(trade.quantity)
+                        logger.info(f'Short cover P/L calculated as: {profit_loss}', extra={'trade': trade})
+                    else:
+                        logger.info('Regular buy order detected, no P/L calculation needed.', extra={'trade': trade})
+                        return profit_loss
 
                 # Handling sell trades
                 elif trade.order_type.lower() == 'sell':
@@ -120,15 +130,27 @@ class DBManager:
                 logger.error('Failed to calculate profit/loss', extra={'error': str(e), 'trade': trade})
                 return None
 
-
     async def calculate_partial_profit_loss(self, trade, position):
         try:
             profit_loss = None
             logger.info('Calculating partial profit/loss', extra={'trade': trade, 'position': position})
+
             if trade.order_type.lower() == 'sell':
+                # Partial sell for regular positions
+                logger.info('Partial sell order detected, calculating P/L.', extra={'trade': trade})
                 profit_loss = (float(trade.executed_price) - (float(position.cost_basis) / position.quantity)) * trade.quantity
+
+            elif trade.order_type.lower() == 'buy' and position.quantity < 0:
+                # Partial short cover (buying back part of the short position)
+                logger.info('Partial short cover detected, calculating P/L.', extra={'trade': trade})
+
+                # Calculate P/L for covering a short (short sell price - cover price)
+                cost_per_share = float(position.cost_basis) / abs(position.quantity)
+                profit_loss = (cost_per_share - float(trade.executed_price)) * abs(trade.quantity)
+
             logger.info('Partial profit/loss calculated', extra={'trade': trade, 'position': position, 'profit_loss': profit_loss})
             return profit_loss
+
         except Exception as e:
             logger.error('Failed to calculate partial profit/loss', extra={'error': str(e)})
             return None
@@ -187,3 +209,19 @@ class DBManager:
             except Exception as e:
                 await session.rollback()
                 logger.error('Failed to update strategy name', extra={'error': str(e)})
+
+
+    async def get_profit_loss(self, trade_id):
+        async with self.Session() as session:
+            try:
+                logger.info('Retrieving profit/loss', extra={'trade': trade_id})
+                result = await session.execute(select(Trade).filter_by(id=trade_id))
+                trade = result.scalar()
+                if trade is None:
+                    logger.warning(f"No trade found with id {trade.id}")
+                    return None
+                logger.info('Profit/loss retrieved', extra={'trade': trade})
+                return trade.profit_loss
+            except Exception as e:
+                logger.error('Failed to retrieve profit/loss', extra={'error': str(e)})
+                return None

@@ -100,79 +100,123 @@ class BaseBroker(ABC):
             logger.error('Failed to check if bought today', extra={'error': str(e)})
             return False
 
+
     async def update_positions(self, trade_id, session):
         '''Update the positions based on the trade'''
-        result = await session.execute(select(Trade).filter_by(id=trade_id))
-        trade = result.scalars().first()
-        logger.info('Updating positions', extra={'trade': trade})
-
-        if trade.quantity == 0:
-            logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
-            return
-
         try:
-            # Log before querying the position
-            logger.debug(f"Querying position for symbol: {trade.symbol}, broker: {self.broker_name}, strategy: {trade.strategy}")
+            # Fetch the trade
+            result = await session.execute(select(Trade).filter_by(id=trade_id))
+            trade = result.scalars().first()
+            logger.info('Updating positions', extra={'trade': trade})
 
+            if trade.quantity == 0:
+                logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
+                return
+
+            # Query the current position for the trade's symbol, broker, and strategy
             result = await session.execute(
-                select(Position).filter_by(
-                    symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy
-                )
+                select(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy)
             )
             position = result.scalars().first()
-
-            # Log after querying the position
             logger.debug(f"Queried position: {position}")
 
+            # Initialize profit/loss
+            profit_loss = 0
+
+            # Handling Buy Orders
             if trade.order_type == 'buy':
-                logger.info('Processing buy order', extra={'trade': trade})
-                if position:
-                    logger.debug(f"Updating existing position: {position}")
-                    if is_option(trade.symbol):
-                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * OPTION_MULTIPLIER
-                    if is_futures_symbol(trade.symbol):
-                        multiplier = futures_contract_size(trade.symbol)
-                        position.cost_basis += float(trade.executed_price) * float(trade.quantity) * multiplier
+                if position and position.quantity < 0:  # This is a short cover
+                    logger.info('Processing short cover', extra={'trade': trade})
+
+                    # Calculate P/L for short cover (covering short position)
+                    cost_per_share = position.cost_basis / abs(position.quantity)
+                    profit_loss = (cost_per_share - float(trade.executed_price)) * abs(trade.quantity)
+                    logger.info(f'Short cover profit/loss calculated: {profit_loss}', extra={'trade': trade, 'position': position})
+
+                    # Update or remove the short position
+                    if abs(position.quantity) == trade.quantity:
+                        logger.info('Fully covering short position, removing position', extra={'position': position})
+                        await session.delete(position)
                     else:
-                        position.cost_basis += float(trade.executed_price) * float(trade.quantity)
-                    position.quantity += trade.quantity
-                    position.latest_price = float(trade.executed_price)
-                    position.timestamp = datetime.now()
-                else:
-                    logger.debug(f"Creating new position for symbol: {trade.symbol}")
+                        position.cost_basis -= cost_per_share * abs(trade.quantity)
+                        position.quantity += trade.quantity  # Add back the covered quantity
+                        position.latest_price = float(trade.executed_price)
+                        position.timestamp = datetime.now()
+                        session.add(position)
+                    trade.profit_loss = profit_loss
+                    session.add(trade)
+
+                else:  # Regular Buy
+                    logger.info('Processing regular buy order', extra={'trade': trade})
+                    if position:
+                        # Update existing position
+                        cost_increment = float(trade.executed_price) * trade.quantity
+                        if is_option(trade.symbol):
+                            position.cost_basis += cost_increment * OPTION_MULTIPLIER
+                        elif is_futures_symbol(trade.symbol):
+                            multiplier = futures_contract_size(trade.symbol)
+                            position.cost_basis += cost_increment * multiplier
+                        else:
+                            position.cost_basis += cost_increment
+                        position.quantity += trade.quantity
+                        position.latest_price = float(trade.executed_price)
+                        position.timestamp = datetime.now()
+                        session.add(position)
+                    else:
+                        # Create a new position
+                        position = Position(
+                            broker=self.broker_name,
+                            strategy=trade.strategy,
+                            symbol=trade.symbol,
+                            quantity=trade.quantity,
+                            latest_price=float(trade.executed_price),
+                            cost_basis=float(trade.executed_price) * trade.quantity,
+                        )
+                        session.add(position)
+
+            # Handling Sell Orders
+            elif trade.order_type == 'sell':
+                logger.info('Processing sell order', extra={'trade': trade})
+
+                # Short sales
+                if position is None:
+                    logger.info('Short sale detected', extra={'trade': trade, 'quantity': trade.quantity, 'symbol': trade.symbol})
                     position = Position(
                         broker=self.broker_name,
                         strategy=trade.strategy,
                         symbol=trade.symbol,
-                        quantity=trade.quantity,
+                        quantity=-trade.quantity,
                         latest_price=float(trade.executed_price),
-                        cost_basis=float(trade.executed_price) * float(trade.quantity),
+                        cost_basis=float(trade.executed_price) * trade.quantity,
                     )
                     session.add(position)
-
-            elif trade.order_type == 'sell':
-                logger.info('Processing sell order', extra={'trade': trade})
                 if position:
-                    if position.quantity == trade.quantity:
+                    cost_per_share = position.cost_basis / position.quantity
+                    profit_loss = (float(trade.executed_price) - cost_per_share) * trade.quantity
+                    logger.info(f'Sell order profit/loss calculated: {profit_loss}', extra={'trade': trade, 'position': position})
+
+                    if position.quantity == trade.quantity:  # Full sell
                         logger.info('Deleting sold position', extra={'position': position})
                         await session.delete(position)
-                        await session.commit()
-                    elif position.quantity > trade.quantity:
-                        logger.debug(f"Reducing quantity of position: {position}")
-                        cost_per_share = position.cost_basis / position.quantity
+                    else:  # Partial sell
                         position.cost_basis -= trade.quantity * cost_per_share
                         position.quantity -= trade.quantity
                         position.latest_price = float(trade.executed_price)
-                    session.add(position)
+                        session.add(position)
+                    trade.profit_loss = profit_loss
+                    session.add(trade)
 
+            # Update the trade with the calculated profit/loss
+            session.add(trade)
+
+            # Commit the transaction
             await session.commit()
 
-            # Log after committing changes
             logger.info('Position updated', extra={'position': position})
 
         except Exception as e:
             logger.error('Failed to update positions', extra={'error': str(e)})
-
+            await session.rollback()
 
     async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
         multiplier = futures_contract_size(symbol)
@@ -226,12 +270,6 @@ class BaseBroker(ABC):
                 profit_loss=0,
                 success='yes'
             )
-
-            # Calculate profit/loss if it's a sell order
-            if order_type == 'sell':
-                profit_loss = await self.db_manager.calculate_profit_loss(trade)
-                logger.info('Profit/Loss calculated', extra={'profit_loss': profit_loss})
-                trade.profit_loss = profit_loss
 
             # Update the trade and positions in the database
             async with self.Session() as session:
@@ -325,12 +363,10 @@ class BaseBroker(ABC):
 
             executed_price = order_info.get('filled_price', trade.price)
             trade.executed_price = executed_price
-            profit_loss = await self.db_manager.calculate_profit_loss(trade)
-            success = "success" if profit_loss > 0 else "failure"
+            success = "success" if trade.profit_loss > 0 else "failure"
 
             trade.executed_price = executed_price
             trade.success = success
-            trade.profit_loss = profit_loss
             await session.commit()
             logger.info('Trade updated', extra={'trade': trade})
         except Exception as e:
