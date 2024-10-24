@@ -20,7 +20,7 @@ class BaseBroker(ABC):
         self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=True)
         self.account_id = None
         self.prevent_day_trading = prevent_day_trading
-        logger.info('Initialized BaseBroker', extra={'broker_name': self.broker_name})
+        logger.debug('Initialized BaseBroker', extra={'broker_name': self.broker_name})
 
     @abstractmethod
     def connect(self):
@@ -71,13 +71,13 @@ class BaseBroker(ABC):
 
     async def get_account_info(self):
         '''Get the account information'''
-        logger.info('Getting account information')
+        logger.debug('Getting account information')
         try:
             account_info = self._get_account_info()
             await self.db_manager.add_account_info(AccountInfo(
                 broker=self.broker_name, value=account_info['value']
             ))
-            logger.info('Account information retrieved', extra={'account_info': account_info})
+            logger.debug('Account information retrieved', extra={'account_info': account_info})
             return account_info
         except Exception as e:
             logger.error('Failed to get account information', extra={'error': str(e)})
@@ -86,7 +86,7 @@ class BaseBroker(ABC):
     async def has_bought_today(self, symbol):
         try:
             today = datetime.now().date()
-            logger.info('Checking if bought today', extra={'symbol': symbol})
+            logger.debug('Checking if bought today', extra={'symbol': symbol})
 
             async with self.Session() as session:
                 result = await session.execute(
@@ -107,7 +107,11 @@ class BaseBroker(ABC):
             # Fetch the trade
             result = await session.execute(select(Trade).filter_by(id=trade_id))
             trade = result.scalars().first()
-            logger.info('Updating positions', extra={'trade': trade})
+            trade_quantity = trade.quantity
+            trade_symbol = trade.symbol
+            trade_strategy = trade.strategy
+            trade_order_type = trade.order_type
+            logger.info('Updating positions', extra={'trade': trade, 'quantity': trade_quantity, 'symbol': trade_symbol, 'strategy': trade_strategy, 'order_type': trade_order_type})
 
             if trade.quantity == 0:
                 logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
@@ -126,18 +130,19 @@ class BaseBroker(ABC):
             # Handling Buy Orders
             if trade.order_type == 'buy':
                 if position and position.quantity < 0:  # This is a short cover
-                    logger.info('Processing short cover', extra={'trade': trade})
+                    logger.info('Processing short cover', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
 
                     # Calculate P/L for short cover (covering short position)
                     cost_per_share = position.cost_basis / abs(position.quantity)
                     profit_loss = (cost_per_share - float(trade.executed_price)) * abs(trade.quantity)
-                    logger.info(f'Short cover profit/loss calculated: {profit_loss}', extra={'trade': trade, 'position': position})
+                    logger.info(f'Short cover profit/loss calculated: {profit_loss}', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
 
                     # Update or remove the short position
                     if abs(position.quantity) == trade.quantity:
-                        logger.info('Fully covering short position, removing position', extra={'position': position})
+                        logger.info('Fully covering short position, removing position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
                         await session.delete(position)
                     else:
+                        logger.info('Partially covering short position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
                         position.cost_basis -= cost_per_share * abs(trade.quantity)
                         position.quantity += trade.quantity  # Add back the covered quantity
                         position.latest_price = float(trade.executed_price)
@@ -147,7 +152,7 @@ class BaseBroker(ABC):
                     session.add(trade)
 
                 else:  # Regular Buy
-                    logger.info('Processing regular buy order', extra={'trade': trade})
+                    logger.info('Processing regular buy order', extra={'trade_quantity': trade_quantity, 'trade_symbol': trade_symbol})
                     if position:
                         # Update existing position
                         cost_increment = float(trade.executed_price) * trade.quantity
@@ -248,7 +253,7 @@ class BaseBroker(ABC):
             else:
                 response = order_func(symbol, quantity, order_type, price)
 
-            logger.info('Order placed successfully', extra={'response': response})
+            logger.info('Order placed successfully', extra={'response': response, 'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
 
             # Extract price if not given
             if not price:
