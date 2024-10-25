@@ -133,17 +133,26 @@ class BaseBroker(ABC):
                     logger.info('Processing short cover', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
 
                     # Calculate P/L for short cover (covering short position)
-                    cost_per_share = position.cost_basis / abs(position.quantity)
-                    profit_loss = (cost_per_share - float(trade.executed_price)) * abs(trade.quantity)
+                    # Cost should always start negative on a short position
+                    cost_per_share = -abs(position.cost_basis) / abs(position.quantity)
+                    buyback_cost = abs(float(trade.executed_price)) * abs(trade.quantity)
+                    if is_option(trade.symbol):
+                        cost_per_share /= OPTION_MULTIPLIER
+                        buyback_cost /= OPTION_MULTIPLIER
+                    elif is_futures_symbol(trade.symbol):
+                        multiplier = futures_contract_size(trade.symbol)
+			cost_per_share /= multiplier
+                        buyback_cost /= multiplier
+                    profit_loss = buyback_cost - cost_per_share * abs(trade.quantity)
                     logger.info(f'Short cover profit/loss calculated: {profit_loss}', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
 
                     # Update or remove the short position
-                    if abs(position.quantity) == trade.quantity:
+                    if abs(position.quantity) == abs(trade.quantity):
                         logger.info('Fully covering short position, removing position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
                         await session.delete(position)
                     else:
                         logger.info('Partially covering short position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
-                        position.cost_basis -= cost_per_share * abs(trade.quantity)
+                        position.cost_basis -= buyback_cost
                         position.quantity += trade.quantity  # Add back the covered quantity
                         position.latest_price = float(trade.executed_price)
                         position.timestamp = datetime.now()
