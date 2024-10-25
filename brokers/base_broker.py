@@ -10,17 +10,29 @@ from datetime import datetime
 from utils.logger import logger
 from utils.utils import is_option, OPTION_MULTIPLIER, is_futures_symbol, futures_contract_size
 
+
 class BaseBroker(ABC):
-    def __init__(self, api_key, secret_key, broker_name, engine, prevent_day_trading=False):
+    def __init__(
+            self,
+            api_key,
+            secret_key,
+            broker_name,
+            engine,
+            prevent_day_trading=False):
         self.api_key = api_key
         self.secret_key = secret_key
         self.broker_name = broker_name.lower()
         self.db_manager = DBManager(engine)
         # Use AsyncSession
-        self.Session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=True)
+        self.Session = sessionmaker(
+            bind=engine,
+            class_=AsyncSession,
+            expire_on_commit=True)
         self.account_id = None
         self.prevent_day_trading = prevent_day_trading
-        logger.debug('Initialized BaseBroker', extra={'broker_name': self.broker_name})
+        logger.debug(
+            'Initialized BaseBroker', extra={
+                'broker_name': self.broker_name})
 
     @abstractmethod
     def connect(self):
@@ -42,7 +54,12 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+    def _place_future_option_order(
+            self,
+            symbol,
+            quantity,
+            order_type,
+            price=None):
         pass
 
     @abstractmethod
@@ -77,10 +94,15 @@ class BaseBroker(ABC):
             await self.db_manager.add_account_info(AccountInfo(
                 broker=self.broker_name, value=account_info['value']
             ))
-            logger.debug('Account information retrieved', extra={'account_info': account_info})
+            logger.debug(
+                'Account information retrieved', extra={
+                    'account_info': account_info})
             return account_info
         except Exception as e:
-            logger.error('Failed to get account information', extra={'error': str(e)})
+            logger.error(
+                'Failed to get account information',
+                extra={
+                    'error': str(e)})
             return None
 
     async def has_bought_today(self, symbol):
@@ -97,9 +119,10 @@ class BaseBroker(ABC):
                 trade = result.scalars().first()
                 return trade is not None
         except Exception as e:
-            logger.error('Failed to check if bought today', extra={'error': str(e)})
+            logger.error(
+                'Failed to check if bought today', extra={
+                    'error': str(e)})
             return False
-
 
     async def update_positions(self, trade_id, session):
         '''Update the positions based on the trade'''
@@ -111,13 +134,23 @@ class BaseBroker(ABC):
             trade_symbol = trade.symbol
             trade_strategy = trade.strategy
             trade_order_type = trade.order_type
-            logger.info('Updating positions', extra={'trade': trade, 'quantity': trade_quantity, 'symbol': trade_symbol, 'strategy': trade_strategy, 'order_type': trade_order_type})
+            logger.info(
+                'Updating positions',
+                extra={
+                    'trade': trade,
+                    'quantity': trade_quantity,
+                    'symbol': trade_symbol,
+                    'strategy': trade_strategy,
+                    'order_type': trade_order_type})
 
             if trade.quantity == 0:
-                logger.error('Trade quantity is 0, doing nothing', extra={'trade': trade})
+                logger.error(
+                    'Trade quantity is 0, doing nothing', extra={
+                        'trade': trade})
                 return
 
-            # Query the current position for the trade's symbol, broker, and strategy
+            # Query the current position for the trade's symbol, broker, and
+            # strategy
             result = await session.execute(
                 select(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy)
             )
@@ -130,28 +163,51 @@ class BaseBroker(ABC):
             # Handling Buy Orders
             if trade.order_type == 'buy':
                 if position and position.quantity < 0:  # This is a short cover
-                    logger.info('Processing short cover', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
+                    logger.info(
+                        'Processing short cover',
+                        extra={
+                            'trade_quantity': trade_quantity,
+                            'position_quantity': position.quantity,
+                            'trade_symbol': trade_symbol})
 
                     # Calculate P/L for short cover (covering short position)
                     # Cost should always start negative on a short position
-                    cost_per_share = -abs(position.cost_basis) / abs(position.quantity)
-                    buyback_cost = abs(float(trade.executed_price)) * abs(trade.quantity)
+                    cost_per_share = - \
+                        abs(position.cost_basis) / abs(position.quantity)
+                    buyback_cost = abs(
+                        float(trade.executed_price)) * abs(trade.quantity)
                     if is_option(trade.symbol):
                         cost_per_share /= OPTION_MULTIPLIER
                         buyback_cost /= OPTION_MULTIPLIER
                     elif is_futures_symbol(trade.symbol):
                         multiplier = futures_contract_size(trade.symbol)
-			cost_per_share /= multiplier
+                        cost_per_share /= multiplier
                         buyback_cost /= multiplier
-                    profit_loss = buyback_cost - cost_per_share * abs(trade.quantity)
-                    logger.info(f'Short cover profit/loss calculated: {profit_loss}', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
+                    profit_loss = buyback_cost - \
+                        cost_per_share * abs(trade.quantity)
+                    logger.info(
+                        f'Short cover profit/loss calculated: {profit_loss}',
+                        extra={
+                            'trade_quantity': trade_quantity,
+                            'position_quantity': position.quantity,
+                            'trade_symbol': trade_symbol})
 
                     # Update or remove the short position
                     if abs(position.quantity) == abs(trade.quantity):
-                        logger.info('Fully covering short position, removing position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
+                        logger.info(
+                            'Fully covering short position, removing position',
+                            extra={
+                                'trade_quantity': trade_quantity,
+                                'position_quantity': position.quantity,
+                                'trade_symbol': trade_symbol})
                         await session.delete(position)
                     else:
-                        logger.info('Partially covering short position', extra={'trade_quantity': trade_quantity, 'position_quantity': position.quantity, 'trade_symbol': trade_symbol})
+                        logger.info(
+                            'Partially covering short position',
+                            extra={
+                                'trade_quantity': trade_quantity,
+                                'position_quantity': position.quantity,
+                                'trade_symbol': trade_symbol})
                         position.cost_basis -= buyback_cost
                         position.quantity += trade.quantity  # Add back the covered quantity
                         position.latest_price = float(trade.executed_price)
@@ -161,10 +217,15 @@ class BaseBroker(ABC):
                     session.add(trade)
 
                 else:  # Regular Buy
-                    logger.info('Processing regular buy order', extra={'trade_quantity': trade_quantity, 'trade_symbol': trade_symbol})
+                    logger.info(
+                        'Processing regular buy order',
+                        extra={
+                            'trade_quantity': trade_quantity,
+                            'trade_symbol': trade_symbol})
                     if position:
                         # Update existing position
-                        cost_increment = float(trade.executed_price) * trade.quantity
+                        cost_increment = float(
+                            trade.executed_price) * trade.quantity
                         if is_option(trade.symbol):
                             position.cost_basis += cost_increment * OPTION_MULTIPLIER
                         elif is_futures_symbol(trade.symbol):
@@ -183,8 +244,11 @@ class BaseBroker(ABC):
                             strategy=trade.strategy,
                             symbol=trade.symbol,
                             quantity=trade.quantity,
-                            latest_price=float(trade.executed_price),
-                            cost_basis=float(trade.executed_price) * trade.quantity,
+                            latest_price=float(
+                                trade.executed_price),
+                            cost_basis=float(
+                                trade.executed_price) *
+                            trade.quantity,
                         )
                         session.add(position)
 
@@ -195,11 +259,18 @@ class BaseBroker(ABC):
                 # Short sales
                 if position:
                     cost_per_share = position.cost_basis / position.quantity
-                    profit_loss = (float(trade.executed_price) - cost_per_share) * trade.quantity
-                    logger.info(f'Sell order profit/loss calculated: {profit_loss}', extra={'trade': trade, 'position': position})
+                    profit_loss = (float(trade.executed_price) -
+                                   cost_per_share) * trade.quantity
+                    logger.info(
+                        f'Sell order profit/loss calculated: {profit_loss}',
+                        extra={
+                            'trade': trade,
+                            'position': position})
 
                     if position.quantity == trade.quantity:  # Full sell
-                        logger.info('Deleting sold position', extra={'position': position})
+                        logger.info(
+                            'Deleting sold position', extra={
+                                'position': position})
                         await session.delete(position)
                     else:  # Partial sell
                         position.cost_basis -= trade.quantity * cost_per_share
@@ -209,15 +280,23 @@ class BaseBroker(ABC):
                     trade.profit_loss = profit_loss
                     session.add(trade)
                 elif position is None:
-                    logger.info('Short sale detected', extra={'trade': trade, 'quantity': trade.quantity, 'symbol': trade.symbol})
+                    logger.info(
+                        'Short sale detected',
+                        extra={
+                            'trade': trade,
+                            'quantity': trade.quantity,
+                            'symbol': trade.symbol})
                     quantity = -abs(trade.quantity)
                     position = Position(
                         broker=self.broker_name,
                         strategy=trade.strategy,
                         symbol=trade.symbol,
                         quantity=quantity,
-                        latest_price=float(trade.executed_price),
-                        cost_basis=float(trade.executed_price) * trade.quantity,
+                        latest_price=float(
+                            trade.executed_price),
+                        cost_basis=float(
+                            trade.executed_price) *
+                        trade.quantity,
                     )
                     session.add(position)
 
@@ -230,31 +309,64 @@ class BaseBroker(ABC):
             logger.error('Failed to update positions', extra={'error': str(e)})
             await session.rollback()
 
-    async def place_future_option_order(self, symbol, quantity, order_type, strategy, price=None):
+    async def place_future_option_order(
+            self,
+            symbol,
+            quantity,
+            order_type,
+            strategy,
+            price=None):
         multiplier = futures_contract_size(symbol)
         return await self._place_order_generic(
             symbol, quantity, order_type, strategy, price, multiplier, self._place_future_option_order
         )
 
-    async def place_option_order(self, symbol, quantity, order_type, strategy, price=None):
+    async def place_option_order(
+            self,
+            symbol,
+            quantity,
+            order_type,
+            strategy,
+            price=None):
         multiplier = OPTION_MULTIPLIER
         return await self._place_order_generic(
             symbol, quantity, order_type, strategy, price, multiplier, self._place_option_order
         )
 
-    async def place_order(self, symbol, quantity, order_type, strategy, price=None):
+    async def place_order(
+            self,
+            symbol,
+            quantity,
+            order_type,
+            strategy,
+            price=None):
         multiplier = 1  # Regular stock orders don't have a multiplier
         return await self._place_order_generic(
             symbol, quantity, order_type, strategy, price, multiplier, self._place_order
         )
 
-
-    async def _place_order_generic(self, symbol, quantity, order_type, strategy, price, multiplier, order_func):
+    async def _place_order_generic(
+            self,
+            symbol,
+            quantity,
+            order_type,
+            strategy,
+            price,
+            multiplier,
+            order_func):
         '''Generic method to place an order and update database'''
-        logger.info('Placing order', extra={
-                    'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
+        logger.info(
+            'Placing order',
+            extra={
+                'symbol': symbol,
+                'quantity': quantity,
+                'order_type': order_type,
+                'strategy': strategy})
         if self.prevent_day_trading and order_type == 'sell' and await self.has_bought_today(symbol):
-            logger.error('Day trading is not allowed. Cannot sell positions opened today.', extra={'symbol': symbol})
+            logger.error(
+                'Day trading is not allowed. Cannot sell positions opened today.',
+                extra={
+                    'symbol': symbol})
             return None
 
         try:
@@ -263,7 +375,14 @@ class BaseBroker(ABC):
             else:
                 response = order_func(symbol, quantity, order_type, price)
 
-            logger.info('Order placed successfully', extra={'response': response, 'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'strategy': strategy})
+            logger.info(
+                'Order placed successfully',
+                extra={
+                    'response': response,
+                    'symbol': symbol,
+                    'quantity': quantity,
+                    'order_type': order_type,
+                    'strategy': strategy})
 
             # Extract price if not given
             if not price:
@@ -299,7 +418,8 @@ class BaseBroker(ABC):
                 latest_balance = latest_balance.scalars().first()
                 if latest_balance:
                     order_cost = price * quantity * multiplier
-                    new_balance_amount = latest_balance.balance - order_cost if order_type == 'buy' else latest_balance.balance + order_cost
+                    new_balance_amount = latest_balance.balance - \
+                        order_cost if order_type == 'buy' else latest_balance.balance + order_cost
 
                     new_balance = Balance(
                         broker=self.broker_name,
@@ -326,7 +446,9 @@ class BaseBroker(ABC):
                 trade = trade.scalars().first()
                 if trade:
                     await self.update_trade(session, trade.id, order_status)
-            logger.info('Order status retrieved', extra={'order_status': order_status})
+            logger.info(
+                'Order status retrieved', extra={
+                    'order_status': order_status})
             return order_status
         except Exception as e:
             logger.error('Failed to get order status', extra={'error': str(e)})
@@ -342,7 +464,9 @@ class BaseBroker(ABC):
                 trade = trade.scalars().first()
                 if trade:
                     await self.update_trade(session, trade.id, cancel_status)
-            logger.info('Order cancelled successfully', extra={'cancel_status': cancel_status})
+            logger.info(
+                'Order cancelled successfully', extra={
+                    'cancel_status': cancel_status})
             return cancel_status
         except Exception as e:
             logger.error('Failed to cancel order', extra={'error': str(e)})
@@ -355,13 +479,21 @@ class BaseBroker(ABC):
 
     def get_options_chain(self, symbol, expiration_date):
         '''Get the options chain for a symbol'''
-        logger.info('Retrieving options chain', extra={'symbol': symbol, 'expiration_date': expiration_date})
+        logger.info(
+            'Retrieving options chain',
+            extra={
+                'symbol': symbol,
+                'expiration_date': expiration_date})
         try:
             options_chain = self._get_options_chain(symbol, expiration_date)
-            logger.info('Options chain retrieved', extra={'options_chain': options_chain})
+            logger.info(
+                'Options chain retrieved', extra={
+                    'options_chain': options_chain})
             return options_chain
         except Exception as e:
-            logger.error('Failed to retrieve options chain', extra={'error': str(e)})
+            logger.error(
+                'Failed to retrieve options chain', extra={
+                    'error': str(e)})
             return None
 
     async def update_trade(self, session, trade_id, order_info):
@@ -370,7 +502,9 @@ class BaseBroker(ABC):
             trade = await session.execute(session.query(Trade).filter_by(id=trade_id))
             trade = trade.scalars().first()
             if not trade:
-                logger.error('Trade not found for update', extra={'trade_id': trade_id})
+                logger.error(
+                    'Trade not found for update', extra={
+                        'trade_id': trade_id})
                 return
 
             executed_price = order_info.get('filled_price', trade.price)
