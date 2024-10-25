@@ -168,7 +168,8 @@ class BaseBroker(ABC):
                         extra={
                             'trade_quantity': trade_quantity,
                             'position_quantity': position.quantity,
-                            'trade_symbol': trade_symbol})
+                            'trade_symbol': trade_symbol,
+                            'strategy': trade_strategy})
 
                     # Calculate P/L for short cover (covering short position)
                     cost_per_share = position.cost_basis / \
@@ -180,7 +181,10 @@ class BaseBroker(ABC):
                         extra={
                             'trade_quantity': trade_quantity,
                             'position_quantity': position.quantity,
-                            'trade_symbol': trade_symbol})
+                            'trade_symbol': trade_symbol,
+                            'strategy': trade_strategy,
+                            'profit_loss': profit_loss,
+                            'cost_per_share': cost_per_share})
 
                     # Update or remove the short position
                     if abs(position.quantity) == trade.quantity:
@@ -189,7 +193,10 @@ class BaseBroker(ABC):
                             extra={
                                 'trade_quantity': trade_quantity,
                                 'position_quantity': position.quantity,
-                                'trade_symbol': trade_symbol})
+                                'trade_symbol': trade_symbol,
+                                'strategy': trade_strategy,
+                                'profit_loss': profit_loss,
+                                'cost_per_share': cost_per_share})
                         await session.delete(position)
                     else:
                         logger.info(
@@ -197,12 +204,26 @@ class BaseBroker(ABC):
                             extra={
                                 'trade_quantity': trade_quantity,
                                 'position_quantity': position.quantity,
-                                'trade_symbol': trade_symbol})
+                                'trade_symbol': trade_symbol,
+                                'strategy': trade_strategy,
+                                'profit_loss': profit_loss,
+                                'cost_per_share': cost_per_share})
                         position.cost_basis -= cost_per_share * \
                             abs(trade.quantity)
                         position.quantity += trade.quantity  # Add back the covered quantity
                         position.latest_price = float(trade.executed_price)
                         position.timestamp = datetime.now()
+                        logger.info(
+                            'Updating position with new quantity and cost basis',
+                            extra={
+                                'position': position,
+                                'trade_quantity': trade_quantity,
+                                'position_quantity': position.quantity,
+                                'cost_basis': position.cost_basis,
+                                'trade_symbol': trade_symbol,
+                                'strategy': trade_strategy,
+                                'profit_loss': profit_loss,
+                                'cost_per_share': cost_per_share})
                         session.add(position)
                     trade.profit_loss = profit_loss
                     session.add(trade)
