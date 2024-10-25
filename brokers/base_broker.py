@@ -201,11 +201,12 @@ class BaseBroker(ABC):
                     session.add(trade)
                 elif position is None:
                     logger.info('Short sale detected', extra={'trade': trade, 'quantity': trade.quantity, 'symbol': trade.symbol})
+                    quantity = -abs(trade.quantity)
                     position = Position(
                         broker=self.broker_name,
                         strategy=trade.strategy,
                         symbol=trade.symbol,
-                        quantity=-trade.quantity,
+                        quantity=quantity,
                         latest_price=float(trade.executed_price),
                         cost_basis=float(trade.executed_price) * trade.quantity,
                     )
