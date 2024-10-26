@@ -9,6 +9,8 @@ from sqlalchemy.future import select
 from data.sync_worker import PositionService, BalanceService, BrokerService, _get_async_engine, _run_sync_worker_iteration, _fetch_and_update_positions, _reconcile_brokers_and_update_balances
 from database.models import Position, Balance
 
+import data.sync_worker
+
 # Mock data for testing
 MOCK_POSITIONS = [
     Position(symbol='AAPL', broker='tradier', latest_price=0, last_updated=datetime.now(), underlying_volatility=None),
@@ -44,8 +46,41 @@ async def test_update_position_prices_and_volatility():
     mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
     mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
 
+    # Assert that the session commit was called
+    assert mock_session.commit.called
+
+@pytest.mark.asyncio
+async def test_update_position_prices_and_volatility_with_reconcile():
+    # Mock the broker service
+    data.sync_worker.RECONCILE_POSITIONS = True
+    mock_broker_service = AsyncMock()
+    mock_broker_instance = AsyncMock()
+    mock_broker_instance.get_latest_price = AsyncMock(return_value=150.0)
+    mock_broker_instance.get_cost_basis = MagicMock(return_value=100.0)  # Synchronous function
+
+    # Mock get_broker_instance to return the mock broker instance
+    mock_broker_service.get_broker_instance = AsyncMock(return_value=mock_broker_instance)
+
+    # Initialize PositionService with the mocked broker service
+    position_service = PositionService(mock_broker_service)
+
+    # Mock session and positions
+    mock_session = AsyncMock(spec=AsyncSession)  # Ensure we are using AsyncSession
+    mock_positions = MOCK_POSITIONS
+
+    # Test the method
+    timestamp = datetime.now(timezone.utc)
+    await position_service.update_position_prices_and_volatility(mock_session, mock_positions, timestamp)
+
+    # Assert that the broker service was called to get the latest price for each position
+    mock_broker_service.get_latest_price.assert_any_call('tradier', 'AAPL')
+    mock_broker_service.get_latest_price.assert_any_call('tastytrade', 'GOOG')
+
     mock_broker_instance.get_cost_basis.assert_any_call('AAPL')
     mock_broker_instance.get_cost_basis.assert_any_call('GOOG')
+
+    # Reset the reconcile positions flag
+    data.sync_worker.RECONCILE_POSITIONS = False
 
     # Assert that the session commit was called
     assert mock_session.commit.called
@@ -225,6 +260,7 @@ async def test_reconcile_brokers_and_update_balances(mock_logger):
     mock_balance_service = AsyncMock()
     mock_brokers = ['broker1', 'broker2']
     mock_now = datetime.now()  # Capture datetime once
+    data.sync_worker.RECONCILE_POSITIONS = True
 
     await _reconcile_brokers_and_update_balances(mock_session, mock_position_service, mock_balance_service, mock_brokers, mock_now)
 
@@ -233,6 +269,7 @@ async def test_reconcile_brokers_and_update_balances(mock_logger):
     mock_position_service.reconcile_positions.assert_any_await(mock_session, 'broker2')
     mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker1', mock_now)
     mock_balance_service.update_all_strategy_balances.assert_any_await(mock_session, 'broker2', mock_now)
+    data.sync_worker.RECONCILE_POSITIONS = False
 
 # TODO: Fix this test or refactor
 @pytest.mark.skip
@@ -488,6 +525,7 @@ async def test_run_sync_worker_iteration_timeout(mock_logger):
     mock_position_service = AsyncMock()
     mock_balance_service = AsyncMock()
     mock_brokers = ['mock_broker']
+    data.sync_worker.RECONCILE_POSITIONS = True
     # Set a very short timeout for testing
     short_timeout = 0.01  # 10 milliseconds
 
@@ -507,3 +545,4 @@ async def test_run_sync_worker_iteration_timeout(mock_logger):
     # Ensure reconcile and update methods were attempted
     mock_position_service.reconcile_positions.assert_called_once_with(mock_session, 'mock_broker')
     mock_balance_service.update_all_strategy_balances.assert_not_called()  # Should not reach this due to timeout
+    data.sync_worker.RECONCILE_POSITIONS = False

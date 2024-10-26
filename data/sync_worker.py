@@ -10,6 +10,8 @@ import yfinance as yf
 import sqlalchemy
 
 UPDATE_UNCATEGORIZED_POSITIONS = False
+# TODO: harden/fix this (super buggy right now)
+RECONCILE_POSITIONS = False
 TIMEOUT_DURATION = 120
 
 class BrokerService:
@@ -173,6 +175,7 @@ class PositionService:
     def _strip_timezone(self, timestamp):
         return timestamp.replace(tzinfo=None)
 
+    # TODO: fix or remove
     async def update_cost_basis(self, session, position):
         broker_instance = await self.broker_service.get_broker_instance(position.broker)
         await self.update_position_cost_basis(session, position, broker_instance)
@@ -181,7 +184,8 @@ class PositionService:
         for position in positions:
             try:
                 await self._update_position_price(session, position, now_naive)
-                await self.update_cost_basis(session, position)
+                if RECONCILE_POSITIONS:
+                    await self.update_cost_basis(session, position)
             except Exception:
                 logger.exception(f"Error processing position {position.symbol}")
 
@@ -391,5 +395,6 @@ async def _fetch_and_update_positions(session, position_service, now):
 
 async def _reconcile_brokers_and_update_balances(session, position_service, balance_service, brokers, now):
     for broker in brokers:
-        await position_service.reconcile_positions(session, broker)
+        if RECONCILE_POSITIONS:
+            await position_service.reconcile_positions(session, broker)
         await balance_service.update_all_strategy_balances(session, broker, now)
