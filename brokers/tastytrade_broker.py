@@ -152,9 +152,9 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    async def _place_future_option_order(self, symbol, quantity, side, price=None):
+    async def _place_future_option_order(self, symbol, quantity, side, price=None, order_type='limit'):
         ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
+        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         option = FutureOption.get_future_option(self.session, symbol)
         if price is None:
             price = await self.get_current_price(symbol)
@@ -168,19 +168,32 @@ class TastytradeBroker(BaseBroker):
             effect = PriceEffect.CREDIT
         account = Account.get_account(self.session, self.account_id)
         leg = option.build_leg(quantity, action)
-        order = NewOrder(
-            time_in_force=OrderTimeInForce.DAY,
-            side=OrderType.LIMIT,
-            legs=[leg],
-            price=Decimal(price),
-            price_effect=effect
-        )
+        if order_type == 'limit':
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.DAY,
+                side=OrderType.LIMIT,
+                legs=[leg],
+                price=Decimal(price),
+                price_effect=effect
+            )
+        elif order_type == 'market':
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.DAY,
+                side=OrderType.MARKET,
+                legs=[leg],
+                price=Decimal(price),
+                price_effect=effect
+            )
+        else:
+            logger.error(f"Unsupported order type: {order_type}", extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
+            return {'filled_price': None }
+
         response = account.place_order(self.session, order, dry_run=False)
         return response
 
-    async def _place_option_order(self, symbol, quantity, side, price=None):
+    async def _place_option_order(self, symbol, quantity, side, price=None, order_type='limit'):
         ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
+        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         if ' ' not in symbol:
             symbol = self.format_option_symbol(symbol)
         if price is None:
@@ -194,18 +207,29 @@ class TastytradeBroker(BaseBroker):
         account = Account.get_account(self.session, self.account_id)
         option = Option.get_option(self.session, symbol)
         leg = option.build_leg(quantity, action)
-        order = NewOrder(
-            time_in_force=OrderTimeInForce.DAY,
-            side=OrderType.LIMIT,
-            legs=[leg],
-            price=Decimal(price),
-            price_effect=effect
-        )
+        if order_type == 'limit':
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.DAY,
+                side=OrderType.LIMIT,
+                legs=[leg],
+                price=Decimal(price),
+                price_effect=effect
+            )
+        elif order_type == 'market':
+            order = NewOrder(
+                time_in_force=OrderTimeInForce.DAY,
+                side=OrderType.MARKET,
+                legs=[leg],
+            )
+        else:
+            logger.error(f"Unsupported order type: {order_type}", extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
+            return {'filled_price': None }
+
         response = account.place_order(self.session, order, dry_run=False)
         return response
 
-    async def _place_order(self, symbol, quantity, side, price=None):
-        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
+    async def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         try:
             last_price = await self.get_current_price(symbol)
 
@@ -230,13 +254,23 @@ class TastytradeBroker(BaseBroker):
             symbol = Equity.get_equity(self.session, symbol)
             leg = symbol.build_leg(quantity, action)
 
-            order = NewOrder(
-                time_in_force=OrderTimeInForce.DAY,  # Changed to DAY from IOC
-                side=OrderType.LIMIT,
-                legs=[leg],
-                price=price,
-                price_effect=price_effect
-            )
+            if order_type == 'limit':
+                order = NewOrder(
+                    time_in_force=OrderTimeInForce.DAY,
+                    side=OrderType.LIMIT,
+                    legs=[leg],
+                    price=price,
+                    price_effect=price_effect
+                )
+            elif order_type == 'market':
+                order = NewOrder(
+                    time_in_force=OrderTimeInForce.DAY,
+                    side=OrderType.MARKET,
+                    legs=[leg],
+                )
+            else:
+                logger.error(f"Unsupported order type: {order_type}", extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
+                return {'filled_price': None }
 
             response = account.place_order(self.session, order, dry_run=False)
 

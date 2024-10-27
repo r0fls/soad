@@ -87,7 +87,7 @@ class TradierBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
 
-    def _place_order(self, symbol, quantity, side, price=None):
+    def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         try:
             if price is None:
@@ -99,15 +99,28 @@ class TradierBroker(BaseBroker):
                 ask = quote['ask']
                 price = round((bid + ask) / 2, 2)
 
-            order_data = {
-                "class": "equity",
-                "symbol": symbol,
-                "side": side,
-                "quantity": quantity,
-                "type": "limit",
-                "duration": "day",
-                "price": price
-            }
+            if order_type == 'limit':
+                order_data = {
+                    "class": "equity",
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "type": "limit",
+                    "duration": "day",
+                    "price": price
+                }
+            elif order_type == 'market':
+                order_data = {
+                    "class": "equity",
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "type": "market",
+                    "duration": "day"
+                }
+            else:
+                logger.error('Invalid order type', extra={'order_type': order_type, 'symbol': symbol})
+                return
 
             # TODO: fix/remove
             response = requests.post(f"{self.base_url}/accounts/{self.account_id}/orders", data=order_data, headers=self.headers)

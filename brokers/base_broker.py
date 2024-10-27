@@ -327,10 +327,11 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
+            order_type='limit',
             price=None):
         multiplier = futures_contract_size(symbol)
         return await self._place_order_generic(
-            symbol, quantity, side, strategy, price, multiplier, self._place_future_option_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_future_option_order, order_type
         )
 
     async def place_option_order(
@@ -339,10 +340,11 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
+            order_type='limit',
             price=None):
         multiplier = OPTION_MULTIPLIER
         return await self._place_order_generic(
-            symbol, quantity, side, strategy, price, multiplier, self._place_option_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_option_order, order_type
         )
 
     async def place_order(
@@ -351,10 +353,11 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
+            order_type='limit',
             price=None):
         multiplier = 1  # Regular stock orders don't have a multiplier
         return await self._place_order_generic(
-            symbol, quantity, side, strategy, price, multiplier, self._place_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_order, order_type
         )
 
     async def _place_order_generic(
@@ -365,7 +368,8 @@ class BaseBroker(ABC):
             strategy,
             price,
             multiplier,
-            order_func):
+            broker_order_func,
+            order_type='limit'):
         '''Generic method to place an order and update database'''
         logger.info(
             'Placing order',
@@ -382,10 +386,10 @@ class BaseBroker(ABC):
             return None
 
         try:
-            if asyncio.iscoroutinefunction(order_func):
-                response = await order_func(symbol, quantity, side, price)
+            if asyncio.iscoroutinefunction(broker_order_func):
+                response = await broker_order_func(symbol, quantity, side, price, order_type)
             else:
-                response = order_func(symbol, quantity, side, price)
+                response = broker_order_func(symbol, quantity, side, price, order_type)
 
             logger.info(
                 'Order placed successfully',
@@ -406,7 +410,7 @@ class BaseBroker(ABC):
                 price=price,
                 executed_price=price,
                 side=side,
-                status='filled',
+                status='open',
                 timestamp=datetime.now(),
                 broker=self.broker_name,
                 strategy=strategy,
