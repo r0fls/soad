@@ -31,17 +31,17 @@ async def main():
         print("Generating fake trade data...")
         for timestamp in timestamps:
             for _ in range(num_trades_per_hour):
-                order_type = random.choice(['buy', 'sell'])
+                side = random.choice(['buy', 'sell'])
                 quantity = random.randint(1, 20)
                 price = random.uniform(100, 3000)
-                executed_price = price if order_type == 'buy' else price + random.uniform(-50, 50)
-                profit_loss = None if order_type == 'buy' else (executed_price - price) * quantity
+                executed_price = price if side == 'buy' else price + random.uniform(-50, 50)
+                profit_loss = None if side == 'buy' else (executed_price - price) * quantity
                 fake_trades.append(Trade(
                     symbol=random.choice(['AAPL', 'GOOG', 'TSLA', 'MSFT', 'NFLX', 'AMZN', 'FB', 'NVDA']),
                     quantity=quantity,
                     price=price,
                     executed_price=executed_price,
-                    order_type=order_type,
+                    side=side,
                     status='executed',
                     timestamp=timestamp,
                     broker=random.choice(brokers),

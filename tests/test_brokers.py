@@ -29,13 +29,13 @@ class MockBroker(BaseBroker):
     async def _get_account_info(self):
         return {'profile': {'account': {'account_number': '12345', 'value': 10000.0}}}
 
-    async def _place_option_order(self, symbol, quantity, order_type, price=None):
+    async def _place_option_order(self, symbol, quantity, side, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
-    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+    async def _place_future_option_order(self, symbol, quantity, side, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
-    async def _place_order(self, symbol, quantity, order_type, price=None):
+    async def _place_order(self, symbol, quantity, side, price=None):
         return {'status': 'filled', 'filled_price': 150.0}
 
     async def _get_order_status(self, order_id):
@@ -82,7 +82,7 @@ async def broker(engine):
 @pytest.mark.asyncio
 async def test_has_bought_today(session, broker):
     async with session.begin():
-        trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+        trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
         session.add(trade)
     await session.commit()
     await session.refresh(trade)
@@ -98,7 +98,7 @@ async def test_has_bought_today(session, broker):
 
 @pytest.mark.asyncio
 async def test_update_positions_buy(session, broker):
-    trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade)
     await session.commit()
@@ -122,7 +122,7 @@ async def test_update_positions_sell(session, broker):
         session.add(position)
     await session.commit()
 
-    trade = Trade(symbol="AAPL", quantity=5, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade = Trade(symbol="AAPL", quantity=5, price=155.0, executed_price=155.0, side="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade)
     await session.commit()
@@ -139,7 +139,7 @@ async def test_update_positions_sell(session, broker):
 @pytest.mark.asyncio
 async def test_multiple_buys_update_cost_basis(session, broker):
     # First buy trade
-    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
 
     session.add(trade1)
     await session.commit()  # Commit the first transaction
@@ -157,7 +157,7 @@ async def test_multiple_buys_update_cost_basis(session, broker):
     assert position.cost_basis == 1500.0
 
     # Second buy trade
-    trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade2 = Trade(symbol="AAPL", quantity=5, price=160.0, executed_price=160.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
 
     session.add(trade2)
     await session.commit()  # Commit the second transaction
@@ -177,14 +177,14 @@ async def test_multiple_buys_update_cost_basis(session, broker):
 
 @pytest.mark.asyncio
 async def test_full_sell_removes_position(session, broker):
-    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade1 = Trade(symbol="AAPL", quantity=10, price=150.0, executed_price=150.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     session.add(trade1)
     await session.commit()
     await session.refresh(trade1)
 
     await broker.update_positions(trade1.id, session)
 
-    trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, order_type="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade2 = Trade(symbol="AAPL", quantity=10, price=155.0, executed_price=155.0, side="sell", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     session.add(trade2)
     await session.commit()
     await session.refresh(trade2)
@@ -199,7 +199,7 @@ async def test_full_sell_removes_position(session, broker):
 
 @pytest.mark.asyncio
 async def test_edge_case_zero_quantity(session, broker):
-    trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, order_type="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
+    trade = Trade(symbol="AAPL", quantity=0, price=150.0, executed_price=150.0, side="buy", timestamp=datetime.now(), status='filled', broker='dummy_broker')
     async with session.begin():
         session.add(trade)
     await session.commit()
@@ -219,7 +219,7 @@ async def test_pl_calculation_buy_trade(session, broker):
         quantity=10,
         price=150.0,
         executed_price=150.0,
-        order_type="buy",
+        side="buy",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -256,7 +256,7 @@ async def test_pl_calculation_option_full_sell_trade(session, broker):
         quantity=10,
         price=155.0,
         executed_price=155.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -293,7 +293,7 @@ async def test_pl_calculation_full_sell_trade(session, broker):
         quantity=10,
         price=155.0,
         executed_price=155.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -330,7 +330,7 @@ async def test_pl_calculation_sell_trade(session, broker):
         quantity=5,
         price=155.0,
         executed_price=155.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -354,7 +354,7 @@ async def test_pl_calculation_no_position(session, broker):
         quantity=5,
         price=155.0,
         executed_price=155.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -392,7 +392,7 @@ async def test_short_cover_full(session, broker):
         quantity=10,  # Buying back 10 shares
         price=140.0,
         executed_price=140.0,
-        order_type="buy",
+        side="buy",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -441,7 +441,7 @@ async def test_short_cover_partial(session, broker):
         quantity=5,  # Buying back 5 shares
         price=140.0,
         executed_price=140.0,
-        order_type="buy",
+        side="buy",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -477,7 +477,7 @@ async def test_normal_buy_sell(session, broker):
         quantity=10,
         price=150.0,
         executed_price=150.0,
-        order_type="buy",
+        side="buy",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -499,7 +499,7 @@ async def test_normal_buy_sell(session, broker):
         quantity=5,
         price=155.0,
         executed_price=155.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -533,7 +533,7 @@ async def test_normal_sell_buy(session, broker):
         quantity=10,
         price=150.0,
         executed_price=150.0,
-        order_type="sell",
+        side="sell",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",
@@ -558,7 +558,7 @@ async def test_normal_sell_buy(session, broker):
         quantity=5,
         price=155.0,
         executed_price=155.0,
-        order_type="buy",
+        side="buy",
         status="executed",
         timestamp=datetime.now(),
         broker="dummy_broker",

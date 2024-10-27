@@ -87,8 +87,8 @@ class TradierBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve positions', extra={'error': str(e)})
 
-    def _place_order(self, symbol, quantity, order_type, price=None):
-        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+    def _place_order(self, symbol, quantity, side, price=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         try:
             if price is None:
                 quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
@@ -102,7 +102,7 @@ class TradierBroker(BaseBroker):
             order_data = {
                 "class": "equity",
                 "symbol": symbol,
-                "side": order_type,
+                "side": side,
                 "quantity": quantity,
                 "type": "limit",
                 "duration": "day",
@@ -150,18 +150,18 @@ class TradierBroker(BaseBroker):
             logger.error('Failed to place order', extra={'error': str(e)})
             return {}
 
-    def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+    def _place_future_option_order(self, symbol, quantity, side, price=None):
         logger.error('Future options not supported by Tradier', extra={'symbol': symbol})
         raise NotImplementedError
 
-    def _place_option_order(self, symbol, quantity, order_type, price=None):
+    def _place_option_order(self, symbol, quantity, side, price=None):
         ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         # Sane conversions
-        if order_type == 'buy':
-            order_type = 'buy_to_open'
-        elif order_type == 'sell':
-            order_type = 'sell_to_close'
+        if side == 'buy':
+            side = 'buy_to_open'
+        elif side == 'sell':
+            side = 'sell_to_close'
         try:
             if price is None:
                 quote_url = f"https://api.tradier.com/v1/markets/quotes?symbols={symbol}"
@@ -177,7 +177,7 @@ class TradierBroker(BaseBroker):
                 "symbol": ticker,
                 "option_symbol": symbol,
                 "quantity": quantity,
-                "side": order_type,
+                "side": side,
                 "type": "limit",
                 "duration": "day",
                 "price": price

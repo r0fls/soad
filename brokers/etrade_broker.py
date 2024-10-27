@@ -18,12 +18,12 @@ class EtradeBroker(BaseBroker):
         account_data = account_info.get('accountListResponse').get('accounts')[0]
         return {'value': account_data.get('value')}
 
-    def _place_option_order(self, symbol, quantity, order_type, price, expiration_date, strike_price, option_type):
+    def _place_option_order(self, symbol, quantity, side, price, expiration_date, strike_price, option_type):
         # Implement option order placement
         order_data = {
             "symbol": symbol,
             "quantity": quantity,
-            "order_type": order_type,
+            "side": side,
             "price": price,
             "expiration_date": expiration_date,
             "strike_price": strike_price,
@@ -32,12 +32,12 @@ class EtradeBroker(BaseBroker):
         response = requests.post("https://api.etrade.com/v1/accounts/placeOrder", json=order_data, headers={"Authorization": f"Bearer {self.auth}"})
         return response.json()
 
-    def _place_order(self, symbol, quantity, order_type, price=None):
+    def _place_order(self, symbol, quantity, side, price=None):
         # Implement order placement
         order_data = {
             "symbol": symbol,
             "quantity": quantity,
-            "order_type": order_type,
+            "side": side,
             "price": price
         }
         response = requests.post("https://api.etrade.com/v1/accounts/placeOrder", json=order_data, headers={"Authorization": f"Bearer {self.auth}"})

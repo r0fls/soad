@@ -90,7 +90,7 @@ class DBManager:
                     return None
 
                 # Handling buy trades that cover a short position
-                if trade.order_type.lower() == 'buy':
+                if trade.side.lower() == 'buy':
                     position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
                     if position and position.quantity < 0:  # Detect if this is a short cover
                         logger.info('Short cover detected, calculating P/L.', extra={'trade': trade})
@@ -104,7 +104,7 @@ class DBManager:
                         return profit_loss
 
                 # Handling sell trades
-                elif trade.order_type.lower() == 'sell':
+                elif trade.side.lower() == 'sell':
                     logger.info('Sell order detected, calculating P/L.', extra={'trade': trade})
                     position = await self.get_position(trade.broker, trade.symbol, trade.strategy)
                     logger.info(f"Position fetched: {position}", extra={'trade': trade})
@@ -135,12 +135,12 @@ class DBManager:
             profit_loss = None
             logger.info('Calculating partial profit/loss', extra={'trade': trade, 'position': position})
 
-            if trade.order_type.lower() == 'sell':
+            if trade.side.lower() == 'sell':
                 # Partial sell for regular positions
                 logger.info('Partial sell order detected, calculating P/L.', extra={'trade': trade})
                 profit_loss = (float(trade.executed_price) - (float(position.cost_basis) / position.quantity)) * trade.quantity
 
-            elif trade.order_type.lower() == 'buy' and position.quantity < 0:
+            elif trade.side.lower() == 'buy' and position.quantity < 0:
                 # Partial short cover (buying back part of the short position)
                 logger.info('Partial short cover detected, calculating P/L.', extra={'trade': trade})
 

@@ -152,25 +152,25 @@ class TastytradeBroker(BaseBroker):
 
         return True
 
-    async def _place_future_option_order(self, symbol, quantity, order_type, price=None):
+    async def _place_future_option_order(self, symbol, quantity, side, price=None):
         ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        logger.info('Placing future option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         option = FutureOption.get_future_option(self.session, symbol)
         if price is None:
             price = await self.get_current_price(symbol)
             price = round(price * 4) / 4
             logger.info('Price not provided, using mid from current bid/ask', extra={'price': price})
-        if order_type == 'buy':
+        if side == 'buy':
             action = OrderAction.BUY_TO_OPEN
             effect = PriceEffect.DEBIT
-        elif order_type == 'sell':
+        elif side == 'sell':
             action = OrderAction.SELL_TO_CLOSE
             effect = PriceEffect.CREDIT
         account = Account.get_account(self.session, self.account_id)
         leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
-            order_type=OrderType.LIMIT,
+            side=OrderType.LIMIT,
             legs=[leg],
             price=Decimal(price),
             price_effect=effect
@@ -178,17 +178,17 @@ class TastytradeBroker(BaseBroker):
         response = account.place_order(self.session, order, dry_run=False)
         return response
 
-    async def _place_option_order(self, symbol, quantity, order_type, price=None):
+    async def _place_option_order(self, symbol, quantity, side, price=None):
         ticker = extract_underlying_symbol(symbol)
-        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+        logger.info('Placing option order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         if ' ' not in symbol:
             symbol = self.format_option_symbol(symbol)
         if price is None:
             price = await self.get_current_price(symbol)
-        if order_type == 'buy':
+        if side == 'buy':
             action = OrderAction.BUY_TO_OPEN
             effect = PriceEffect.DEBIT
-        elif order_type == 'sell':
+        elif side == 'sell':
             action = OrderAction.SELL_TO_CLOSE
             effect = PriceEffect.CREDIT
         account = Account.get_account(self.session, self.account_id)
@@ -196,7 +196,7 @@ class TastytradeBroker(BaseBroker):
         leg = option.build_leg(quantity, action)
         order = NewOrder(
             time_in_force=OrderTimeInForce.DAY,
-            order_type=OrderType.LIMIT,
+            side=OrderType.LIMIT,
             legs=[leg],
             price=Decimal(price),
             price_effect=effect
@@ -204,8 +204,8 @@ class TastytradeBroker(BaseBroker):
         response = account.place_order(self.session, order, dry_run=False)
         return response
 
-    async def _place_order(self, symbol, quantity, order_type, price=None):
-        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+    async def _place_order(self, symbol, quantity, side, price=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         try:
             last_price = await self.get_current_price(symbol)
 
@@ -216,15 +216,15 @@ class TastytradeBroker(BaseBroker):
             quantity = Decimal(quantity)
             price = Decimal(price)
 
-            # Map order_type to OrderAction
-            if order_type.lower() == 'buy':
+            # Map side to OrderAction
+            if side.lower() == 'buy':
                 action = OrderAction.BUY_TO_OPEN
                 price_effect = PriceEffect.DEBIT
-            elif order_type.lower() == 'sell':
+            elif side.lower() == 'sell':
                 action = OrderAction.SELL_TO_CLOSE
                 price_effect = PriceEffect.CREDIT
             else:
-                raise ValueError(f"Unsupported order type: {order_type}")
+                raise ValueError(f"Unsupported order type: {side}")
 
             account = Account.get_account(self.session, self.account_id)
             symbol = Equity.get_equity(self.session, symbol)
@@ -232,7 +232,7 @@ class TastytradeBroker(BaseBroker):
 
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,  # Changed to DAY from IOC
-                order_type=OrderType.LIMIT,
+                side=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
                 price_effect=price_effect

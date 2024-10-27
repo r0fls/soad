@@ -23,7 +23,7 @@ const Trades = () => {
     const filteredTrades = initialTrades.filter(trade =>
       (selectedBrokers.length === 0 || selectedBrokers.includes(trade.broker)) &&
       (selectedStrategies.length === 0 || selectedStrategies.includes(trade.strategy)) &&
-      (selectedOrderTypes.length === 0 || selectedOrderTypes.includes(trade.order_type)) &&
+      (selectedOrderTypes.length === 0 || selectedOrderTypes.includes(trade.side)) &&
       (!startDate || new Date(trade.timestamp) >= startDate) &&
       (!endDate || new Date(trade.timestamp) <= endDate)
     );
@@ -33,7 +33,7 @@ const Trades = () => {
   const calculateStats = useCallback((filteredTrades) => {
     if (filteredTrades.length === 0) return null;
 
-    const filteredSellTrades = filteredTrades.filter(trade => trade.order_type === 'sell');
+    const filteredSellTrades = filteredTrades.filter(trade => trade.side === 'sell');
     const hasSellTrades = filteredSellTrades.length > 0;
 
     const average_profit_loss = hasSellTrades
@@ -269,7 +269,7 @@ const Trades = () => {
                     <td data-label="Price">
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(trade.price)}
                     </td>
-                    <td data-label="Type">{trade.order_type}</td>
+                    <td data-label="Type">{trade.side}</td>
                     <td data-label="Profit/Loss" className={
                       trade.profit_loss < 0 ? 'text-danger' :
                       trade.profit_loss > 0 ? 'text-success' : ''

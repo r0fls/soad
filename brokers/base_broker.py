@@ -50,7 +50,7 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def _place_order(self, symbol, quantity, order_type, price=None):
+    def _place_order(self, symbol, quantity, side, price=None):
         pass
 
     @abstractmethod
@@ -58,12 +58,12 @@ class BaseBroker(ABC):
             self,
             symbol,
             quantity,
-            order_type,
+            side,
             price=None):
         pass
 
     @abstractmethod
-    def _place_option_order(self, symbol, quantity, order_type, price=None):
+    def _place_option_order(self, symbol, quantity, side, price=None):
         pass
 
     @abstractmethod
@@ -113,7 +113,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 result = await session.execute(
                     select(Trade)
-                    .filter_by(symbol=symbol, broker=self.broker_name, order_type='buy')
+                    .filter_by(symbol=symbol, broker=self.broker_name, side='buy')
                     .filter(Trade.timestamp >= today)
                 )
                 trade = result.scalars().first()
@@ -133,7 +133,7 @@ class BaseBroker(ABC):
             trade_quantity = trade.quantity
             trade_symbol = trade.symbol
             trade_strategy = trade.strategy
-            trade_order_type = trade.order_type
+            trade_side = trade.side
             logger.info(
                 'Updating positions',
                 extra={
@@ -141,7 +141,7 @@ class BaseBroker(ABC):
                     'quantity': trade_quantity,
                     'symbol': trade_symbol,
                     'strategy': trade_strategy,
-                    'order_type': trade_order_type})
+                    'side': trade_side})
 
             if trade.quantity == 0:
                 logger.error(
@@ -161,7 +161,7 @@ class BaseBroker(ABC):
             profit_loss = 0
 
             # Handling Buy Orders
-            if trade.order_type == 'buy':
+            if trade.side == 'buy':
                 if position and position.quantity < 0:  # This is a short cover
                     logger.info(
                         'Processing short cover',
@@ -265,7 +265,7 @@ class BaseBroker(ABC):
                         session.add(position)
 
             # Handling Sell Orders
-            elif trade.order_type == 'sell':
+            elif trade.side == 'sell':
                 logger.info('Processing sell order', extra={'trade': trade})
 
                 # Short sales
@@ -325,43 +325,43 @@ class BaseBroker(ABC):
             self,
             symbol,
             quantity,
-            order_type,
+            side,
             strategy,
             price=None):
         multiplier = futures_contract_size(symbol)
         return await self._place_order_generic(
-            symbol, quantity, order_type, strategy, price, multiplier, self._place_future_option_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_future_option_order
         )
 
     async def place_option_order(
             self,
             symbol,
             quantity,
-            order_type,
+            side,
             strategy,
             price=None):
         multiplier = OPTION_MULTIPLIER
         return await self._place_order_generic(
-            symbol, quantity, order_type, strategy, price, multiplier, self._place_option_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_option_order
         )
 
     async def place_order(
             self,
             symbol,
             quantity,
-            order_type,
+            side,
             strategy,
             price=None):
         multiplier = 1  # Regular stock orders don't have a multiplier
         return await self._place_order_generic(
-            symbol, quantity, order_type, strategy, price, multiplier, self._place_order
+            symbol, quantity, side, strategy, price, multiplier, self._place_order
         )
 
     async def _place_order_generic(
             self,
             symbol,
             quantity,
-            order_type,
+            side,
             strategy,
             price,
             multiplier,
@@ -372,9 +372,9 @@ class BaseBroker(ABC):
             extra={
                 'symbol': symbol,
                 'quantity': quantity,
-                'order_type': order_type,
+                'side': side,
                 'strategy': strategy})
-        if self.prevent_day_trading and order_type == 'sell' and await self.has_bought_today(symbol):
+        if self.prevent_day_trading and side == 'sell' and await self.has_bought_today(symbol):
             logger.error(
                 'Day trading is not allowed. Cannot sell positions opened today.',
                 extra={
@@ -383,9 +383,9 @@ class BaseBroker(ABC):
 
         try:
             if asyncio.iscoroutinefunction(order_func):
-                response = await order_func(symbol, quantity, order_type, price)
+                response = await order_func(symbol, quantity, side, price)
             else:
-                response = order_func(symbol, quantity, order_type, price)
+                response = order_func(symbol, quantity, side, price)
 
             logger.info(
                 'Order placed successfully',
@@ -393,7 +393,7 @@ class BaseBroker(ABC):
                     'response': response,
                     'symbol': symbol,
                     'quantity': quantity,
-                    'order_type': order_type,
+                    'side': side,
                     'strategy': strategy})
 
             # Extract price if not given
@@ -405,7 +405,7 @@ class BaseBroker(ABC):
                 quantity=quantity,
                 price=price,
                 executed_price=price,
-                order_type=order_type,
+                side=side,
                 status='filled',
                 timestamp=datetime.now(),
                 broker=self.broker_name,
@@ -431,7 +431,7 @@ class BaseBroker(ABC):
                 if latest_balance:
                     order_cost = price * quantity * multiplier
                     new_balance_amount = latest_balance.balance - \
-                        order_cost if order_type == 'buy' else latest_balance.balance + order_cost
+                        order_cost if side == 'buy' else latest_balance.balance + order_cost
 
                     new_balance = Balance(
                         broker=self.broker_name,

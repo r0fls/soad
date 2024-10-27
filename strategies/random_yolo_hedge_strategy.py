@@ -58,7 +58,7 @@ class RandomYoloHedge(BaseStrategy):
                     broker=self.broker.broker_name,
                     symbol=position,
                     timestamp=datetime.now().date(),
-                    order_type='buy'
+                    side='buy'
                 ).all()
                 quantity = current_db_positions_dict[position]['quantity']
                 bid_ask = self.broker.get_bid_ask(position)
@@ -145,10 +145,10 @@ class RandomYoloHedge(BaseStrategy):
 
         return True
 
-    async def place_option_order(self, symbol, quantity, order_type, option):
+    async def place_option_order(self, symbol, quantity, side, option):
         price = option['lastPrice']
         if self.paper_trade:
-            logger.info(f"Paper trading: Placed {order_type} order for {symbol}: {quantity} shares at {price}", extra={'strategy_name': self.strategy_name})
-            self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price, paper_trade=True)
+            logger.info(f"Paper trading: Placed {side} order for {symbol}: {quantity} shares at {price}", extra={'strategy_name': self.strategy_name})
+            self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price, paper_trade=True)
             return
-        await self.broker.place_option_order(symbol, quantity, order_type, self.strategy_name, price)
+        await self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price)

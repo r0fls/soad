@@ -612,7 +612,7 @@ def get_trades():
             'strategy': trade.strategy,
             'symbol': trade.symbol,
             'quantity': trade.quantity,
-            'order_type': trade.order_type,
+            'side': trade.side,
             'price': trade.price,
             'profit_loss': trade.profit_loss,
             'timestamp': trade.timestamp

@@ -13,7 +13,7 @@ class Trade(Base):
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     executed_price = Column(Float, nullable=True)
-    order_type = Column(String, nullable=False)
+    side = Column(String, nullable=False)
     status = Column(String, nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     broker = Column(String, nullable=False)

@@ -95,8 +95,8 @@ class TastytradeBroker(BaseBroker):
                 self.connect()
                 return self._get_account_info(retry=False)
 
-    async def _place_order(self, symbol, quantity, order_type, price=None):
-        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'order_type': order_type, 'price': price})
+    async def _place_order(self, symbol, quantity, side, price=None):
+        logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price})
         try:
             last_price = await self.get_current_price(symbol)
             if price is None:
@@ -104,14 +104,14 @@ class TastytradeBroker(BaseBroker):
             quantity = Decimal(quantity)
             price = Decimal(price)
 
-            if order_type.lower() == 'buy':
+            if side.lower() == 'buy':
                 action = OrderAction.BUY_TO_OPEN
                 price_effect = PriceEffect.DEBIT
-            elif order_type.lower() == 'sell':
+            elif side.lower() == 'sell':
                 action = OrderAction.SELL_TO_CLOSE
                 price_effect = PriceEffect.CREDIT
             else:
-                raise ValueError(f"Unsupported order type: {order_type}")
+                raise ValueError(f"Unsupported order type: {side}")
 
             account = Account.get_account(self.session, self.account_id)
             symbol = Equity.get_equity(self.session, symbol)
@@ -119,7 +119,7 @@ class TastytradeBroker(BaseBroker):
 
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,
-                order_type=OrderType.LIMIT,
+                side=OrderType.LIMIT,
                 legs=[leg],
                 price=price,
                 price_effect=price_effect
