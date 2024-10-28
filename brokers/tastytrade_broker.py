@@ -231,9 +231,8 @@ class TastytradeBroker(BaseBroker):
     async def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
         logger.info('Placing order', extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         try:
-            last_price = await self.get_current_price(symbol)
-
-            if price is None:
+            if price is None or order_type != 'market':
+                last_price = await self.get_current_price(symbol)
                 price = round(last_price, 2)
 
             # Convert to Decimal
