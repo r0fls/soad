@@ -220,7 +220,7 @@ class TastytradeBroker(BaseBroker):
                 time_in_force=OrderTimeInForce.DAY,
                 side=OrderType.MARKET,
                 legs=[leg],
-                price_effect=price_effect
+                price_effect=effect
             )
         else:
             logger.error(f"Unsupported order type: {order_type}", extra={'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
