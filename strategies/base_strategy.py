@@ -239,23 +239,23 @@ class BaseStrategy(ABC):
         logger.debug(f"Current DB positions: {current_db_positions_dict}", extra={'strategy_name': self.strategy_name})
         return current_db_positions_dict
 
-    async def place_future_option_order(self, symbol, quantity, side, price, wait_till_open=True):
+    async def place_future_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit'):
         if is_futures_market_open() or not wait_till_open:
-            await self.broker.place_future_option_order(symbol, quantity, side, self.strategy_name, price)
-            logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            await self.broker.place_future_option_order(symbol, quantity, side, self.strategy_name, price, order_type)
+            logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:
-            logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
 
-    async def place_option_order(self, symbol, quantity, side, price, wait_till_open=True):
+    async def place_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit'):
         if is_market_open() or not wait_till_open:
-            await self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price)
-            logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            await self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price, order_type)
+            logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:
-            logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
 
-    async def place_order(self, stock, quantity, side, price, wait_till_open=True):
+    async def place_order(self, stock, quantity, side, price, wait_till_open=True, order_type='limit'):
         if is_market_open() or not wait_till_open:
-            await self.broker.place_order(stock, quantity, side, self.strategy_name, price)
-            logger.info(f"Placed {side} order for {stock}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            await self.broker.place_order(stock, quantity, side, self.strategy_name, price, order_type)
+            logger.info(f"Placed {side} order for {stock}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'stock': stock, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:
-            logger.info(f"Market is closed, not placing {side} order for {stock}: {quantity} shares", extra={'strategy_name': self.strategy_name})
+            logger.info(f"Market is closed, not placing {side} order for {stock}: {quantity} shares", extra={'strategy_name': self.strategy_name, 'stock': stock, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})

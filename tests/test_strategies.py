@@ -178,4 +178,4 @@ async def skip_test_fetch_current_db_positions(strategy):
 async def test_place_order(mock_iscoroutinefunction, mock_is_market_open, strategy):
     strategy.broker.place_order = AsyncMock()
     await strategy.place_order('AAPL', 10, 'buy', 150)
-    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150)
+    strategy.broker.place_order.assert_called_once_with('AAPL', 10, 'buy', strategy.strategy_name, 150, 'limit')
