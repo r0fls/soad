@@ -50,7 +50,7 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def _place_order(self, symbol, quantity, side, price=None):
+    def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
         pass
 
     @abstractmethod
@@ -327,8 +327,8 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
-            order_type='limit',
-            price=None):
+            price=None,
+            order_type='limit'):
         multiplier = futures_contract_size(symbol)
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_future_option_order, order_type
@@ -340,8 +340,8 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
-            order_type='limit',
-            price=None):
+            price=None,
+            order_type='limit'):
         multiplier = OPTION_MULTIPLIER
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_option_order, order_type
@@ -353,8 +353,8 @@ class BaseBroker(ABC):
             quantity,
             side,
             strategy,
-            order_type='limit',
-            price=None):
+            price=None,
+            order_type='limit'):
         multiplier = 1  # Regular stock orders don't have a multiplier
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_order, order_type
