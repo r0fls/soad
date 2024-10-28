@@ -171,7 +171,7 @@ class TastytradeBroker(BaseBroker):
         if order_type == 'limit':
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,
-                side=OrderType.LIMIT,
+                order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=Decimal(price),
                 price_effect=effect
@@ -179,7 +179,7 @@ class TastytradeBroker(BaseBroker):
         elif order_type == 'market':
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,
-                side=OrderType.MARKET,
+                order_type=OrderType.MARKET,
                 legs=[leg],
                 price=Decimal(price),
                 price_effect=effect
@@ -210,7 +210,7 @@ class TastytradeBroker(BaseBroker):
         if order_type == 'limit':
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,
-                side=OrderType.LIMIT,
+                order_type=OrderType.LIMIT,
                 legs=[leg],
                 price=Decimal(price),
                 price_effect=effect
@@ -218,7 +218,7 @@ class TastytradeBroker(BaseBroker):
         elif order_type == 'market':
             order = NewOrder(
                 time_in_force=OrderTimeInForce.DAY,
-                side=OrderType.MARKET,
+                order_type=OrderType.MARKET,
                 legs=[leg],
                 price_effect=effect
             )
@@ -257,7 +257,7 @@ class TastytradeBroker(BaseBroker):
             if order_type == 'limit':
                 order = NewOrder(
                     time_in_force=OrderTimeInForce.DAY,
-                    side=OrderType.LIMIT,
+                    order_type=OrderType.LIMIT,
                     legs=[leg],
                     price=price,
                     price_effect=price_effect
@@ -265,7 +265,7 @@ class TastytradeBroker(BaseBroker):
             elif order_type == 'market':
                 order = NewOrder(
                     time_in_force=OrderTimeInForce.DAY,
-                    side=OrderType.MARKET,
+                    order_type=OrderType.MARKET,
                     legs=[leg],
                     price_effect=price_effect
                 )
