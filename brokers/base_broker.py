@@ -152,7 +152,8 @@ class BaseBroker(ABC):
             # Query the current position for the trade's symbol, broker, and
             # strategy
             result = await session.execute(
-                select(Position).filter_by(symbol=trade.symbol, broker=self.broker_name, strategy=trade.strategy)
+                select(Position).filter_by(symbol=trade.symbol,
+                                           broker=self.broker_name, strategy=trade.strategy)
             )
             position = result.scalars().first()
             logger.debug(f"Queried position: {position}")
@@ -389,7 +390,8 @@ class BaseBroker(ABC):
             if asyncio.iscoroutinefunction(broker_order_func):
                 response = await broker_order_func(symbol, quantity, side, price, order_type)
             else:
-                response = broker_order_func(symbol, quantity, side, price, order_type)
+                response = broker_order_func(
+                    symbol, quantity, side, price, order_type)
 
             logger.info(
                 'Order placed successfully',
