@@ -549,8 +549,6 @@ async def test_normal_sell_buy(session, broker):
 
     # Update positions after the sell
     await broker.update_positions(trade1_id, session)
-    session.commit()
-    session.refresh(trade1)
 
     # Buy 5 shares of AAPL
     trade2 = Trade(
@@ -568,7 +566,6 @@ async def test_normal_sell_buy(session, broker):
     )
     async with session.begin():
         session.add(trade2)
-    session.commit()
     await session.refresh(trade2)
 
     # Update positions after the buy
