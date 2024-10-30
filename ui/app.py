@@ -16,18 +16,22 @@ app = Flask("TradingAPI")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3000")
 
 # Configure CORS
-CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": DASHBOARD_URL}},
+     supports_credentials=True)
 
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super-secret')  # Change this!
+app.config['JWT_SECRET_KEY'] = os.environ.get(
+    'JWT_SECRET_KEY', 'super-secret')  # Change this!
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
 jwt = JWTManager(app)
 
 USERNAME = os.environ.get('APP_USERNAME', 'emperor')
 PASSWORD = os.environ.get('APP_PASSWORD', 'fugazi')
 
+
 @app.route('/', methods=['GET'])
 def ok():
     return jsonify({"status": "ok"}), 200
+
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -42,6 +46,7 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
+
 @app.route('/account_values')
 @jwt_required()
 def account_values():
@@ -53,6 +58,7 @@ def account_values():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/get_brokers_strategies', methods=['GET'])
 @jwt_required()
@@ -106,7 +112,8 @@ def get_brokers_strategies():
         # Update the dictionary with the positions balances
         for broker, strategy, positions_balance in latest_positions_balances:
             if (broker, strategy) in broker_strategy_balances:
-                broker_strategy_balances[(broker, strategy)]['positions_balance'] = positions_balance
+                broker_strategy_balances[(
+                    broker, strategy)]['positions_balance'] = positions_balance
             else:
                 broker_strategy_balances[(broker, strategy)] = {
                     'cash_balance': 0,
@@ -119,10 +126,12 @@ def get_brokers_strategies():
                 positions = app.session.query(Position).filter_by(
                     strategy=strategy, broker=broker
                 ).all()
-                positions_balance = sum(p.quantity * p.latest_price for p in positions)
+                positions_balance = sum(
+                    p.quantity * p.latest_price for p in positions)
                 balances['positions_balance'] = positions_balance
 
-            balances['total_balance'] = balances['cash_balance'] + balances['positions_balance']
+            balances['total_balance'] = balances['cash_balance'] + \
+                balances['positions_balance']
 
         # Prepare the response
         response = [
@@ -139,6 +148,7 @@ def get_brokers_strategies():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/delete_strategy', methods=['POST'])
 @jwt_required()
@@ -164,14 +174,14 @@ def delete_strategy():
         ).all()
         # If there are open positions, don't allow deletion
         if positions:
-            logger.error(f'Cannot delete strategy {strategy_name} with open positions')
+            logger.error(
+                f'Cannot delete strategy {strategy_name} with open positions')
             return jsonify({'status': 'error', 'message': 'Cannot delete strategy with open positions'}), 400
-
 
         # Fetch the positions balance for the strategy being deleted
         # (this should be zero right?) https://knowyourmeme.com/memes/for-the-better-right
         positions_balance_record = app.session.query(Balance).filter_by(
-        # if there are open positions, don't allow deletion
+            # if there are open positions, don't allow deletion
             strategy=strategy_name, broker=broker, type='positions'
         ).order_by(Balance.timestamp.desc()).first()
 
@@ -184,7 +194,8 @@ def delete_strategy():
         strategy_total_balance = strategy_cash_balance + strategy_positions_balance
 
         # Delete the balances for the strategy
-        app.session.query(Balance).filter_by(strategy=strategy_name, broker=broker).delete()
+        app.session.query(Balance).filter_by(
+            strategy=strategy_name, broker=broker).delete()
 
         # Fetch the uncategorized cash balance for the broker
         uncatagorized_cash_balance_record = app.session.query(Balance).filter_by(
@@ -217,6 +228,7 @@ def delete_strategy():
     finally:
         app.session.remove()
 
+
 @app.route('/adjust_balance', methods=['POST'])
 @jwt_required()
 def adjust_balance():
@@ -243,7 +255,8 @@ def adjust_balance():
             ).all()
             for position in positions:
                 if is_option(position.symbol):
-                    balance_contribution = position.quantity * position.latest_price * OPTION_MULTIPLIER
+                    balance_contribution = position.quantity * \
+                        position.latest_price * OPTION_MULTIPLIER
                 elif is_futures_symbol(position.symbol):
                     contract_size = futures_contract_size(position.symbol)
                     balance_contribution = position.quantity * position.latest_price * contract_size
@@ -272,7 +285,8 @@ def adjust_balance():
             current_total_balance = positions_balance
 
         adjustment = new_total_balance - current_total_balance
-        new_cash_balance = (cash_balance_record.balance if cash_balance_record else 0) + adjustment
+        new_cash_balance = (
+            cash_balance_record.balance if cash_balance_record else 0) + adjustment
 
         # Create a new cash balance record
         new_cash_balance_record = Balance(
@@ -308,17 +322,21 @@ def adjust_balance():
     finally:
         app.session.remove()
 
+
 @app.route('/trades_per_strategy')
 @jwt_required()
 def trades_per_strategy(methods=['GET']):
     try:
-        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(Trade.id)).group_by(Trade.strategy, Trade.broker).all()
-        trades_count_serializable = [{"strategy": strategy, "broker": broker, "count": count} for strategy, broker, count in trades_count]
+        trades_count = app.session.query(Trade.strategy, Trade.broker, func.count(
+            Trade.id)).group_by(Trade.strategy, Trade.broker).all()
+        trades_count_serializable = [{"strategy": strategy, "broker": broker,
+                                      "count": count} for strategy, broker, count in trades_count]
         return jsonify({"trades_per_strategy": trades_count_serializable})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/historic_balance_per_strategy')
 @jwt_required()
@@ -490,16 +508,20 @@ def historic_balance_per_strategy(methods=['GET']):
     finally:
         app.session.remove()
 
+
 @app.route('/trade_success_rate')
 @jwt_required()
 def trade_success_rate():
     try:
-        strategies_and_brokers = app.session.query(Trade.strategy, Trade.broker).distinct().all()
+        strategies_and_brokers = app.session.query(
+            Trade.strategy, Trade.broker).distinct().all()
         success_rate_by_strategy_and_broker = []
 
         for strategy, broker in strategies_and_brokers:
-            total_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker).scalar()
-            successful_trades = app.session.query(func.count(Trade.id)).filter(Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
+            total_trades = app.session.query(func.count(Trade.id)).filter(
+                Trade.strategy == strategy, Trade.broker == broker).scalar()
+            successful_trades = app.session.query(func.count(Trade.id)).filter(
+                Trade.strategy == strategy, Trade.broker == broker, Trade.profit_loss > 0).scalar()
             failed_trades = total_trades - successful_trades
 
             success_rate_by_strategy_and_broker.append({
@@ -515,6 +537,7 @@ def trade_success_rate():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/positions')
 @jwt_required()
@@ -536,7 +559,8 @@ def get_positions():
                 if delta is not None and theta is not None:
                     delta *= position.quantity * OPTION_MULTIPLIER
                     theta *= position.quantity * OPTION_MULTIPLIER
-                total_options_value += position.quantity * position.latest_price * OPTION_MULTIPLIER
+                total_options_value += position.quantity * \
+                    position.latest_price * OPTION_MULTIPLIER
             else:
                 delta = position.quantity
                 theta = 0
@@ -575,7 +599,8 @@ def get_positions():
             (Balance.timestamp == cash_subquery.c.latest_cash_timestamp)
         ).filter(Balance.type == 'cash').all()
 
-        cash_balances = {f"{balance.broker}_{balance.strategy}": round(balance.balance, 2) for balance in latest_cash_balances}
+        cash_balances = {f"{balance.broker}_{balance.strategy}": round(
+            balance.balance, 2) for balance in latest_cash_balances}
 
         return jsonify({
             'positions': positions_data,
@@ -590,6 +615,7 @@ def get_positions():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/trades', methods=['GET'])
 @jwt_required()
@@ -623,6 +649,7 @@ def get_trades():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/trade_stats', methods=['GET'])
 @jwt_required()
@@ -674,6 +701,7 @@ def get_trade_stats():
     finally:
         app.session.remove()
 
+
 @app.route('/var', methods=['GET'])
 @jwt_required()
 def get_var():
@@ -703,6 +731,7 @@ def get_var():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 @app.route('/max_drawdown', methods=['GET'])
 @jwt_required()
@@ -734,6 +763,7 @@ def get_max_drawdown():
     finally:
         app.session.remove()
 
+
 @app.route('/sharpe_ratio', methods=['GET'])
 @jwt_required()
 def get_sharpe_ratio():
@@ -763,6 +793,7 @@ def get_sharpe_ratio():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         app.session.remove()
+
 
 def create_app(engine):
     Session = sessionmaker(bind=engine)

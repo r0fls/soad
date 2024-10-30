@@ -64,7 +64,7 @@ class PositionService:
                 broker_position = broker_positions.get(symbol)
                 if not broker_position:
                     # Delete uncategorized positions that no longer exist in the broker
-                    session.delete(db_position)
+                    await session.delete(db_position)
                     logger.info(f"Removed uncategorized position from DB: {symbol}")
                     continue
                 categorized_quantity = self._get_categorized_quantity(db_positions, symbol)
