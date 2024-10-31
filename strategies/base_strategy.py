@@ -57,7 +57,7 @@ class BaseStrategy(ABC):
                     type='cash',
                     balance=self.starting_capital
                 )
-                await session.add(strategy_balance)
+                session.add(strategy_balance)
                 await session.commit()
                 logger.info(f"Initialized starting balance for {self.strategy_name} strategy with {self.starting_capital}", extra={
                             'strategy_name': self.strategy_name})
