@@ -264,8 +264,18 @@ class TastytradeBroker(BaseBroker):
             if side.lower() == 'buy':
                 action = OrderAction.BUY_TO_OPEN
                 price_effect = PriceEffect.DEBIT
+            # TODO: this maps tradier side to tastytrade side
+            # abstract/move this logic to a separate locationt
+            elif side.lower() == 'buy_to_cover':
+                action = OrderAction.BUY_TO_CLOSE
+                price_effect = PriceEffect.DEBIT
             elif side.lower() == 'sell':
                 action = OrderAction.SELL_TO_CLOSE
+                price_effect = PriceEffect.CREDIT
+            # TODO: this maps tradier side to tastytrade side
+            # abstract/move this logic to a separate location
+            elif side.lower() == 'sell_short':
+                action = OrderAction.SELL_TO_OPEN
                 price_effect = PriceEffect.CREDIT
             else:
                 raise ValueError(f"Unsupported order type: {side}")
