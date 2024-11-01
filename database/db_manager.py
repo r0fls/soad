@@ -15,12 +15,12 @@ class DBManager:
     async def add_account_info(self, account_info):
         async with self.Session() as session:
             try:
-                logger.info('Adding account info', extra={'account_info': account_info})
+                logger.debug('Adding account info', extra={'account_info': account_info})
                 existing_info = await session.execute(select(AccountInfo).filter_by(broker=account_info.broker))
                 existing_info = existing_info.scalar()
                 if existing_info:
                     existing_info.value = account_info.value
-                    logger.info('Updated existing account info', extra={'account_info': account_info})
+                    logger.debug('Updated existing account info', extra={'account_info': account_info})
                 else:
                     session.add(account_info)
                     logger.info('Added new account info', extra={'account_info': account_info})
@@ -32,13 +32,13 @@ class DBManager:
     async def get_trade(self, trade_id):
         async with self.Session() as session:
             try:
-                logger.info('Retrieving trade', extra={'trade_id': trade_id})
+                logger.debug('Retrieving trade', extra={'trade_id': trade_id})
                 result = await session.execute(select(Trade).filter_by(id=trade_id))
                 trade = result.scalar()
                 if trade is None:
                     logger.warning(f"No trade found with id {trade_id}")
                 else:
-                    logger.info('Trade retrieved', extra={'trade': trade})
+                    logger.debug('Trade retrieved', extra={'trade': trade})
                 return trade
             except Exception as e:
                 logger.error(f'Failed to retrieve trade {trade_id}', extra={'error': str(e)})
@@ -47,10 +47,10 @@ class DBManager:
     async def get_all_trades(self):
         async with self.Session() as session:
             try:
-                logger.info('Retrieving all trades')
+                logger.debug('Retrieving all trades')
                 result = await session.execute(select(Trade))
                 trades = result.scalars().all()
-                logger.info('All trades retrieved', extra={'trade_count': len(trades)})
+                logger.debug('All trades retrieved', extra={'trade_count': len(trades)})
                 return trades
             except Exception as e:
                 logger.error('Failed to retrieve all trades', extra={'error': str(e)})
@@ -59,7 +59,7 @@ class DBManager:
     async def get_position(self, broker, symbol, strategy):
         async with self.Session() as session:
             try:
-                logger.info('Retrieving position', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
+                logger.debug('Retrieving position', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
                 result = await session.execute(
                     select(Position).filter_by(broker=broker, symbol=symbol, strategy=strategy)
                 )
@@ -69,7 +69,7 @@ class DBManager:
                 position = positions[0] if positions else None
                 if position is None:
                     logger.warning('Position not found', extra={'broker': broker, 'symbol': symbol, 'strategy': strategy})
-                logger.info('Position retrieved', extra={'position': position})
+                logger.debug('Position retrieved', extra={'position': position})
                 return position
             except Exception as e:
                 logger.error('Failed to retrieve position', extra={'error': str(e)})
@@ -158,7 +158,7 @@ class DBManager:
     async def update_trade_status(self, trade_id, executed_price, success, profit_loss):
         async with self.Session() as session:
             try:
-                logger.info('Updating trade status', extra={'trade_id': trade_id, 'executed_price': executed_price, 'success': success, 'profit_loss': profit_loss})
+                logger.debug('Updating trade status', extra={'trade_id': trade_id, 'executed_price': executed_price, 'success': success, 'profit_loss': profit_loss})
                 result = await session.execute(select(Trade).filter_by(id=trade_id))
                 trade = result.scalar()
                 if trade:
@@ -166,7 +166,7 @@ class DBManager:
                     trade.success = success
                     trade.profit_loss = profit_loss
                     await session.commit()
-                    logger.info('Trade status updated', extra={'trade': trade})
+                    logger.debug('Trade status updated', extra={'trade': trade})
             except Exception as e:
                 await session.rollback()
                 logger.error('Failed to update trade status', extra={'error': str(e)})
@@ -214,13 +214,13 @@ class DBManager:
     async def get_profit_loss(self, trade_id):
         async with self.Session() as session:
             try:
-                logger.info('Retrieving profit/loss', extra={'trade': trade_id})
+                logger.debug('Retrieving profit/loss', extra={'trade': trade_id})
                 result = await session.execute(select(Trade).filter_by(id=trade_id))
                 trade = result.scalar()
                 if trade is None:
                     logger.warning(f"No trade found with id {trade.id}")
                     return None
-                logger.info('Profit/loss retrieved', extra={'trade': trade})
+                logger.debug('Profit/loss retrieved', extra={'trade': trade})
                 return trade.profit_loss
             except Exception as e:
                 logger.error('Failed to retrieve profit/loss', extra={'error': str(e)})

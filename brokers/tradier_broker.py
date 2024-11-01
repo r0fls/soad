@@ -26,7 +26,7 @@ class TradierBroker(BaseBroker):
         pass
 
     def _get_account_info(self):
-        logger.info('Retrieving account information')
+        logger.debug('Retrieving account information')
         try:
             response = requests.get(
                 "https://api.tradier.com/v1/user/profile", headers=self.headers)
@@ -59,7 +59,7 @@ class TradierBroker(BaseBroker):
                 account_value = account_info['total_equity']
             cash = account_info['total_cash']
 
-            logger.info('Account balances retrieved', extra={
+            logger.debug('Account balances retrieved', extra={
                         'account_type': self.account_type, 'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': account_info['account_number'],

@@ -79,7 +79,7 @@ class TastytradeBroker(BaseBroker):
         logger.info('Connected to Tastytrade API')
 
     def _get_account_info(self, retry=True):
-        logger.info('Retrieving account information')
+        logger.debug('Retrieving account information')
         try:
             response = requests.get(
                 f"{self.base_url}/customers/me/accounts", headers=self.headers)
@@ -105,7 +105,7 @@ class TastytradeBroker(BaseBroker):
             # TODO: is this redundant? Can we collapse/remove the above API calls?
             cash = account_data.get('cash-balance')
 
-            logger.info('Account balances retrieved', extra={
+            logger.debug('Account balances retrieved', extra={
                         'account_type': account_type, 'buying_power': buying_power, 'value': account_value})
             return {
                 'account_number': self.account_id,
