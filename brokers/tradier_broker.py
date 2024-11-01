@@ -306,19 +306,19 @@ class TradierBroker(BaseBroker):
             logger.error('Failed to retrieve options chain',
                          extra={'error': str(e)})
 
-    def get_current_price(self, symbol):
+    async def get_current_price(self, symbol):
         logger.info('Retrieving current price', extra={'symbol': symbol})
         try:
-            response = requests.get(
-                f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers)
-            response.raise_for_status()
-            last_price = response.json().get('quotes').get('quote').get('last')
-            logger.info('Current price retrieved', extra={
-                        'symbol': symbol, 'last_price': last_price})
-            return last_price
-        except requests.RequestException as e:
-            logger.error('Failed to retrieve current price',
-                         extra={'error': str(e)})
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    last_price = data.get('quotes', {}).get('quote', {}).get('last')
+                    logger.info('Current price retrieved', extra={'symbol': symbol, 'last_price': last_price})
+                    return last_price
+        except aiohttp.ClientError as e:
+            logger.error('Failed to retrieve current price', extra={'error': str(e)})
+
 
     def get_bid_ask(self, symbol):
         logger.info('Retrieving bid/ask', extra={'symbol': symbol})
