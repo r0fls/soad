@@ -3,6 +3,7 @@ import time
 from brokers.base_broker import BaseBroker
 from utils.logger import logger  # Import the logger
 from utils.utils import extract_underlying_symbol
+import aiohttp
 
 
 class TradierBroker(BaseBroker):
