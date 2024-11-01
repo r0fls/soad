@@ -19,3 +19,4 @@ freezegun
 asyncpg
 aiosqlite
 greenlet
+aiohttp
