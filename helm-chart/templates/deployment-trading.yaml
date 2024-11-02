@@ -11,6 +11,11 @@ spec:
     matchLabels:
       {{- include "trading-app.selectorLabels" . | nindent 6 }}
       component: trading
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   template:
     metadata:
       labels:
