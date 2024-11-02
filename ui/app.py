@@ -158,68 +158,27 @@ def delete_strategy():
     strategy_name = data.get('strategy_name')
 
     try:
-        # Fetch the cash balance for the strategy being deleted
-        cash_balance_record = app.session.query(Balance).filter_by(
-            strategy=strategy_name, broker=broker, type='cash'
-        ).order_by(Balance.timestamp.desc()).first()
-
-        if cash_balance_record:
-            strategy_cash_balance = cash_balance_record.balance
-        else:
-            strategy_cash_balance = 0
-
-        # Fetch the actual positions for the strategy being deleted
-        positions = app.session.query(Position).filter_by(
+        # Check for open positions for the specified strategy and broker
+        open_positions = app.session.query(Position).filter_by(
             strategy=strategy_name, broker=broker
         ).all()
-        # If there are open positions, don't allow deletion
-        if positions:
-            logger.error(
-                f'Cannot delete strategy {strategy_name} with open positions')
-            return jsonify({'status': 'error', 'message': 'Cannot delete strategy with open positions'}), 400
 
-        # Fetch the positions balance for the strategy being deleted
-        # (this should be zero right?) https://knowyourmeme.com/memes/for-the-better-right
-        positions_balance_record = app.session.query(Balance).filter_by(
-            # if there are open positions, don't allow deletion
-            strategy=strategy_name, broker=broker, type='positions'
-        ).order_by(Balance.timestamp.desc()).first()
+        if open_positions:
+            # if there are open positions, switch them to be uncategorized
+            for position in open_positions:
+                position.strategy = 'uncategorized'
+                app.session.add(position)
+            app.session.commit()
 
-        if positions_balance_record:
-            strategy_positions_balance = positions_balance_record.balance
-        else:
-            strategy_positions_balance = 0
-
-        # Calculate the total balance for the strategy being deleted
-        strategy_total_balance = strategy_cash_balance + strategy_positions_balance
-
-        # Delete the balances for the strategy
-        app.session.query(Balance).filter_by(
-            strategy=strategy_name, broker=broker).delete()
-
-        # Fetch the uncategorized cash balance for the broker
-        uncatagorized_cash_balance_record = app.session.query(Balance).filter_by(
-            strategy='uncategorized', broker=broker, type='cash'
-        ).order_by(Balance.timestamp.desc()).first()
-
-        if uncatagorized_cash_balance_record:
-            # Add the total balance of the deleted strategy to the uncategorized cash balance
-            uncatagorized_cash_balance_record.balance += strategy_total_balance
-        else:
-            # If no uncategorized balance exists, create a new one
-            uncatagorized_cash_balance_record = Balance(
-                strategy='uncategorized',
-                broker=broker,
-                type='cash',
-                balance=strategy_total_balance,
-                timestamp=datetime.now(UTC)
-            )
-
-        # Commit the changes to the database
-        app.session.add(uncatagorized_cash_balance_record)
+        # Delete all balance records associated with the specified strategy and broker
+        delete_count = app.session.query(Balance).filter_by(
+            strategy=strategy_name, broker=broker
+        ).delete(synchronize_session=False)
+        # Commit the transaction
         app.session.commit()
+        logger.info(f"Deleted {delete_count} balance records for strategy {strategy_name}")
 
-        return jsonify({'status': 'success'}), 200
+        return jsonify({'status': 'success', 'message': f'Strategy {strategy_name} deleted successfully'}), 200
 
     except Exception as e:
         app.session.rollback()
