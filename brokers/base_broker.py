@@ -162,7 +162,7 @@ class BaseBroker(ABC):
             profit_loss = 0
 
             # Handling Buy Orders
-            if trade.side == 'buy':
+            if 'buy' in trade.side:
                 if position and position.quantity < 0:  # This is a short cover
                     logger.info(
                         'Processing short cover',
@@ -266,7 +266,7 @@ class BaseBroker(ABC):
                         session.add(position)
 
             # Handling Sell Orders
-            elif trade.side == 'sell':
+            elif 'sell' in trade.side:
                 logger.info('Processing sell order', extra={'trade': trade})
 
                 # Short sales

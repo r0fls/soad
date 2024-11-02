@@ -579,3 +579,213 @@ async def test_normal_sell_buy(session, broker):
     result = await session.execute(select(Position).filter_by(symbol="COIN"))
     position = result.scalars().first()
     assert position.quantity == -5
+
+@pytest.mark.asyncio
+async def test_short_cover_full_alternate_side_name(session, broker):
+    # Create a short position
+    position = Position(
+        symbol="AAPL",
+        broker="dummy_broker",
+        quantity=-10,  # Short 10 shares
+        latest_price=150.0,
+        cost_basis=1500.0,
+        last_updated=datetime.now(),
+        strategy="test_strategy"
+    )
+    async with session.begin():
+        session.add(position)
+    await session.commit()
+
+    # Cover the short position
+    trade = Trade(
+        symbol="AAPL",
+        quantity=10,  # Buying back 10 shares
+        price=140.0,
+        executed_price=140.0,
+        side="buy_to_cover",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
+
+    # Update positions and check P/L
+    trade_id = trade.id
+    await broker.update_positions(trade_id, session)
+    # Get the trade's profit/loss from the database
+    profit_loss = await broker.db_manager.get_profit_loss(trade_id)
+
+    # Ensure the short position was fully covered and deleted
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position is None
+
+    # Check P/L (should be profit since buy price < sell price)
+    assert profit_loss == 100.0  # (150 - 140) * 10
+
+@pytest.mark.asyncio
+async def test_short_cover_partial_alternate_name(session, broker):
+    # Create a short position
+    position = Position(
+        symbol="AAPL",
+        broker="dummy_broker",
+        quantity=-10,  # Short 10 shares
+        latest_price=150.0,
+        cost_basis=1500.0,
+        last_updated=datetime.now(),
+        strategy="test_strategy"
+    )
+    async with session.begin():
+        session.add(position)
+    await session.commit()
+
+    # Partially cover the short position (buying back 5 shares)
+    trade = Trade(
+        symbol="AAPL",
+        quantity=5,  # Buying back 5 shares
+        price=140.0,
+        executed_price=140.0,
+        side="buy_to_cover",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade)
+    await session.commit()
+    await session.refresh(trade)
+
+    # Update positions and check P/L
+    trade_id = trade.id
+    await broker.update_positions(trade_id, session)
+    profit_loss = await broker.db_manager.get_profit_loss(trade_id)
+
+    # Ensure the position was partially covered (remaining short 5 shares)
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position.quantity == -5  # Short 5 shares remaining
+    assert position.cost_basis == 750.0  # Updated cost basis for 5 remaining shares
+
+    # Check P/L (should be profit since buy price < sell price)
+    assert profit_loss == 50.0  # (150 - 140) * 5
+
+
+@pytest.mark.asyncio
+async def test_normal_buy_sell_alternate_name(session, broker):
+    # Buy 10 shares of AAPL
+    trade1 = Trade(
+        symbol="AAPL",
+        quantity=10,
+        price=150.0,
+        executed_price=150.0,
+        side="buy_to_cover",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade1)
+    await session.commit()
+    await session.refresh(trade1)
+
+    # Update positions after the buy
+    await broker.update_positions(trade1.id, session)
+
+    # Sell 5 shares of AAPL
+    trade2 = Trade(
+        symbol="AAPL",
+        quantity=5,
+        price=155.0,
+        executed_price=155.0,
+        side="sell_short",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade2)
+    await session.commit()
+    await session.refresh(trade2)
+
+    # Update positions after the sell
+    trade2_id = trade2.id
+    await broker.update_positions(trade2_id, session)
+    # Get the trade's profit/loss from the database
+    profit_loss = await broker.db_manager.get_profit_loss(trade2_id)
+    assert profit_loss == 25.0
+
+    # Check the position after the sell
+    result = await session.execute(select(Position).filter_by(symbol="AAPL"))
+    position = result.scalars().first()
+    assert position.quantity == 5
+
+
+@pytest.mark.asyncio
+async def test_normal_sell_buy_alternate_name(session, broker):
+    # Sell 10 shares of AAPL
+    trade1 = Trade(
+        symbol="COIN",
+        quantity=10,
+        price=150.0,
+        executed_price=150.0,
+        side="sell_short",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade1)
+    await session.commit()
+    await session.refresh(trade1)
+    trade1_id = trade1.id
+
+    # Update positions after the sell
+    await broker.update_positions(trade1_id, session)
+
+    # Buy 5 shares of AAPL
+    trade2 = Trade(
+        symbol="COIN",
+        quantity=5,
+        price=155.0,
+        executed_price=155.0,
+        side="buy",
+        status="executed",
+        timestamp=datetime.now(),
+        broker="dummy_broker",
+        strategy="test_strategy",
+        profit_loss=None,
+        success="yes"
+    )
+    async with session.begin():
+        session.add(trade2)
+    await session.refresh(trade2)
+
+    # Update positions after the buy
+    trade2_id = trade2.id
+    await broker.update_positions(trade2_id, session)
+    # Get the trade's profit/loss from the database
+    profit_loss = await broker.db_manager.get_profit_loss(trade2_id)
+    assert profit_loss == -25.0
+
+    # Check the position after the buy
+    result = await session.execute(select(Position).filter_by(symbol="COIN"))
+    position = result.scalars().first()
+    assert position.quantity == -5
