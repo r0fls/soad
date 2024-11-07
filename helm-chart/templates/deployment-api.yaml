@@ -39,8 +39,8 @@ spec:
             - name: DASHBOARD_URL
               value: "http://{{ .Values.dashboard.ingress.host }}"
             {{- end }}
-            - name: ETRADE_API_KEY
-              value: "{{ .Values.brokers.etrade.apiKey }}"
+            - name: ALPAKA_API_KEY
+              value: "{{ .Values.brokers.alpaca.apiKey }}"
             - name: TASTYTRADE_API_KEY
               value: "{{ .Values.brokers.tastytrade.apiKey }}"
           ports:

@@ -58,8 +58,8 @@ postgresql:
 brokers:
   tradier:
     apiKey: "your-tradier-api-key"
-  etrade:
-    apiKey: "your-etrade-api-key"
+  alpaca:
+    apiKey: "your-alpaca-api-key"
   tastytrade:
     apiKey: "your-tastytrade-api-key"
 

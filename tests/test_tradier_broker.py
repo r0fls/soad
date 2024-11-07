@@ -38,8 +38,8 @@ class TestTradierBroker(BaseTest):
         assert account_info == {'value': 10000.0}
         assert self.broker.account_id == '12345'
 
-    @patch('brokers.etrade_broker.requests.post')
-    @patch('brokers.etrade_broker.requests.get')
+    @patch('brokers.tradier.requests.post')
+    @patch('brokers.tradier.requests.get')
     async def test_place_order(self, mock_get, mock_post):
         self.mock_connect(mock_post)
         mock_response = MagicMock()
