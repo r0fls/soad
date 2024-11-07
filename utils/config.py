@@ -15,7 +15,7 @@ from .logger import logger
 # TODO: refactor
 BROKER_MAP = {
     'tradier': lambda config, engine: TradierBroker(api_key=config['api_key'], secret_key=None, engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
-    'tastytrade': lambda config, engine: TastytradeBroker(username=config['username'], password=config['password'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
+    'tastytrade': lambda config, engine: TastytradeBroker(username=config['username'], password=config['password'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False)),
     'alpaca': lambda config, engine: AlpacaBroker(api_key=config['api_key'], secret_key=config['secret_key'], engine=engine, prevent_day_trading=config.get('prevent_day_trading', False))
 }
 
