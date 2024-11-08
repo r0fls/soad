@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
 from strategies.black_swan_strategy import BlackSwanStrategy
+from strategies.simple_strategy import SimpleStrategy
 from .logger import logger
 
 # Mapping of broker types to their constructors
@@ -37,6 +38,11 @@ STRATEGY_MAP = {
         starting_capital=config['starting_capital'],
         max_spread_percentage=config.get('max_spread_percentage', 0.25),
         bet_percentage=config.get('bet_percentage', 0.2),
+    ),
+    'simple': lambda broker, strategy_name, config: SimpleStrategy(
+        broker=broker,
+        buy_threshold=config.get('buy_threshold', 0),
+        sell_threshold=config.get('sell_threshold', 0)
     ),
     'black_swan': lambda broker, strategy_name, config: BlackSwanStrategy(
         broker=broker,
