@@ -1,6 +1,6 @@
 # SOAD: System Of A Dow
 
-![soad-logo](https://github.com/r0fls/soad/assets/1858004/7369c3af-b4e6-41d9-997c-eaa0b81b969d)
+![soad-logo](https://ipfs.io/ipfs/QmXnGGrF6f4uYZSmjT8r9vFhrhAuof8hjPeSieZdvAyhRD)
 
 ## Features
 
