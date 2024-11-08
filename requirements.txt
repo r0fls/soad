@@ -20,3 +20,4 @@ asyncpg
 aiosqlite
 greenlet
 aiohttp
+python-dotenv

@@ -11,3 +11,7 @@ venv
 custom_rsi_strategy.py
 site/
 .vscode/
+.direnv
+.zed
+.env
+.venv
