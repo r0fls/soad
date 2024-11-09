@@ -8,73 +8,12 @@ from sqlalchemy import create_engine
 from database.models import init_db
 from database.db_manager import DBManager
 from ui.app import create_app
-from utils.config import parse_config, initialize_brokers, initialize_strategies
+from utils.config import parse_config, initialize_brokers, initialize_strategies, create_database_engine, create_api_database_engine, initialize_database, initialize_brokers_and_strategies
 from utils.logger import logger  # Import the logger
 from utils.utils import is_market_open, is_futures_market_open
 import data.sync_worker as sync_worker
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
-
-def create_api_database_engine(config, local_testing=False):
-    if local_testing:
-        return create_engine('sqlite:///trading.db')
-    if 'database' in config and 'url' in config['database']:
-        return create_engine(config['database']['url'])
-    return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
-
-
-def create_database_engine(config, local_testing=False):
-    if local_testing:
-        return create_async_engine('sqlite+aiosqlite:///trading.db')
-    if type(config) == str:
-        return create_async_engine(config)
-    if 'database' in config and 'url' in config['database']:
-        return create_async_engine(config['database']['url'])
-    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
-
-async def initialize_database(engine):
-    try:
-        await init_db(engine)
-        logger.info('Database initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize database', extra={'error': str(e)}, exc_info=True)
-        raise
-
-async def initialize_system_components(config):
-    try:
-        brokers = initialize_brokers(config)
-        logger.info('Brokers initialized successfully')
-        strategies = await initialize_strategies(brokers, config)
-        logger.info('Strategies initialized successfully')
-        return brokers, strategies
-    except Exception as e:
-        logger.error('Failed to initialize system components', extra={'error': str(e)}, exc_info=True)
-        raise
-
-async def initialize_brokers_and_strategies(config):
-    engine = create_database_engine(config)
-    if config.get('rename_strategies'):
-        for strategy in config['rename_strategies']:
-            try:
-                DBManager(engine).rename_strategy(strategy['broker'], strategy['old_strategy_name'], strategy['new_strategy_name'])
-            except Exception as e:
-                logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy}, exc_info=True)
-                raise
-    # Initialize the brokers and strategies
-    try:
-        brokers, strategies = await initialize_system_components(config)
-    except Exception as e:
-        logger.error('Failed to initialize brokers', extra={'error': str(e)}, exc_info=True)
-        return
-
-    # Initialize the strategies
-    try:
-        strategies = await initialize_strategies(brokers, config)
-        logger.info('Strategies initialized successfully')
-    except Exception as e:
-        logger.error('Failed to initialize strategies', extra={'error': str(e)}, exc_info=True)
-        return
-    return brokers, strategies
 
 # TODO: fix the need to restart to refresh the tastytrade token
 # TODO: refactor/redesign to allow strategies that are not discretely rebalanced
