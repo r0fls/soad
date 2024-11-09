@@ -33,6 +33,12 @@ spec:
               value: "{{ .Values.brokers.tradier.apiKey }}"
             - name: ALPACA_API_KEY
               value: "{{ .Values.brokers.alpaca.apiKey }}"
+            - name: KRAKEN_API_KEY
+              value: "{{ .Values.brokers.kraken.apiKey }}"
+            - name: TASTYTRADE_USERNAME
+              value: "{{ .Values.brokers.tastytrade.username }}"
+            - name: TASTYTRADE_PASSWORD
+              value: "{{ .Values.brokers.tastytrade.password }}"
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trading-config.yaml"
           command: ["python3"]
