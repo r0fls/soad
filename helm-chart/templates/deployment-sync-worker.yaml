@@ -29,6 +29,8 @@ spec:
               value: "{{ .Values.brokers.tradier.apiKey }}"
             - name: ALPACA_API_KEY
               value: "{{ .Values.brokers.alpaca.apiKey }}"
+            - name: KRAKEN_API_KEY
+              value: "{{ .Values.brokers.kraken.apiKey }}"
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trade-config.yaml"
           command: ["python3"]
