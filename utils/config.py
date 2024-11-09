@@ -6,6 +6,7 @@ from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.alpaca_broker import AlpacaBroker
 from brokers.kraken_broker import KrakenBroker
+from database.models import init_db
 from sqlalchemy.ext.asyncio import create_async_engine
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
@@ -159,3 +160,64 @@ async def initialize_strategies(brokers, config):
         except Exception as e:
             logger.error(f"Error initializing strategy '{strategy_name}': {e}")
     return strategies
+
+def create_api_database_engine(config, local_testing=False):
+    if local_testing:
+        return create_engine('sqlite:///trading.db')
+    if 'database' in config and 'url' in config['database']:
+        return create_engine(config['database']['url'])
+    return create_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+
+
+def create_database_engine(config, local_testing=False):
+    if local_testing:
+        return create_async_engine('sqlite+aiosqlite:///trading.db')
+    if type(config) == str:
+        return create_async_engine(config)
+    if 'database' in config and 'url' in config['database']:
+        return create_async_engine(config['database']['url'])
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+
+async def initialize_database(engine):
+    try:
+        await init_db(engine)
+        logger.info('Database initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize database', extra={'error': str(e)}, exc_info=True)
+        raise
+
+async def initialize_system_components(config):
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+        strategies = await initialize_strategies(brokers, config)
+        logger.info('Strategies initialized successfully')
+        return brokers, strategies
+    except Exception as e:
+        logger.error('Failed to initialize system components', extra={'error': str(e)}, exc_info=True)
+        raise
+
+async def initialize_brokers_and_strategies(config):
+    engine = create_database_engine(config)
+    if config.get('rename_strategies'):
+        for strategy in config['rename_strategies']:
+            try:
+                DBManager(engine).rename_strategy(strategy['broker'], strategy['old_strategy_name'], strategy['new_strategy_name'])
+            except Exception as e:
+                logger.error('Failed to rename strategy', extra={'error': str(e), 'renameStrategyConfig': strategy}, exc_info=True)
+                raise
+    # Initialize the brokers and strategies
+    try:
+        brokers, strategies = await initialize_system_components(config)
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)}, exc_info=True)
+        return
+
+    # Initialize the strategies
+    try:
+        strategies = await initialize_strategies(brokers, config)
+        logger.info('Strategies initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize strategies', extra={'error': str(e)}, exc_info=True)
+        return
+    return brokers, strategies
