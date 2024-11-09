@@ -7,7 +7,9 @@ from brokers.tastytrade_broker import TastytradeBroker
 from brokers.alpaca_broker import AlpacaBroker
 from brokers.kraken_broker import KrakenBroker
 from database.models import init_db
+from database.db_manager import DBManager
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import create_engine
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
 from strategies.black_swan_strategy import BlackSwanStrategy
