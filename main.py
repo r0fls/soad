@@ -5,7 +5,6 @@ import os
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import create_engine
-from database.models import init_db
 from database.db_manager import DBManager
 from ui.app import create_app
 from utils.config import parse_config, initialize_brokers, initialize_strategies, create_database_engine, create_api_database_engine, initialize_database, initialize_brokers_and_strategies

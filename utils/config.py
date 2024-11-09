@@ -6,6 +6,7 @@ from brokers.tradier_broker import TradierBroker
 from brokers.tastytrade_broker import TastytradeBroker
 from brokers.alpaca_broker import AlpacaBroker
 from brokers.kraken_broker import KrakenBroker
+from database.models import init_db
 from sqlalchemy.ext.asyncio import create_async_engine
 from strategies.constant_percentage_strategy import ConstantPercentageStrategy
 from strategies.random_yolo_hedge_strategy import RandomYoloHedge
