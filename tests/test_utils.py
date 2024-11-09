@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import patch
 from utils.utils import futures_contract_size, is_futures_market_open, is_futures_symbol
 from freezegun import freeze_time
+from unittest.mock import MagicMock, AsyncMock
+import utils.config as config_module
 
 # Test Futures Contract Size
 def test_is_futures_symbol():
@@ -82,3 +84,131 @@ def test_futures_market_closed_weekday_after_close():
 @freeze_time("2024-07-23 16:30:00")  # A Tuesday at 4:30 PM Eastern Time
 def test_futures_market_open_weekday_afternoon():
     assert is_futures_market_open() is True
+
+@pytest.fixture
+def mock_config():
+    return {
+        "database": {"url": "sqlite+aiosqlite:///test.db"},
+        "brokers": {
+            "tradier": {"api_key": "test_key"},
+            "alpaca": {"api_key": "test_key", "secret_key": "test_secret"}
+        },
+        "strategies": {
+            "test_strategy": {
+                "type": "constant_percentage",
+                "broker": "tradier",
+                "stock_allocations": {"AAPL": 0.5},
+                "cash_percentage": 0.5,
+                "rebalance_interval_minutes": 60,
+                "starting_capital": 10000
+            }
+        }
+    }
+
+@pytest.mark.asyncio
+@patch("utils.config.create_async_engine", return_value=MagicMock())
+def skip_test_initialize_brokers(mock_create_engine, mock_config):
+    brokers = config_module.initialize_brokers(mock_config)
+
+    # Assertions
+    assert "tradier" in brokers
+    assert "alpaca" in brokers
+    mock_create_engine.assert_called_once_with(mock_config["database"]["url"])
+
+@pytest.mark.asyncio
+@patch("utils.config.load_strategy_class", return_value=MagicMock())
+@patch("utils.config.logger")
+async def test_load_custom_strategy_success(mock_logger, mock_load_strategy):
+    mock_broker = MagicMock()
+    strategy_config = {
+        "file_path": "dummy_path.py",
+        "class_name": "DummyStrategy",
+        "starting_capital": 10000,
+        "rebalance_interval_minutes": 30,
+        "strategy_params": {"param1": "value1"}
+    }
+
+    strategy = config_module.load_custom_strategy(mock_broker, "test_strategy", strategy_config)
+
+    # Assertions
+    mock_load_strategy.assert_called_once_with("dummy_path.py", "DummyStrategy")
+    mock_logger.info.assert_called()
+    assert strategy is not None
+
+@pytest.mark.asyncio
+@patch("utils.config.load_strategy_class", side_effect=Exception("Load error"))
+@patch("utils.config.logger")
+async def test_load_custom_strategy_failure(mock_logger, mock_load_strategy):
+    mock_broker = MagicMock()
+    strategy_config = {
+        "file_path": "dummy_path.py",
+        "class_name": "DummyStrategy",
+        "starting_capital": 10000,
+        "rebalance_interval_minutes": 30
+    }
+
+    with pytest.raises(Exception, match="Load error"):
+        config_module.load_custom_strategy(mock_broker, "test_strategy", strategy_config)
+
+    mock_load_strategy.assert_called_once_with("dummy_path.py", "DummyStrategy")
+    mock_logger.error.assert_called_once()
+
+def skip_test_parse_config():
+    mock_open = patch("builtins.open", new_callable=MagicMock).start()
+    mock_open.return_value.__enter__.return_value.read.return_value = "database:\n  url: sqlite:///test.db\n"
+
+    config = config_module.parse_config("dummy_config.yaml")
+
+    # Assertions
+    assert config["database"]["url"] == "sqlite:///test.db"
+
+    mock_open.stop()
+
+@pytest.mark.asyncio
+@patch("utils.config.initialize_brokers", return_value={"tradier": MagicMock()})
+@patch("utils.config.initialize_strategies", return_value=AsyncMock())
+async def test_initialize_system_components(mock_initialize_strategies, mock_initialize_brokers, mock_config):
+    brokers, strategies = await config_module.initialize_system_components(mock_config)
+
+    # Assertions
+    mock_initialize_brokers.assert_called_once_with(mock_config)
+    mock_initialize_strategies.assert_called_once_with(mock_initialize_brokers.return_value, mock_config)
+    assert "tradier" in brokers
+    assert strategies is not None
+
+@pytest.mark.asyncio
+@patch("utils.config.create_async_engine", return_value=MagicMock())
+@patch("utils.config.DBManager.rename_strategy", side_effect=Exception("Rename failed"))
+@patch("utils.config.initialize_system_components", return_value=(AsyncMock(), AsyncMock()))
+async def skip_test_initialize_brokers_and_strategies_with_rename_failure(mock_initialize_components, mock_rename_strategy, mock_create_engine, mock_config):
+    mock_config["rename_strategies"] = [{"broker": "tradier", "old_strategy_name": "old", "new_strategy_name": "new"}]
+
+    brokers, strategies = await config_module.initialize_brokers_and_strategies(mock_config)
+
+    # Assertions
+    mock_create_engine.assert_called_once()
+    mock_rename_strategy.assert_called_once()
+    mock_initialize_components.assert_called_once_with(mock_config)
+    assert brokers is not None
+    assert strategies is not None
+
+@pytest.mark.asyncio
+@patch("utils.config.create_async_engine", return_value=MagicMock())
+async def test_create_database_engine(mock_create_engine, mock_config):
+    engine = config_module.create_database_engine(mock_config)
+
+    # Assertions
+    mock_create_engine.assert_called_once_with(mock_config["database"]["url"])
+    assert engine is not None
+
+@pytest.mark.asyncio
+@patch("utils.config.init_db", new_callable=AsyncMock)
+@patch("utils.config.logger")
+async def test_initialize_database(mock_logger, mock_init_db):
+    mock_engine = MagicMock()
+
+    await config_module.initialize_database(mock_engine)
+
+    # Assertions
+    mock_init_db.assert_called_once_with(mock_engine)
+    mock_logger.info.assert_called_once()
