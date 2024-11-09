@@ -29,8 +29,14 @@ spec:
               value: "{{ .Values.brokers.tradier.apiKey }}"
             - name: ALPACA_API_KEY
               value: "{{ .Values.brokers.alpaca.apiKey }}"
+            - name: TASTYTRADE_USERNAME
+              value: "{{ .Values.brokers.tastytrade.username }}"
+            - name: TASTYTRADE_PASSWORD
+              value: "{{ .Values.brokers.tastytrade.password }}"
             - name: KRAKEN_API_KEY
               value: "{{ .Values.brokers.kraken.apiKey }}"
+            - name: KRAKEN_API_SECRET
+              value: "{{ .Values.brokers.kraken.apiSecret }}"
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trade-config.yaml"
           command: ["python3"]
