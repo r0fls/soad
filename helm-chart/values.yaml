@@ -62,6 +62,9 @@ brokers:
     apiKey: "your-alpaca-api-key"
   tastytrade:
     apiKey: "your-tastytrade-api-key"
+  kraken:
+    apiKey: "your-kraken-api-key"
+    apiSecret: "your-kraken-api-secret"
 
 tradingConfig: |-
   # trading config YAML here
