@@ -38,7 +38,6 @@ class BaseBroker(ABC):
     def connect(self):
         pass
 
-    @abstractmethod
     def get_cost_basis(self, symbol):
         """
         Retrieve the cost basis for a specific position (symbol) from the broker.
@@ -53,7 +52,6 @@ class BaseBroker(ABC):
     def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
         pass
 
-    @abstractmethod
     def _place_future_option_order(
             self,
             symbol,
@@ -62,7 +60,6 @@ class BaseBroker(ABC):
             price=None):
         pass
 
-    @abstractmethod
     def _place_option_order(self, symbol, quantity, side, price=None):
         pass
 
@@ -74,7 +71,6 @@ class BaseBroker(ABC):
     def _cancel_order(self, order_id):
         pass
 
-    @abstractmethod
     def _get_options_chain(self, symbol, expiration_date):
         pass
 
