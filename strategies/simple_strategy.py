@@ -7,6 +7,9 @@ class SimpleStrategy(BaseStrategy):
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
 
+    async def initialize(self):
+        await self.initialize_starting_balance()
+
     async def should_buy(self, symbol, price):
         return price < self.buy_threshold
 
