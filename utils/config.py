@@ -126,8 +126,13 @@ def initialize_brokers(config):
 
     brokers = {}
     for broker_name, broker_config in config['brokers'].items():
-        # Initialize the broker with the shared engine
-        brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
+        try:
+            # Initialize the broker with the shared engine
+            logger.debug(f"Initializing broker '{broker_name}' with config: {broker_config}")
+            brokers[broker_name] = BROKER_MAP[broker_name](broker_config, engine)
+        except Exception as e:
+            logger.error(f"Error initializing broker '{broker_name}': {e}")
+            continue
 
     return brokers
 
