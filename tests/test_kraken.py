@@ -5,6 +5,15 @@ from .base_test import BaseTest
 from database.models import Balance, Trade
 from sqlalchemy.sql import select
 
+@pytest.fixture
+def kraken_broker():
+    api_key = 'testapikey'
+    secret_key = 'dGVzdHNlY3JldGtleQ=='
+    engine = MagicMock()  # Mock the engine
+    return KrakenBroker(api_key=api_key, secret_key=secret_key, engine=engine)
+
+
+# TODO: use pytest
 @pytest.mark.asyncio
 class TestKrakenBroker(BaseTest):
 
@@ -170,3 +179,60 @@ class TestKrakenBroker(BaseTest):
         await self.broker.connect()
         current_price = await self.broker.get_current_price('XXBTZUSD')
         assert current_price == 50000.0
+
+@patch('brokers.kraken_broker.KrakenBroker._make_request')
+def test_get_account_info_usd_balance(mock_make_request, kraken_broker):
+    # Mock response for USD balance
+    mock_make_request.return_value = {
+        'result': {
+            'ZUSD': '1000.00'
+        }
+    }
+
+    result = kraken_broker._get_account_info()
+    assert result is not None
+    assert result['total_value_usd'] == 1000.0
+    assert result['balances']['ZUSD'] == '1000.00'
+
+@patch('brokers.kraken_broker.KrakenBroker._make_request')
+def test_get_account_info_with_conversion(mock_make_request, kraken_broker):
+    # Mock response for multiple balances and ticker info
+    mock_make_request.side_effect = [
+        {
+            'result': {
+                'XXBT': '0.5',
+                'ZUSD': '1000.00'
+            }
+        },
+        {
+            'result': {
+                'XXBTZUSD': {
+                    'a': ['20000.00']  # Mock ask price for XXBT to USD
+                }
+            }
+        }
+    ]
+
+    result = kraken_broker._get_account_info()
+    assert result is not None
+    assert pytest.approx(result['total_value_usd'], 0.01) == 11000.0
+    assert result['balances']['XXBT'] == '0.5'
+
+@patch('brokers.kraken_broker.KrakenBroker._make_request')
+def test_get_account_info_no_conversion_available(mock_make_request, kraken_broker):
+    # Mock response for an unsupported asset
+    mock_make_request.side_effect = [
+        {
+            'result': {
+                'TURBO': '5',
+                'ZUSD': '500.00'
+            }
+        },
+        {}
+    ]
+
+    result = kraken_broker._get_account_info()
+    assert result is not None
+    assert result['total_value_usd'] == 500.0
+    assert 'TURBO' in result['balances']
+    assert result['balances']['TURBO'] == '5'
