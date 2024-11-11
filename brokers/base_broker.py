@@ -20,6 +20,9 @@ class BaseBroker(ABC):
             broker_name,
             engine,
             prevent_day_trading=False):
+        # TODO: remove api_key and secret_key from base broker
+        self.api_key = api_key
+        self.secret_key = secret_key
         self.broker_name = broker_name.lower()
         self.db_manager = DBManager(engine)
         # Use AsyncSession

@@ -11,6 +11,8 @@ import aiohttp
 class KrakenBroker(BaseBroker):
     def __init__(self, api_key, secret_key, engine, base_url="https://api.kraken.com", base_currency="ZUSD", **kwargs):
         super().__init__(api_key, secret_key, 'Kraken', engine=engine, **kwargs)
+        self.api_key = api_key
+        self.secret_key = secret_key
         self.base_currency = base_currency
         self.secret_key = secret_key
         self.base_url = base_url
