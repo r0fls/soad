@@ -60,10 +60,11 @@ class KrakenBroker(BaseBroker):
         # Connection is established via API keys; no additional connection steps required
         pass
 
+
     def _get_account_info(self):
         """
-        NOTE: Unlike equity brokers, we need to calculate the total account value ourselves
-              by converting each asset balance to USD using the latest market data.
+        Calculate the total account value in USD by converting each asset balance
+        using the latest market data from Kraken.
         """
         logger.debug('Retrieving account information')
         try:
@@ -81,15 +82,23 @@ class KrakenBroker(BaseBroker):
                     if balance <= 0:
                         continue
 
+                    # Handle base currency directly
                     if asset == self.base_currency:
                         total_value_usd += balance
                         continue
 
+                    # Adjust asset symbol if necessary
+                    if asset == 'BTC':
+                        asset = 'XXBT'  # Convert BTC to XXBT for Kraken pair formatting
+
                     # Get conversion rate for the asset to base currency
                     pair = f"{asset}{self.base_currency}"
                     ticker_info = self._make_request('/public/Ticker', {'pair': pair})
-                    if ticker_info and 'result' in ticker_info and pair in ticker_info['result']:
-                        ask_price = float(ticker_info['result'][pair]['a'][0])  # Get ask price
+
+                    if ticker_info and 'result' in ticker_info:
+                        # Handle potential formatting issues with pairs
+                        pair_key = next(iter(ticker_info['result']))
+                        ask_price = float(ticker_info['result'][pair_key]['a'][0])  # Get ask price
                         total_value_usd += balance * ask_price
                         logger.debug(f'Converted {asset} balance to USD: {balance} * {ask_price} = {balance * ask_price}')
                     else:
@@ -106,7 +115,6 @@ class KrakenBroker(BaseBroker):
         except Exception as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
             return None
-
 
     def get_positions(self):
         logger.info('Retrieving positions')

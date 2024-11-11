@@ -15,6 +15,9 @@ class BaseBroker(ABC):
     def __init__(
             self,
             broker_name,
+            # TODO: remove from base broker
+            api_key,
+            secret_key,
             engine,
             prevent_day_trading=False):
         self.broker_name = broker_name.lower()
