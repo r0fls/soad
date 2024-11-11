@@ -64,7 +64,7 @@ brokers:
     apiKey: "your-tastytrade-api-key"
   kraken:
     apiKey: "your-kraken-api-key"
-    apiSecret: "your-kraken-api-secret"
+    secretKey: "your-kraken-secret-key"
 
 tradingConfig: |-
   # trading config YAML here

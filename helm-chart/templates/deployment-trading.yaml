@@ -35,8 +35,8 @@ spec:
               value: "{{ .Values.brokers.alpaca.apiKey }}"
             - name: KRAKEN_API_KEY
               value: "{{ .Values.brokers.kraken.apiKey }}"
-            - name: KRAKEN_API_SECRET
-              value: "{{ .Values.brokers.kraken.apiSecret }}"
+            - name: KRAKEN_SECRET_KEY
+              value: "{{ .Values.brokers.kraken.secretKey }}"
             - name: TASTYTRADE_USERNAME
               value: "{{ .Values.brokers.tastytrade.username }}"
             - name: TASTYTRADE_PASSWORD
