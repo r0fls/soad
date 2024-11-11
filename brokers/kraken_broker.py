@@ -9,8 +9,9 @@ from utils.logger import logger
 import aiohttp
 
 class KrakenBroker(BaseBroker):
-    def __init__(self, api_key, secret_key, engine, base_url="https://api.kraken.com", **kwargs):
+    def __init__(self, api_key, secret_key, engine, base_url="https://api.kraken.com", base_currency="ZUSD", **kwargs):
         super().__init__(api_key, secret_key, 'Kraken', engine=engine, **kwargs)
+        self.base_currency = base_currency
         self.secret_key = secret_key
         self.base_url = base_url
         self.api_version = '/0'
@@ -60,17 +61,52 @@ class KrakenBroker(BaseBroker):
         pass
 
     def _get_account_info(self):
+        """
+        NOTE: Unlike equity brokers, we need to calculate the total account value ourselves
+              by converting each asset balance to USD using the latest market data.
+        """
         logger.debug('Retrieving account information')
         try:
             response = self._make_request('/private/Balance')
             if response and 'result' in response:
                 self.account_id = self.api_key[:8]  # Using first 8 chars of API key as account ID
                 logger.info('Account info retrieved', extra={'account_id': self.account_id})
-                return response['result']
+
+                # Calculate total USD value
+                account_data = response['result']
+                total_value_usd = 0.0
+
+                for asset, balance in account_data.items():
+                    balance = float(balance)
+                    if balance <= 0:
+                        continue
+
+                    if asset == self.base_currency:
+                        total_value_usd += balance
+                        continue
+
+                    # Get conversion rate for the asset to base currency
+                    pair = f"{asset}{self.base_currency}"
+                    ticker_info = self._make_request('/public/Ticker', {'pair': pair})
+                    if ticker_info and 'result' in ticker_info and pair in ticker_info['result']:
+                        ask_price = float(ticker_info['result'][pair]['a'][0])  # Get ask price
+                        total_value_usd += balance * ask_price
+                        logger.debug(f'Converted {asset} balance to USD: {balance} * {ask_price} = {balance * ask_price}')
+                    else:
+                        logger.warning(f'No market data for {asset}. Skipping conversion.')
+
+                logger.info('Total account value calculated', extra={'total_value_usd': total_value_usd})
+                return {
+                    'account_id': self.account_id,
+                    'total_value_usd': total_value_usd,
+                    'balances': account_data
+                }
             return None
+
         except Exception as e:
             logger.error('Failed to retrieve account information', extra={'error': str(e)})
             return None
+
 
     def get_positions(self):
         logger.info('Retrieving positions')
