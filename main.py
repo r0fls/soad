@@ -12,6 +12,7 @@ import data.sync_worker as sync_worker
 from order_manager.manager import order_manager
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
+ORDER_MANAGER_INTERVAL_SECONDS = 60
 
 # TODO: fix the need to restart to refresh the tastytrade token
 # TODO: refactor/redesign to allow strategies that are not discretely rebalanced
