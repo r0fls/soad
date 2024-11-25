@@ -20,6 +20,7 @@ class Trade(Base):
     strategy = Column(String, nullable=True)
     profit_loss = Column(Float, nullable=True)
     success = Column(String, nullable=True)
+    execution_type = Column(String, nullable=True)
 
 class AccountInfo(Base):
     __tablename__ = 'account_info'
