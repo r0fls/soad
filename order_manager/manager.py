@@ -5,11 +5,11 @@ class OrderManager:
         self.db_manager = DBManager(engine)
         self.brokers = brokers
 
-    async def reconcile_orders(orders):
+    async def reconcile_orders(self, orders):
         for order in orders:
             await self.reconcile_order(order)
 
-    async def reconcile_order(order):
+    async def reconcile_order(self, order):
         broker = self.brokers[order.broker]
         # TODO: handle partial fill
         filled = await broker.is_order_filled(order)
