@@ -179,7 +179,7 @@ async def start_sync_worker(config_path):
 
 async def main():
     parser = argparse.ArgumentParser(description="Run trading strategies, start API server, or start sync worker based on YAML configuration.")
-    parser.add_argument('--mode', choices=['trade', 'api', 'sync'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
+    parser.add_argument('--mode', choices=['trade', 'api', 'sync', 'manager'], required=True, help='Mode to run the system in: "trade", "api", or "sync"')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file.')
     parser.add_argument('--local_testing', action='store_true', help='Run API server with local testing configuration.')
     args = parser.parse_args()
