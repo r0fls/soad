@@ -25,6 +25,6 @@ class OrderManager:
         orders = await self.db_manager.get_open_trades()
         await self.reconcile_orders(orders)
 
-async def run(engine, brokers):
+async def run_order_manager(engine, brokers):
     order_manager = OrderManager(engine, brokers)
     await order_manager.run()

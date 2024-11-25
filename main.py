@@ -9,7 +9,7 @@ from utils.config import parse_config, initialize_brokers, initialize_strategies
 from utils.logger import logger  # Import the logger
 from utils.utils import is_market_open, is_futures_market_open
 import data.sync_worker as sync_worker
-from order_manager.manager import order_manager
+from order_manager.manager import run_order_manager
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 ORDER_MANAGER_INTERVAL_SECONDS = 60
@@ -123,7 +123,7 @@ async def start_order_manager(config_path):
         return
     while True:
         try:
-            await order_manager.run(engine, brokers)
+            await run_order_manager(engine, brokers)
             logger.info('Order manager started successfully')
             await asyncio.sleep(ORDER_MANAGER_INTERVAL_SECONDS)
         except Exception as e:
