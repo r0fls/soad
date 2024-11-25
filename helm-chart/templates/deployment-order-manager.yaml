@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "trading-app.name" . }}-sync-worker
+  name: {{ include "trading-app.name" . }}-order-manager
   labels:
     {{- include "trading-app.labels" . | nindent 4 }}
 spec:
@@ -10,17 +10,17 @@ spec:
   selector:
     matchLabels:
       {{- include "trading-app.selectorLabels" . | nindent 6 }}
-      component: sync-worker
+      component: order-manager
   template:
     metadata:
       labels:
         {{- include "trading-app.selectorLabels" . | nindent 8 }}
-        component: sync-worker
+        component: order-manager
     spec:
       containers:
-        - name: sync-worker
-          image: "{{ .Values.sync.image.repository }}:{{ .Values.trading.image.tag }}"
-          imagePullPolicy: {{ .Values.sync.image.pullPolicy }}
+        - name: order-manager
+          image: "{{ .Values.trading.image.repository }}:{{ .Values.trading.image.tag }}"
+          imagePullPolicy: {{ .Values.trading.image.pullPolicy }}
           env:
             - name: DATABASE_URL
               value: "postgresql+asyncpg://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
@@ -39,7 +39,7 @@ spec:
             - name: TRADING_CONFIG_FILE
               value: "/etc/config/trade-config.yaml"
           command: ["python3"]
-          args: ["main.py", "--mode", "sync", "--config", "/etc/config/trading-config.yaml"]
+          args: ["main.py", "--mode", "manager", "--config", "/etc/config/trading-config.yaml"]
           volumeMounts:
             - name: trading-config-volume
               mountPath: /etc/config

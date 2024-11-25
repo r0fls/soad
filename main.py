@@ -9,8 +9,10 @@ from utils.config import parse_config, initialize_brokers, initialize_strategies
 from utils.logger import logger  # Import the logger
 from utils.utils import is_market_open, is_futures_market_open
 import data.sync_worker as sync_worker
+from order_manager.manager import run_order_manager
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
+ORDER_MANAGER_INTERVAL_SECONDS = 60
 
 # TODO: fix the need to restart to refresh the tastytrade token
 # TODO: refactor/redesign to allow strategies that are not discretely rebalanced
@@ -108,6 +110,26 @@ async def start_api_server(config_path=None, local_testing=False):
     except Exception as e:
         logger.error('Failed to start API server', extra={'error': str(e)}, exc_info=True)
 
+async def start_order_manager(config_path):
+    logger.info('Starting order manager', extra={'config_path': config_path})
+    config = parse_config(config_path)
+    engine = create_database_engine(config)
+    await initialize_database(engine)
+    try:
+        brokers = initialize_brokers(config)
+        logger.info('Brokers initialized successfully')
+    except Exception as e:
+        logger.error('Failed to initialize brokers', extra={'error': str(e)})
+        return
+    while True:
+        try:
+            await run_order_manager(engine, brokers)
+            logger.info('Order manager started successfully')
+            await asyncio.sleep(ORDER_MANAGER_INTERVAL_SECONDS)
+        except Exception as e:
+            logger.error('Failed to start order manager, trying to initialize brokers again', extra={'error': str(e)}, exc_info=True)
+            brokers = initialize_brokers(config)
+
 async def start_sync_worker(config_path):
     logger.info('Starting sync worker', extra={'config_path': config_path})
 
@@ -182,6 +204,14 @@ async def main():
         except Exception as e:
             logger.error('Error in sync worker', extra={'error': str(e)}, exc_info=True)
             await start_sync_worker(args.config)
+    elif args.mode == 'manager':
+        if not args.config:
+            parser.error('--config is required when mode is "order_manager"')
+        try:
+            await start_order_manager(args.config)
+        except Exception as e:
+            logger.error('Error in order manager', extra={'error': str(e)}, exc_info=True)
+            await start_order_manager(args.config)
 
 if __name__ == "__main__":
     asyncio.run(main())
