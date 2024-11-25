@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: order-manager
-          image: "{{ .Values.trading.image.repository }}:{{ .Values.trading.image.tag }}"
-          imagePullPolicy: {{ .Values.trading.image.pullPolicy }}
+          image: "{{ .Values.order_manager.image.repository }}:{{ .Values.order_manager.image.tag }}"
+          imagePullPolicy: {{ .Values.order_manager.image.pullPolicy }}
           env:
             - name: DATABASE_URL
               value: "postgresql+asyncpg://{{ .Values.database.user }}:{{ .Values.database.password }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
