@@ -323,6 +323,13 @@ class TastytradeBroker(BaseBroker):
             logger.error('Failed to place order', extra={'error': str(e)})
             return {'filled_price': None}
 
+    def _is_order_filled(self, order_id):
+        account = Account.get_account(self.session, self.account_id)
+        order = account.get_order(order_id)
+        if order.status == OrderStatus.FILLED:
+            return True
+        return False
+
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
         try:

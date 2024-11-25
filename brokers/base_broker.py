@@ -65,6 +65,9 @@ class BaseBroker(ABC):
     def _place_option_order(self, symbol, quantity, side, price=None):
         pass
 
+    def _is_order_filled(self, order_id):
+        pass
+
     @abstractmethod
     def _get_order_status(self, order_id):
         pass
@@ -83,6 +86,15 @@ class BaseBroker(ABC):
     @abstractmethod
     def get_positions(self):
         pass
+
+    async def is_order_filled(self, order_id):
+        '''Check if an order has been filled'''
+        logger.debug('Checking if order has been filled', extra={'order_id': order_id})
+        try:
+            return await self._is_order_filled(order_id)
+        except Exception as e:
+            logger.error('Failed to check if order has been filled', extra={'error': str(e)})
+            return False
 
     async def get_account_info(self):
         '''Get the account information'''
