@@ -44,6 +44,44 @@ class DBManager:
                 logger.error(f'Failed to retrieve trade {trade_id}', extra={'error': str(e)})
                 return None
 
+    async def set_trade_filled(self, trade_id):
+        async with self.Session() as session:
+            try:
+                logger.debug('Setting trade filled', extra={'trade_id': trade_id})
+                result = await session.execute(select(Trade).filter_by(id=trade_id))
+                trade = result.scalar()
+                trade.status = 'filled'
+                await session.commit()
+                logger.debug('Trade status set to filled', extra={'trade': trade})
+            except Exception as e:
+                await session.rollback()
+                logger.error('Failed to set trade filled', extra={'error': str(e)})
+
+    async def set_trade_cancelled(self, trade_id):
+        async with self.Session() as session:
+            try:
+                logger.debug('Setting trade cancelled', extra={'trade_id': trade_id})
+                result = await session.execute(select(Trade).filter_by(id=trade_id))
+                trade = result.scalar()
+                trade.status = 'cancelled'
+                await session.commit()
+                logger.debug('Trade status set to cancelled', extra={'trade': trade})
+            except Exception as e:
+                await session.rollback()
+                logger.error('Failed to set trade cancelled', extra={'error': str(e)})
+
+    async def get_open_trades(self):
+        async with self.Session() as session:
+            try:
+                logger.debug('Retrieving open trades')
+                result = await session.execute(select(Trade).filter_by(status='open'))
+                trades = result.scalars().all()
+                logger.debug('Open trades retrieved', extra={'trade_count': len(trades)})
+                return trades
+            except Exception as e:
+                logger.error('Failed to retrieve open trades', extra={'error': str(e)})
+                return []
+
     async def get_all_trades(self):
         async with self.Session() as session:
             try:
