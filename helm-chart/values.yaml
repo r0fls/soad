@@ -12,6 +12,12 @@ api:
     repository: r0fls/soad-trading-system
     tag: latest
     pullPolicy: Always
+order_manager:
+  replicas: 1
+  image:
+    repository: r0fls/soad-trading-system
+    tag: latest
+    pullPolicy: Always
 trading:
   image:
     pullSecret: ""
