@@ -15,12 +15,15 @@ class OrderManager:
         # Commit the transaction
 
     async def reconcile_order(self, order):
-        logger.info(f'Reconciling order {order.id}', extra={'order_id': order.id, 'broker': order.broker, 'symbol': order.symbol, 'quantity': order.quantity, 'price': order.price, 'side': order.side, 'status': order.status, 'type': order.type, 'time_in_force': order.time_in_force, 'created_at': order.created_at, 'updated_at': order.updated_at, 'filled_at': order.filled_at, 'filled_quantity': order.filled_quantity, 'remaining_quantity': order.remaining_quantity, 'canceled_at': order.canceled_at, 'failed_at': order.failed_at, 'message': order.message})
+        logger.info(f'Reconciling order {order.id}', extra={'order_id': order.id, 'broker': order.broker, 'symbol': order.symbol, 'quantity': order.quantity, 'price': order.price, 'side': order.side, 'status': order.status})
         broker = self.brokers[order.broker]
         # TODO: handle partial fill
         filled = await broker.is_order_filled(order)
         if filled:
-            await self.db_manager.set_trade_filled(order.id)
+            try:
+                await self.db_manager.set_trade_filled(order.id)
+            except Exception as e:
+                logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
 
     async def run(self):
         logger.info('Running OrderManager')
