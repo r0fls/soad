@@ -18,7 +18,7 @@ class OrderManager:
         logger.info(f'Reconciling order {order.id}', extra={'order_id': order.id, 'broker': order.broker, 'symbol': order.symbol, 'quantity': order.quantity, 'price': order.price, 'side': order.side, 'status': order.status})
         broker = self.brokers[order.broker]
         # TODO: handle partial fill
-        filled = await broker.is_order_filled(order)
+        filled = await broker.is_order_filled(order.id)
         if filled:
             try:
                 await self.db_manager.set_trade_filled(order.id)

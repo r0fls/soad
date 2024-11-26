@@ -324,11 +324,8 @@ class TastytradeBroker(BaseBroker):
             return {'filled_price': None}
 
     def _is_order_filled(self, order_id):
-        account = Account.get_account(self.session, self.account_id)
-        order = account.get_order(order_id)
-        if order.status == OrderStatus.FILLED:
-            return True
-        return False
+        status = self._get_order_status(order_id)
+        return self.check_is_order_filled_from_response(status)
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
