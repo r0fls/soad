@@ -152,7 +152,7 @@ class TastytradeBroker(BaseBroker):
             return symbol.replace(' ', '')  # Remove spaces from the symbol
 
     @staticmethod
-    def is_order_filled(order_response):
+    def check_is_order_filled_from_response(order_response):
         if order_response.order.status == OrderStatus.FILLED:
             return True
 
@@ -311,7 +311,7 @@ class TastytradeBroker(BaseBroker):
                     response), 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
                 return {'filled_price': None}
             else:
-                if self.is_order_filled(response):
+                if self.check_is_order_filled_from_response(response):
                     logger.info('Order filled', extra={'response': str(
                         response), 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
                 else:
