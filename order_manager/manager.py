@@ -1,6 +1,8 @@
 from database.db_manager import DBManager
 from utils.logger import logger
 
+MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
+
 class OrderManager:
     def __init__(self, engine, brokers):
         logger.info('Initializing OrderManager')
@@ -15,9 +17,31 @@ class OrderManager:
         # Commit the transaction
 
     async def reconcile_order(self, order):
-        logger.info(f'Reconciling order {order.id}', extra={'order_id': order.id, 'broker': order.broker, 'symbol': order.symbol, 'quantity': order.quantity, 'price': order.price, 'side': order.side, 'status': order.status})
+        logger.info(f'Reconciling order {order.id}', extra={
+            'order_id': order.id,
+            'broker': order.broker,
+            'symbol': order.symbol,
+            'quantity': order.quantity,
+            'price': order.price,
+            'side': order.side,
+            'status': order.status
+        })
+
+        # Calculate the stale threshold
+        stale_threshold = datetime.utcnow() - timedelta(seconds=MARK_ORDER_STALE_AFTER)
+
+        # Check if the order is stale
+        if order.timestamp < stale_threshold and order.status not in ['filled', 'canceled']:
+            try:
+                logger.info(f'Marking order {order.id} as stale', extra={'order_id': order.id})
+                await self.db_manager.update_trade_status(order.id, 'stale')
+                return  # Exit early if the order is stale
+            except Exception as e:
+                logger.error(f'Error marking order {order.id} as stale', extra={'error': str(e)})
+                return
+
+        # If the order is not stale, reconcile it
         broker = self.brokers[order.broker]
-        # TODO: handle partial fill
         filled = await broker.is_order_filled(order.id)
         if filled:
             try:

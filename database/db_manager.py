@@ -29,6 +29,19 @@ class DBManager:
                 await session.rollback()
                 logger.error('Failed to add account info', extra={'error': str(e)})
 
+    async def update_trade_status(self, trade_id, status):
+        async with self.Session() as session:
+            try:
+                logger.debug('Updating trade status', extra={'trade_id': trade_id, 'status': status})
+                result = await session.execute(select(Trade).filter_by(id=trade_id))
+                trade = result.scalar()
+                trade.status = status
+                await session.commit()
+                logger.debug('Trade status updated', extra={'trade': trade})
+            except Exception as e:
+                await session.rollback()
+                logger.error('Failed to update trade status', extra={'error': str(e)})
+
     async def get_trade(self, trade_id):
         async with self.Session() as session:
             try:
