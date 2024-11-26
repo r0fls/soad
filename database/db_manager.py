@@ -206,22 +206,6 @@ class DBManager:
             logger.error('Failed to calculate partial profit/loss', extra={'error': str(e)})
             return None
 
-    async def update_trade_status(self, trade_id, executed_price, success, profit_loss):
-        async with self.Session() as session:
-            try:
-                logger.debug('Updating trade status', extra={'trade_id': trade_id, 'executed_price': executed_price, 'success': success, 'profit_loss': profit_loss})
-                result = await session.execute(select(Trade).filter_by(id=trade_id))
-                trade = result.scalar()
-                if trade:
-                    trade.executed_price = executed_price
-                    trade.success = success
-                    trade.profit_loss = profit_loss
-                    await session.commit()
-                    logger.debug('Trade status updated', extra={'trade': trade})
-            except Exception as e:
-                await session.rollback()
-                logger.error('Failed to update trade status', extra={'error': str(e)})
-
     async def rename_strategy(self, broker, old_strategy_name, new_strategy_name):
         async with self.Session() as session:
             try:
