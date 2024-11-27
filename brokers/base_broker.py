@@ -403,6 +403,8 @@ class BaseBroker(ABC):
                 response = broker_order_func(
                     symbol, quantity, side, price, order_type)
 
+            broker_id = response.get('order_id', None)
+
             logger.info(
                 'Order placed successfully',
                 extra={
@@ -410,6 +412,7 @@ class BaseBroker(ABC):
                     'symbol': symbol,
                     'quantity': quantity,
                     'side': side,
+                    'broker_id': broker_id,
                     'strategy': strategy})
 
             # Extract price if not given
@@ -423,6 +426,7 @@ class BaseBroker(ABC):
                 executed_price=price,
                 side=side,
                 status='open',
+                broker_id=broker_id,
                 timestamp=datetime.now(),
                 broker=self.broker_name,
                 strategy=strategy,
