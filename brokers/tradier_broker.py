@@ -95,19 +95,32 @@ class TradierBroker(BaseBroker):
             logger.error('Failed to retrieve positions',
                          extra={'error': str(e)})
 
-    def _is_order_filled(self, order_id):
+    async def _is_order_filled(self, order_id):
         logger.info('Checking if order is filled', extra={'order_id': order_id})
         try:
-            response = requests.get(
-                f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
-            response.raise_for_status()
-            order_status = response.json()['order']['status']
-            logger.info('Order status retrieved', extra={
-                        'order_status': order_status})
-            return order_status == 'filled'
-        except requests.RequestException as e:
-            logger.error('Failed to retrieve order status',
-                         extra={'error': str(e)})
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(
+                    f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}"
+                ) as response:
+                    if response.status != 200:
+                        logger.error(
+                            'Failed to retrieve order status',
+                            extra={'error': f"HTTP status code {response.status}"}
+                        )
+                        return False
+                    data = await response.json()
+                    order_status = data['order']['status']
+                    logger.info(
+                        'Order status retrieved',
+                        extra={'order_status': order_status}
+                    )
+                    return order_status == 'filled'
+        except aiohttp.ClientError as e:
+            logger.error(
+                'Failed to retrieve order status',
+                extra={'error': str(e)}
+            )
+            return False
 
     def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
         logger.info('Placing order', extra={
