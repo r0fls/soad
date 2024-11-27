@@ -333,7 +333,11 @@ class TastytradeBroker(BaseBroker):
 
     def _is_order_filled(self, order_id):
         status = self._get_order_status(order_id)
-        return self.check_is_order_filled_from_response(status)
+        if status is None:
+            return False
+        if status.get('remaining_quantity') == 0:
+            return True
+        return False
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
