@@ -20,6 +20,7 @@ class OrderManager:
     async def reconcile_order(self, order):
         logger.info(f'Reconciling order {order.id}', extra={
             'order_id': order.id,
+            'broker_id': order.broker_id,
             'broker': order.broker,
             'symbol': order.symbol,
             'quantity': order.quantity,
@@ -43,7 +44,7 @@ class OrderManager:
 
         # If the order is not stale, reconcile it
         broker = self.brokers[order.broker]
-        filled = await broker.is_order_filled(order.id)
+        filled = await broker.is_order_filled(order.broker_id)
         if filled:
             try:
                 await self.db_manager.set_trade_filled(order.id)

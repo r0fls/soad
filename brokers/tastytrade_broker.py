@@ -244,6 +244,9 @@ class TastytradeBroker(BaseBroker):
             return {'filled_price': None}
 
         response = account.place_order(self.session, order, dry_run=False)
+        # TODO: refactor as part of introducing generic order method
+        if hasattr(response, 'order'):
+            return response.order
         return response
 
     async def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
@@ -317,7 +320,12 @@ class TastytradeBroker(BaseBroker):
                 else:
                     logger.info('Order likely still open', extra={
                                 'order_data': response, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
-                return {'filled_price': price, 'order_id': getattr(response, 'id', 0)}
+                if hasattr(response, 'order'):
+                    return {'filled_price': price, 'order_id': response.order.id}
+                else:
+                    logger.error('Order placement failed', extra={'response': str(
+                        response), 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
+                    return response
 
         except Exception as e:
             logger.error('Failed to place order', extra={'error': str(e)})

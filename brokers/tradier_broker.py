@@ -188,6 +188,7 @@ class TradierBroker(BaseBroker):
             data = order_json or {}
             if data.get('filled_price') is None:
                 data['filled_price'] = price
+            data['order_id'] = order_id
             logger.info('Order execution complete', extra={'order_data': data})
             return data
         except Exception as e:
