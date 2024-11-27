@@ -48,6 +48,7 @@ class OrderManager:
             # If the order has no broker_id, mark it as stale
             logger.info(f'Marking order {order.id} as stale, missing broker_id', extra={'order_id': order.id})
             await self.db_manager.update_trade_status(order.id, 'stale')
+            return
         filled = await broker.is_order_filled(order.broker_id)
         if filled:
             try:
