@@ -91,7 +91,10 @@ class BaseBroker(ABC):
         '''Check if an order has been filled'''
         logger.debug('Checking if order has been filled', extra={'order_id': order_id})
         try:
-            return await self._is_order_filled(order_id)
+            if asyncio.iscoroutinefunction(self._is_order_filled):
+                return await self._is_order_filled(order_id)
+            else:
+                return self._is_order_filled(order_id)
         except Exception as e:
             logger.error('Failed to check if order has been filled', extra={'error': str(e)})
             return False
