@@ -21,7 +21,7 @@ const Login = () => {
       if (response.status === 200 && response.data.access_token) {
         setToken(response.data.access_token);
         console.log('Token set, navigating to /'); // Debug log for navigation
-        setTimeout(navigate, 0, "/");
+        setTimeout(navigate, 0, '/');
       } else {
         setError('Invalid username or password');
       }
