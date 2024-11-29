@@ -29,8 +29,15 @@ We welcome contributions to the SOAD project. Here are some ways you can help:
 
 4. Start the frontend (React) server
 
-    NOTE: right now you will have to edit this line in `src/axiosInstance.js` file locally to point to `http://localhost:8000`:
-    https://github.com/r0fls/soad/blob/main/trading-dashboard/src/axiosInstance.js#L4
+    Create a file called `/trading-dashboard/.env.local` with this line:
+    ```
+    REACT_APP_API_URL=http://localhost:8000
+    ```
+
+    To prevent `package.json` from [unexpectedly changing](https://github.com/nodejs/corepack/issues/485) set this environment variable:
+    ```
+    COREPACK_ENABLE_AUTO_PIN=0
+    ```
 
     Then:
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import history from './history';
 
-const baseURL = '$REACT_API_URL';
+const baseURL = process.env.REACT_APP_API_URL || '$REACT_API_URL';
 
 const axiosInstance = axios.create({
   baseURL: baseURL,
