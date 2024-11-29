@@ -335,9 +335,10 @@ class TastytradeBroker(BaseBroker):
         status = self._get_order_status(order_id)
         if status is None:
             return False
-        if status.get('remaining_quantity') == 0:
-            return True
-        return False
+        all_legs_filled = all(
+                [leg.get('remaining-quantity') == 0 for leg in status.get('data').get('legs')]
+            )
+        return all_legs_filled
 
     def _get_order_status(self, order_id):
         logger.info('Retrieving order status', extra={'order_id': order_id})
