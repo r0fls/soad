@@ -353,6 +353,8 @@ class TastytradeBroker(BaseBroker):
         except requests.RequestException as e:
             logger.error('Failed to retrieve order status',
                          extra={'error': str(e)})
+            # Raise so that the caller knows to perform a credential refresh
+            raise
 
     def _cancel_order(self, order_id):
         logger.info('Cancelling order', extra={'order_id': order_id})
