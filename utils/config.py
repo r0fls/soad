@@ -183,7 +183,7 @@ def create_database_engine(config, local_testing=False):
         return create_async_engine(config)
     if 'database' in config and 'url' in config['database']:
         return create_async_engine(config['database']['url'])
-    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite:///default_trading_system.db'))
+    return create_async_engine(os.environ.get("DATABASE_URL", 'sqlite+aiosqlite:///default_trading_system.db'))
 
 async def initialize_database(engine):
     try:

@@ -187,11 +187,20 @@ async def main():
     if args.mode == 'trade':
         if not args.config:
             parser.error('--config is required when mode is "trade"')
+
+        # Check if the config exists before going into the loop 
+        try:
+            parse_config(args.config)
+            logger.info('Configuration parsed successfully')
+        except Exception as e:
+            logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
+            return
+
         while True:
             try:
                 await start_trading_system(args.config)
             except Exception as e:
-                logger.error('Error in trading system', extra={'error': str(e)})
+                logger.error('Error in trading system', extra={'error': str(e)}, exc_info=True)
                 logger.info('Restarting the trading system')
                 continue
     elif args.mode == 'api':
