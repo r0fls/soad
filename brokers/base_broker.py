@@ -441,6 +441,7 @@ class BaseBroker(ABC):
             async with self.Session() as session:
                 session.add(trade)
                 await session.flush()
+                await self.update_positions(trade.id, session)
                 await session.commit()
 
                 # Update balance
