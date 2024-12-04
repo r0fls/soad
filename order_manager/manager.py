@@ -56,7 +56,7 @@ class OrderManager:
             try:
                 async with self.db_manager.Session() as session:
                     await self.db_manager.set_trade_filled(order.id)
-                    await broker.update_positions(order, session)
+                    await broker.update_positions(order.id, session)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
 
