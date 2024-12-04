@@ -1,8 +1,6 @@
 from database.db_manager import DBManager
 from utils.logger import logger
 from datetime import datetime, timedelta
-from sqlalchemy import select
-from database.models import Position, Trade
 
 MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
 
@@ -54,9 +52,7 @@ class OrderManager:
         filled = await broker.is_order_filled(order.broker_id)
         if filled:
             try:
-                async with self.db_manager.Session() as session:
-                    await self.db_manager.set_trade_filled(order.id)
-                    await broker.update_positions(order, session)
+                await self.db_manager.set_trade_filled(order.id)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
 
