@@ -200,7 +200,7 @@ async def main():
             try:
                 await start_trading_system(args.config)
             except Exception as e:
-                logger.error('Error in trading system', extra={'error': str(e)})
+                logger.error('Error in trading system', extra={'error': str(e)}, exc_info=True)
                 logger.info('Restarting the trading system')
                 continue
     elif args.mode == 'api':
