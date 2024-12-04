@@ -1,6 +1,8 @@
 from database.db_manager import DBManager
 from utils.logger import logger
 from datetime import datetime, timedelta
+from sqlalchemy import select
+from database.models import Position
 
 MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
 
