@@ -497,7 +497,7 @@ class BaseBroker(ABC):
                 trade = await session.execute(session.query(Trade).filter_by(id=order_id))
                 trade = trade.scalars().first()
                 if trade:
-                    await self.update_trade(session, trade.id, cancel_status)
+                    await self.update_trade(session, trade.id, 'cancelled')
             logger.info(
                 'Order cancelled successfully', extra={
                     'cancel_status': cancel_status})
