@@ -476,7 +476,7 @@ class BaseBroker(ABC):
         try:
             order_status = self._get_order_status(order_id)
             async with self.Session() as session:
-                trade = await.session.execute(select(Trade).filter_by(id=order_id))
+                trade = await session.execute(select(Trade).filter_by(id=order_id))
                 trade = trade.scalars().first()
                 if trade:
                     await self.update_trade(session, trade.id, order_status)
