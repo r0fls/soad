@@ -195,7 +195,8 @@ async def main():
                 logger.error('Error in trading system', extra={'error': str(e)}, exc_info=True)
                 logger.info('Restarting the trading system in 60 seconds')
                 await asyncio.sleep(60)
-
+                continue
+            
     elif args.mode == 'api':
         await start_api_server(config_path=args.config, local_testing=args.local_testing)
     elif args.mode == 'sync':
