@@ -486,7 +486,9 @@ class BaseBroker(ABC):
             return order_status
         except Exception as e:
             logger.error('Failed to get order status', extra={'error': str(e)})
-            return None
+            # TODO: fix
+            # Raise to trigger a reauthentication in tastytrade (hack)
+            raise
 
     async def cancel_order(self, order_id):
         '''Cancel an order'''
