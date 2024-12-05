@@ -297,7 +297,7 @@ class TradierBroker(BaseBroker):
         logger.info('Retrieving order status', extra={'order_id': order_id})
         try:
             response = requests.get(
-                f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+                f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
             response.raise_for_status()
             order_status = response.json()
             logger.info('Order status retrieved', extra={
@@ -311,7 +311,7 @@ class TradierBroker(BaseBroker):
         logger.info('Cancelling order', extra={'order_id': order_id})
         try:
             response = requests.delete(
-                f"{self.base_url}/accounts/orders/{order_id}", headers=self.headers)
+                f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}", headers=self.headers)
             response.raise_for_status()
             cancellation_response = response.json()
             logger.info('Order cancelled successfully', extra={

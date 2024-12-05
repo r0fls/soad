@@ -359,13 +359,9 @@ class TastytradeBroker(BaseBroker):
     def _cancel_order(self, order_id):
         logger.info('Cancelling order', extra={'order_id': order_id})
         try:
-            response = requests.put(
-                f"{self.base_url}/accounts/{self.account_id}/orders/{order_id}/cancel", headers=self.headers)
-            response.raise_for_status()
-            cancellation_response = response.json()
-            logger.info('Order cancelled successfully', extra={
-                        'cancellation_response': cancellation_response})
-            return cancellation_response
+            account = Account.get_account(self.session, self.account_id)
+            account.delete_order(self.session, order_id)
+            logger.info('Order cancelled successfully')
         except requests.RequestException as e:
             logger.error('Failed to cancel order', extra={'error': str(e)})
 
