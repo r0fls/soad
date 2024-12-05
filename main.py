@@ -26,7 +26,7 @@ async def start_trading_system(config_path):
         logger.info('Configuration parsed successfully')
     except Exception as e:
         logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
-        return
+        raise e
 
     # Setup the database engine
     engine = create_database_engine(config)
@@ -188,21 +188,15 @@ async def main():
         if not args.config:
             parser.error('--config is required when mode is "trade"')
 
-        # Check if the config exists before going into the loop 
-        try:
-            parse_config(args.config)
-            logger.info('Configuration parsed successfully')
-        except Exception as e:
-            logger.error('Failed to parse configuration', extra={'error': str(e)}, exc_info=True)
-            return
-
         while True:
             try:
                 await start_trading_system(args.config)
             except Exception as e:
                 logger.error('Error in trading system', extra={'error': str(e)}, exc_info=True)
-                logger.info('Restarting the trading system')
+                logger.info('Restarting the trading system in 60 seconds')
+                await asyncio.sleep(60)
                 continue
+            
     elif args.mode == 'api':
         await start_api_server(config_path=args.config, local_testing=args.local_testing)
     elif args.mode == 'sync':
