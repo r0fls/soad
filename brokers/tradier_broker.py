@@ -335,6 +335,21 @@ class TradierBroker(BaseBroker):
             logger.error('Failed to retrieve options chain',
                          extra={'error': str(e)})
 
+    async def get_mid_price(self, symbol):
+        logger.info('Retrieving mid price', extra={'symbol': symbol})
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/markets/quotes?symbols={symbol}", headers=self.headers) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    bid = data.get('quotes', {}).get('quote', {}).get('bid')
+                    ask = data.get('quotes', {}).get('quote', {}).get('ask')
+                    mid_price = round((bid + ask) / 2, 2)
+                    logger.info('Mid price retrieved', extra={'symbol': symbol, 'mid_price': mid_price})
+                    return mid_price
+        except aiohttp.ClientError as e:
+            logger.error('Failed to retrieve mid price', extra={'error': str(e)})
+
     async def get_current_price(self, symbol):
         logger.info('Retrieving current price', extra={'symbol': symbol})
         try:

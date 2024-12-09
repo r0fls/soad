@@ -381,6 +381,10 @@ class TastytradeBroker(BaseBroker):
                          extra={'error': str(e)})
 
     async def get_current_price(self, symbol):
+        # TODO: get last instead of mid
+        return self.get_mid_price(symbol)
+
+    async def get_mid_price(self, symbol):
         if ':' in symbol:
             # Looks like this is already a streamer symbol
             pass
