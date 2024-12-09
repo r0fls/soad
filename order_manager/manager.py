@@ -5,6 +5,7 @@ from sqlalchemy import select
 from database.models import Position, Trade
 
 MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
+PEGGED_ORDER_CANCEL_AFTER = 15 # 15 seconds
 
 class OrderManager:
     def __init__(self, engine, brokers):
@@ -59,6 +60,19 @@ class OrderManager:
                     await broker.update_positions(order.id, session)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
+        elif order.execution_style == 'pegged':
+            cancel_threshold = datetime.utcnow() - timedelta(seconds=PEGGED_ORDER_CANCEL_AFTER)
+            if order.timestamp < cancel_threshold:
+                try:
+                    logger.info(f'Cancelling pegged order {order.id}', extra={'order_id': order.id})
+                    await broker.cancel_order(order.broker_id)
+                    await self.db_manager.update_trade_status(order.id, 'canceled')
+                    mid_price = await broker.get_mid_price(order.symbol)
+                    await self.place_order(
+                        order.symbol, order.quantity, order.side, order.strategy_name, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
+                    )
+                except Exception as e:
+                    logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
 
     async def run(self):
         logger.info('Running OrderManager')
