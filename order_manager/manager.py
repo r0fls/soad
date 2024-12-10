@@ -5,6 +5,7 @@ from sqlalchemy import select
 from database.models import Position, Trade
 
 MARK_ORDER_STALE_AFTER = 60 * 60 * 24 * 2 # 2 days
+PEGGED_ORDER_CANCEL_AFTER = 15 # 15 seconds
 
 class OrderManager:
     def __init__(self, engine, brokers):
@@ -35,7 +36,7 @@ class OrderManager:
         stale_threshold = datetime.utcnow() - timedelta(seconds=MARK_ORDER_STALE_AFTER)
 
         # Check if the order is stale
-        if order.timestamp < stale_threshold and order.status not in ['filled', 'canceled']:
+        if order.timestamp < stale_threshold and order.status not in ['filled', 'cancelled']:
             try:
                 logger.info(f'Marking order {order.id} as stale', extra={'order_id': order.id})
                 await self.db_manager.update_trade_status(order.id, 'stale')
@@ -59,6 +60,25 @@ class OrderManager:
                     await broker.update_positions(order.id, session)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
+        elif order.execution_style == 'pegged':
+            cancel_threshold = datetime.utcnow() - timedelta(seconds=PEGGED_ORDER_CANCEL_AFTER)
+            if order.timestamp < cancel_threshold:
+                try:
+                    logger.info(f'Cancelling pegged order {order.id}', extra={'order_id': order.id})
+                    await broker.cancel_order(order.broker_id)
+                    await self.db_manager.update_trade_status(order.id, 'cancelled')
+                    mid_price = await broker.get_mid_price(order.symbol)
+                    await broker.place_order(
+                        symbol=order.symbol,
+                        quantity=order.quantity,
+                        side=order.side,
+                        strategy=order.strategy,
+                        price=round(mid_price, 2),
+                        order_type='limit',
+                        execution_style=order.execution_style
+                    )
+                except Exception as e:
+                    logger.error(f'Error cancelling pegged order {order.id}', extra={'error': str(e)})
 
     async def run(self):
         logger.info('Running OrderManager')

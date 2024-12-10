@@ -51,7 +51,7 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def _place_order(self, symbol, quantity, side, price=None, order_type='limit'):
+    def _place_order(self, symbol, quantity, side, price=None, order_type='limit', execution_style=''):
         pass
 
     def _place_future_option_order(
@@ -342,7 +342,9 @@ class BaseBroker(ABC):
             side,
             strategy,
             price=None,
-            order_type='limit'):
+            order_type='limit',
+            execution_style=''
+            ):
         multiplier = futures_contract_size(symbol)
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_future_option_order, order_type
@@ -355,7 +357,9 @@ class BaseBroker(ABC):
             side,
             strategy,
             price=None,
-            order_type='limit'):
+            order_type='limit',
+            execution_style=''
+            ):
         multiplier = OPTION_MULTIPLIER
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_option_order, order_type
@@ -368,7 +372,9 @@ class BaseBroker(ABC):
             side,
             strategy,
             price=None,
-            order_type='limit'):
+            order_type='limit',
+            execution_style=''
+            ):
         multiplier = 1  # Regular stock orders don't have a multiplier
         return await self._place_order_generic(
             symbol, quantity, side, strategy, price, multiplier, self._place_order, order_type
@@ -383,7 +389,9 @@ class BaseBroker(ABC):
             price,
             multiplier,
             broker_order_func,
-            order_type='limit'):
+            order_type='limit',
+            execution_style=''
+            ):
         '''Generic method to place an order and update database'''
         logger.info(
             'Placing order',
@@ -434,7 +442,8 @@ class BaseBroker(ABC):
                 broker=self.broker_name,
                 strategy=strategy,
                 profit_loss=0,
-                success='yes'
+                success='yes',
+                execution_style=execution_style
             )
 
             # Update the trade and positions in the database
