@@ -10,12 +10,13 @@ from inspect import iscoroutine
 
 
 class BaseStrategy(ABC):
-    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=5):
+    def __init__(self, broker, strategy_name, starting_capital, rebalance_interval_minutes=5, execution_style=''):
         self.broker = broker
         self.strategy_name = strategy_name
         self.starting_capital = starting_capital
         self.rebalance_interval_minutes = rebalance_interval_minutes
         self.initialized = False
+        self.execution_style = execution_style
 
     @abstractmethod
     async def rebalance(self):
@@ -259,27 +260,33 @@ class BaseStrategy(ABC):
                      'strategy_name': self.strategy_name})
         return current_db_positions_dict
 
-    async def place_future_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit'):
+    async def place_future_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit', execution_style=''):
+        if execution_style == '':
+            execution_style = self.execution_style
         if is_futures_market_open() or not wait_till_open:
-            await self.broker.place_future_option_order(symbol, quantity, side, self.strategy_name, price, order_type)
+            await self.broker.place_future_option_order(symbol, quantity, side, self.strategy_name, price, order_type, execution_style=execution_style)
             logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={
                         'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:
             logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={
                         'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
 
-    async def place_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit'):
+    async def place_option_order(self, symbol, quantity, side, price, wait_till_open=True, order_type='limit', execution_style=''):
+        if execution_style == '':
+            execution_style = self.execution_style
         if is_market_open() or not wait_till_open:
-            await self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price, order_type)
+            await self.broker.place_option_order(symbol, quantity, side, self.strategy_name, price, order_type, execution_style=execution_style)
             logger.info(f"Placed {side} order for {symbol}: {quantity} shares", extra={
                         'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:
             logger.info(f"Market is closed, not placing {side} order for {symbol}: {quantity} shares", extra={
                         'strategy_name': self.strategy_name, 'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
 
-    async def place_order(self, stock, quantity, side, price, wait_till_open=True, order_type='limit'):
+    async def place_order(self, stock, quantity, side, price, wait_till_open=True, order_type='limit', execution_style=''):
+        if execution_style == '':
+            execution_style = self.execution_style
         if is_market_open() or not wait_till_open:
-            await self.broker.place_order(stock, quantity, side, self.strategy_name, price, order_type)
+            await self.broker.place_order(stock, quantity, side, self.strategy_name, price, order_type, execution_style=execution_style)
             logger.info(f"Placed {side} order for {stock}: {quantity} shares", extra={
                         'strategy_name': self.strategy_name, 'stock': stock, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         else:

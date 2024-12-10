@@ -36,7 +36,7 @@ class OrderManager:
         stale_threshold = datetime.utcnow() - timedelta(seconds=MARK_ORDER_STALE_AFTER)
 
         # Check if the order is stale
-        if order.timestamp < stale_threshold and order.status not in ['filled', 'canceled']:
+        if order.timestamp < stale_threshold and order.status not in ['filled', 'cancelled']:
             try:
                 logger.info(f'Marking order {order.id} as stale', extra={'order_id': order.id})
                 await self.db_manager.update_trade_status(order.id, 'stale')
@@ -66,7 +66,7 @@ class OrderManager:
                 try:
                     logger.info(f'Cancelling pegged order {order.id}', extra={'order_id': order.id})
                     await broker.cancel_order(order.broker_id)
-                    await self.db_manager.update_trade_status(order.id, 'canceled')
+                    await self.db_manager.update_trade_status(order.id, 'cancelled')
                     mid_price = await broker.get_mid_price(order.symbol)
                     await self.place_order(
                         order.symbol, order.quantity, order.side, order.strategy_name, round(mid_price, 2), order_type='limit', execution_style=order.execution_style
