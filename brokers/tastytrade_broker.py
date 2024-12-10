@@ -253,7 +253,7 @@ class TastytradeBroker(BaseBroker):
         logger.info('Placing order', extra={
                     'symbol': symbol, 'quantity': quantity, 'side': side, 'price': price, 'order_type': order_type})
         try:
-            if price is None or order_type != 'market':
+            if price is None and order_type != 'market':
                 last_price = await self.get_current_price(symbol)
                 price = round(last_price, 2)
 
@@ -382,7 +382,7 @@ class TastytradeBroker(BaseBroker):
 
     async def get_current_price(self, symbol):
         # TODO: get last instead of mid
-        return self.get_mid_price(symbol)
+        return await self.get_mid_price(symbol)
 
     async def get_mid_price(self, symbol):
         if ':' in symbol:
