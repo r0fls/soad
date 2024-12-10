@@ -36,7 +36,7 @@ class OrderManager:
         stale_threshold = datetime.utcnow() - timedelta(seconds=MARK_ORDER_STALE_AFTER)
 
         # Check if the order is stale
-        if order.timestamp < stale_threshold and order.status not in ['filled', 'cancelled']:
+        if order.timestamp < stale_threshold and order.status not in ['filled', 'cancelled', 'stale', 'rejected']:
             try:
                 logger.info(f'Marking order {order.id} as stale', extra={'order_id': order.id})
                 await self.db_manager.update_trade_status(order.id, 'stale')
@@ -60,6 +60,15 @@ class OrderManager:
                     await broker.update_positions(order.id, session)
             except Exception as e:
                 logger.error(f'Error reconciling order {order.id}', extra={'error': str(e)})
+        status = await broker.get_order_status(order.broker_id)
+        if status == 'rejected':
+            try:
+                logger.info(f'Marking order {order.id} as rejected', extra={'order_id': order.id})
+                await self.db_manager.update_trade_status(order.id, 'rejected')
+            except Exception as e:
+                logger.error(f'Error marking order {order.id} as rejected', extra={'error': str(e)})
+            return
+
         elif order.execution_style == 'pegged':
             cancel_threshold = datetime.utcnow() - timedelta(seconds=PEGGED_ORDER_CANCEL_AFTER)
             if order.timestamp < cancel_threshold:
