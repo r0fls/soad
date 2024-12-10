@@ -74,9 +74,9 @@ class OrderManager:
             if order.timestamp < cancel_threshold:
                 try:
                     logger.info(f'Cancelling pegged order {order.id}', extra={'order_id': order.id})
+                    mid_price = await broker.get_mid_price(order.symbol)
                     await broker.cancel_order(order.broker_id)
                     await self.db_manager.update_trade_status(order.id, 'cancelled')
-                    mid_price = await broker.get_mid_price(order.symbol)
                     await broker.place_order(
                         symbol=order.symbol,
                         quantity=order.quantity,
