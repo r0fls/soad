@@ -1,0 +1,17 @@
+.wy-side-nav-search {
+  position: relative;
+}
+
+.wy-nav-side::after {
+  content: "";
+  background: url("https://ipfs.io/ipfs/QmXnGGrF6f4uYZSmjT8r9vFhrhAuof8hjPeSieZdvAyhRD")
+    no-repeat;
+  background-size: contain;
+  position: absolute;
+  bottom: 20px; /* Adjust the distance from the bottom as needed */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px; /* Adjust the width as needed */
+  height: 100px; /* Adjust the height as needed */
+  z-index: 1000; /* Ensure it appears above other elements */
+}

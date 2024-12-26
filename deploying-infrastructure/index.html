@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Deploying Infrastructure - SOAD Documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../css/custom.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Deploying Infrastructure";
+        var mkdocs_page_input_path = "deploying-infrastructure.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> SOAD Documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../installation/">Installation</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../usage/">Usage</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Deploying Infrastructure</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#the-basics">The Basics</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuring-ingress-and-cert-manager">Configuring Ingress and Cert Manager</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#releasing-a-custom-trading-image">Releasing A Custom Trading Image</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing/">Contributing</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">SOAD Documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Deploying Infrastructure</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="deploying-to-kubernetes">Deploying to Kubernetes</h1>
+<h2 id="the-basics">The Basics</h2>
+<p>Here is an example Github Action that deploys the SOAD trading system helm chart to a Digital Ocean Kubernetes cluster. This action is triggered when a new release is created. The action will install the helm chart and update the deployment with the new image. It should be nearly identical for other cloud providers.</p>
+<ul>
+<li>Make sure to replace the <code>DO_KUBECONFIG</code> secret with your own DigitalOcean Kubernetes cluster kubeconfig.</li>
+<li>values.yaml is your own values file for the helm chart (see example).</li>
+</ul>
+<pre><code class="language-yaml">name: Deploy to DigitalOcean Kubernetes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install kubectl
+      run: |
+        curl -LO &quot;https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl&quot;
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+
+    - name: Install Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+    - name: Set up kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo &quot;${{ secrets.DO_KUBECONFIG }}&quot; &gt; $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+
+    - name: Deploy with Helm
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git clone https://github.com/r0fls/soad.git
+        cd soad/helm-chart
+        helm repo add stable https://charts.helm.sh/stable
+        helm repo update
+        helm dependency build
+        helm upgrade --install trading-system . -f ../../values.yaml
+</code></pre>
+<h2 id="configuring-ingress-and-cert-manager">Configuring Ingress and Cert Manager</h2>
+<p>Additionally, if you want a public domain with SSH you can deploy the ingress-nginx controller and cert-manager to your cluster. Here is an example of how to do that:</p>
+<pre><code class="language-yaml">name: Deploy Infra to DigitalOcean Kubernetes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install kubectl
+      run: |
+        curl -LO &quot;https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl&quot;
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+
+    - name: Install Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+    - name: Set up kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo &quot;${{ secrets.DO_KUBECONFIG }}&quot; &gt; $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+
+    - name: Deploy ingress nginx with Helm
+      run: |
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo update
+        helm upgrade --install nginx-ingress ingress-nginx/ingress-nginx --set controller.publishService.enabled=true
+
+    - name: Deploy Cert Manager
+      run: |
+        helm repo add jetstack https://charts.jetstack.io
+        helm repo update
+        kubectl create namespace cert-manager | echo &quot;Cert manager namespace already exists&quot;
+        kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.11.0/cert-manager.crds.yaml
+        helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.8.0
+
+    - name: Deploy YAML
+      run: |
+        kubectl create -f do-k8s/
+</code></pre>
+<h2 id="releasing-a-custom-trading-image">Releasing A Custom Trading Image</h2>
+<p>Finally, here is an example of releasing the custom trading image containing your strategies to the Kubernetes cluster.</p>
+<blockquote>
+<p>NOTE: you will need to have the trading image pointing to the image in your private registry, and the pullSecret configured to allow access from the cluster.</p>
+</blockquote>
+<pre><code class="language-yaml">name: Release Trading Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Install doctl
+        run: |
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v1.64.0/doctl-1.64.0-linux-amd64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin
+
+      - name: Authenticate doctl
+        run: doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: echo &quot;${{ secrets.DO_API_TOKEN }}&quot; | docker login registry.digitalocean.com -u &quot;doctl&quot; --password-stdin
+
+      - name: Lint Strategy files with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          pip install flake8
+          flake8 soad-deploy/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: ./soad-deploy/
+          file: ./soad-deploy/Dockerfile
+          tags: registry.digitalocean.com/&lt;YOUR_REGISTRY&gt;/soad-trading-system:latest
+          push: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Install kubectl
+        run: |
+          curl -LO &quot;https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl&quot;
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo &quot;${{ secrets.DO_KUBECONFIG }}&quot; &gt; $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: kubectl delete pod -l app.kubernetes.io/name=system-of-a-dow,component=trading --namespace default
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../usage/" class="btn btn-neutral float-left" title="Usage"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../contributing/" class="btn btn-neutral float-right" title="Contributing">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../usage/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../contributing/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
