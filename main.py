@@ -13,6 +13,7 @@ from order_manager.manager import run_order_manager
 
 SYNC_WORKER_INTERVAL_SECONDS = 60 * 5
 ORDER_MANAGER_INTERVAL_SECONDS = 9 # TODO: stream orders instead of polling
+DASHBOARD_BIND_PORT = os.environ.get("DASHBOARD_BIND_PORT", 8000)
 
 # TODO: fix the need to restart to refresh the tastytrade token
 # TODO: refactor/redesign to allow strategies that are not discretely rebalanced
@@ -106,7 +107,7 @@ async def start_api_server(config_path=None, local_testing=False):
     try:
         app = create_app(engine)
         logger.info('API server created successfully')
-        app.run(host="0.0.0.0", port=8000, debug=True)
+        app.run(host="0.0.0.0", port=DASHBOARD_BIND_PORT, debug=True)
     except Exception as e:
         logger.error('Failed to start API server', extra={'error': str(e)}, exc_info=True)
 
